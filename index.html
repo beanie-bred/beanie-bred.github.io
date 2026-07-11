@@ -172,11 +172,37 @@
 </div>
 
 <script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
 </script>
 
 <script type="module">
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+// Loader for real (Blender/Rodin-authored) character models, sitting alongside
+// the procedural geometry factories below. Models are Draco-compressed .glb
+// exports from game-assets/ — see Documentation/ART_BIBLE.md for the pipeline.
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/');
+const gltfLoader = new GLTFLoader();
+gltfLoader.setDRACOLoader(dracoLoader);
+function loadModel(url){
+  return new Promise((resolve, reject) => {
+    gltfLoader.load(url, (gltf) => resolve(gltf.scene), undefined, reject);
+  });
+}
+function loadModelFull(url){        // like loadModel, but keeps gltf.animations too
+  return new Promise((resolve, reject) => {
+    gltfLoader.load(url, (gltf) => resolve(gltf), undefined, reject);
+  });
+}
 
 /* ═══════════════ EDIT ME ═══════════════ */
 const CONFIG = {
@@ -216,8 +242,21 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.14;
 document.body.appendChild(renderer.domElement);
 
-const SPACE_BG  = new THREE.Color(0x2b3a5e);   // dark pastel blue
-const GARDEN_BG = new THREE.Color(0xbcd8ee);   // light pastel blue
+/* ═══════════════ DOLL-DIORAMA PALETTE ═══════════════
+   Handcrafted felt/wool/knit storybook look — Animal Crossing × The Little
+   Prince × Scandinavian children's books. Every color carries a little gray;
+   nothing pure/neon/metallic. See ART_BIBLE.md "Palette & Lighting". */
+const PALETTE = {
+  cream:0xf7f2e8, warmWhite:0xfff9f3, lightBeige:0xe9dfc9,
+  softBrown:0xa67c52, walnut:0x7a5a46, warmGray:0xbfb7ae,
+  sageGreen:0xb7c8a3, moss:0x92ae76, mutedPine:0x6b8c63,
+  dustyBlue:0xafc8e8, skyBlue:0xcfe6f5, mutedLavender:0xcfc6e8,
+  softPink:0xeec7c7, warmPeach:0xf3d2b2, mutedMustard:0xd8b96a,
+  nightNavy:0x2a3452,          // deep navy, never pure black
+  lampAmber:0xffd9a0,          // warm table-lamp glow for lanterns/fireflies
+};
+const SPACE_BG  = new THREE.Color(PALETTE.nightNavy);
+const GARDEN_BG = new THREE.Color(PALETTE.skyBlue);
 const scene = new THREE.Scene();
 scene.background = SPACE_BG.clone();
 const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 3000);
@@ -226,22 +265,35 @@ addEventListener('resize', () => {
   camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
 });
 
-/* ---------- lights ---------- */
-const hemi = new THREE.HemisphereLight(0xe8eeff, 0x8a7a9e, 1.45);
+/* ---------- tiny warm bloom (lanterns, fireflies, stars, gate glow only) ----------
+   High threshold so only genuinely bright/emissive things soften-glow — the
+   diorama itself should never look blown out, just gently sun-through-curtains. */
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.35, 0.6, 0.82);
+composer.addPass(bloomPass);
+function renderScene(){ composer.render(); }
+
+/* ---------- lights: soft, warm, no black shadows anywhere ----------
+   Hemisphere ground bounce is a warm cream (not a cold/purple tint) so the
+   undersides of everything stay lit like sun through a curtain, and the
+   directional "sun" is a low-contrast warm peach rather than a hard key. */
+const hemi = new THREE.HemisphereLight(PALETTE.warmWhite, PALETTE.lightBeige, 1.55);
 scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfff6e8, 1.4);
+const sun = new THREE.DirectionalLight(PALETTE.warmPeach, 1.05);
 sun.position.set(80, 120, 60);
 scene.add(sun);
 scene.add(camera);
-const camFill = new THREE.PointLight(0xffeeda, 110, 110, 2);
+const camFill = new THREE.PointLight(PALETTE.lampAmber, 95, 110, 2);
 camFill.position.set(0, 2.5, 3);
 camera.add(camFill);
 
 /* ---------- helpers ---------- */
 const V = () => new THREE.Vector3();
-const mat = (c, o={}) => new THREE.MeshStandardMaterial({ color:c, roughness:0.88, metalness:0, ...o });
+const mat = (c, o={}) => new THREE.MeshStandardMaterial({ color:c, roughness:0.92, metalness:0, ...o });
 const animators  = [];
 const ephemerals = [];
 function randDir(){
@@ -493,7 +545,7 @@ function makeChibi(style){  // 'beanie' | 'bred'
     const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.255, 0.262, 0.07, 16), mat(0x6a4426));
     belt.position.y = 0.85; inner.add(belt);
     const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.05, 0.025),
-      mat(0xc9ccd6, { roughness:0.3, metalness:0.6 }));
+      mat(0xc9ccd6, { roughness:0.6, metalness:0.25 }));   // brushed, not chrome
     buckle.position.set(0, 0.85, 0.252); inner.add(buckle);
     const shirt = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.3, 6, 14), mat(0x232329));
     shirt.position.y = 1.08; inner.add(shirt);
@@ -530,7 +582,7 @@ function makeChibi(style){  // 'beanie' | 'bred'
       btn.position.set(0, 0.9 + b*0.11, 0.258); inner.add(btn);
     }
     const chain = new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.008, 6, 20, Math.PI),
-      mat(0xd8a94e, { roughness:0.35, metalness:0.5 }));
+      mat(0xd8a94e, { roughness:0.55, metalness:0.3 }));   // warm brushed gold, not glossy
     chain.position.set(0, 1.27, 0.13); chain.rotation.set(1.15, 0, Math.PI); inner.add(chain);
   }
 
@@ -1004,13 +1056,23 @@ function buildBooks(g, R){
   // chippy napping on his own little stack
   const seat = makeStack(3, 1.1, 0.15);
   placeOn(g, seat, chippyN, R);
-  const chippy = makeChippy();
-  chippy.scale.setScalar(0.9); // palm-sized beside Rachel
+  // Chippy: real Blender/Rodin model (game-assets/chippy/chippy.glb), loaded async
+  // into a placeholder group so world-building never blocks on the network.
+  const chippy = new THREE.Group();
   chippy.position.copy(chippyN).multiplyScalar(R + 3*0.26*1.1);
   orientToNormal(chippy, chippyN);
+  chippy.rotateY(2.4); // face toward the landing spot; tuned against the model's raw front
   g.add(chippy);
+  let chippyModel = null;
+  loadModel('./game-assets/chippy/chippy.glb').then((model) => {
+    chippyModel = model;
+    chippy.add(model);
+  }).catch((err) => {
+    console.error('Chippy model failed to load, falling back to placeholder', err);
+    chippy.add(makeChippy());
+  });
   animators.push((t) => {
-    chippy.children[0].scale.setScalar(1 + 0.03*Math.sin(t*1.6));   // gentle breathing
+    if (chippyModel) chippyModel.scale.setScalar(1 + 0.03*Math.sin(t*1.6));   // gentle breathing
   });
   // a few floating loose pages
   for (let i = 0; i < 9; i++){
@@ -1019,12 +1081,15 @@ function buildBooks(g, R){
     animators.push((t) => { page.rotation.x = Math.sin(t*1.4 + i)*0.6; page.rotation.z = Math.sin(t + i)*0.4; });
     orbiter(g, page, R + 2 + i*0.5, 0.12 + i*0.04, Math.random()*2.5, Math.random()*2.5, 0.4, 1.3);
   }
+  return { chippy };
 }
 
 function grassField(g, R, count, color, skipN=null, skipAng=0){
-  const blade = new THREE.ConeGeometry(0.05, 0.55, 5);
-  blade.translate(0, 0.27, 0);
-  const im = new THREE.InstancedMesh(blade, mat(color, { roughness:0.95 }), count);
+  // soft rounded "velvet tuft" instead of a spiky blade — reads like short
+  // brushed fleece rather than individual grass blades (see ART_BIBLE.md)
+  const blade = new THREE.CapsuleGeometry(0.1, 0.22, 3, 6);
+  blade.translate(0, 0.21, 0);
+  const im = new THREE.InstancedMesh(blade, mat(color, { roughness:0.97 }), count);
   const dummy = new THREE.Object3D();
   for (let i = 0; i < count; i++){
     let n = randDir();
@@ -1043,7 +1108,7 @@ function grassField(g, R, count, color, skipN=null, skipAng=0){
 }
 
 function buildCucumber(g, R){
-  grassField(g, R, 550, 0x7fbf6f);
+  grassField(g, R, 550, PALETTE.moss);
   // cucumbers schooling like fish
   school(g, () => makeCucumber(1), 9, R + 3.2, 0.28, 2.6, 0.8);
   school(g, () => makeCucumber(1), 8, R + 4.4, -0.2, 2.4, 0.65);
@@ -1177,7 +1242,7 @@ function buildPigeons(g, R, ctx){
 }
 
 function buildGarden(g, R, ctx){
-  grassField(g, R, 4200, 0x8fd08a);
+  grassField(g, R, 4200, PALETTE.sageGreen);
   const couchN = V().set(0.2, 1, 0.1).normalize();
   const landN = ctx.gardenLandN;
   const dummy = new THREE.Object3D();
@@ -1197,9 +1262,9 @@ function buildGarden(g, R, ctx){
     g.add(im);
     return im;
   }
-  const TULIP = [0xf2a0b4, 0xf6d98f, 0xc8b0e8, 0xf0937f, 0xf6b8d8];
-  const HYD   = [0xa8c4f0, 0xc0aee8, 0xf2b8cc, 0x9fd0e8];
-  const ROSE  = [0xe87f9a, 0xf2aabf, 0xf6d4dc, 0xf0937f];
+  const TULIP = [PALETTE.softPink, PALETTE.mutedMustard, PALETTE.mutedLavender, PALETTE.warmPeach, 0xe6b8c4];
+  const HYD   = [PALETTE.dustyBlue, PALETTE.mutedLavender, PALETTE.softPink, PALETTE.skyBlue];
+  const ROSE  = [0xd9899e, PALETTE.softPink, 0xe8d4d8, PALETTE.warmPeach];
   const col = new THREE.Color();
   // stems for everything
   const stemGeo = new THREE.CylinderGeometry(0.03, 0.045, 0.5, 6);
@@ -1304,23 +1369,48 @@ function buildGarden(g, R, ctx){
   // soft glow so she can find it
   const glow = new THREE.PointLight(0xfff4dd, 60, 30, 2);
   glow.position.set(0, 4, 0); couch.add(glow);
-  // bred sitting on the couch
-  const bred = makeChibi('bred');
-  bred.position.set(-0.1, 0.37, 0.42);
-  bred.userData.sit(true);
+  // bred: real Blender/Rodin model. No rig, so (like Chippy/Percy) he stands
+  // on the cushion top (y=1.03 = cush.position.y 0.9 + half cush height 0.13)
+  // rather than attempting an unrigged "sitting" pose.
+  const bred = new THREE.Group();
+  bred.position.set(-0.15, 1.03, 0.1);
   couch.add(bred);
-  // percy (puppy-sized plush) + chippy resting beside him
-  const percyPlush = plushPigeon({}, { stripes:true });
-  percyPlush.scale.setScalar(1.5);
-  percyPlush.position.set(1.15, 1.03, 0.1); percyPlush.rotation.y = -0.4;
-  couch.add(percyPlush);
-  const chippyPlush = makeChippy();
-  chippyPlush.scale.setScalar(1.35);
+  let bredModel = null;
+  loadModel('./game-assets/bred/bred.glb').then((model) => {
+    model.rotation.y = Math.PI; // face outward, toward the camera/Rachel
+    bredModel = model;
+    bred.add(model);
+  }).catch((err) => {
+    console.error('Bred model failed to load, falling back to placeholder', err);
+    const fallback = makeChibi('bred');
+    fallback.userData.sit(true);
+    bred.add(fallback);
+  });
+  // percy (real model, puppy-sized) + chippy resting beside him
+  const percy = new THREE.Group();
+  percy.position.set(1.15, 0.9, 0.1); percy.rotation.y = -0.4 + Math.PI;
+  couch.add(percy);
+  loadModel('./game-assets/percy/percy.glb').then((model) => { percy.add(model); })
+    .catch((err) => {
+      console.error('Percy model failed to load, falling back to placeholder', err);
+      const fb = plushPigeon({}, { stripes:true }); fb.scale.setScalar(1.5);
+      percy.add(fb);
+    });
+  const chippyPlush = new THREE.Group();
   chippyPlush.position.set(-1.25, 1.03, 0.15); chippyPlush.rotation.y = 0.5;
   couch.add(chippyPlush);
+  loadModel('./game-assets/chippy/chippy.glb').then((model) => {
+    model.scale.setScalar(1.35);
+    chippyPlush.add(model);
+  }).catch((err) => {
+    console.error('Chippy model failed to load, falling back to placeholder', err);
+    const fb = makeChippy(); fb.scale.setScalar(1.35);
+    chippyPlush.add(fb);
+  });
   animators.push((t) => {
-    percyPlush.position.y = 1.03 + Math.abs(Math.sin(t*1.9))*0.02;
-    chippyPlush.children[0].scale.setScalar(1 + 0.03*Math.sin(t*1.5));
+    percy.position.y = 0.9 + Math.abs(Math.sin(t*1.9))*0.02;
+    if (chippyPlush.children[0]) chippyPlush.children[0].scale.setScalar(1 + 0.03*Math.sin(t*1.5));
+    if (bredModel) bredModel.scale.setScalar(1 + 0.02*Math.sin(t*1.3));
   });
   // butterflies + floating petals
   for (let i = 0; i < 12; i++){
@@ -1340,33 +1430,34 @@ function buildGarden(g, R, ctx){
     orbiter(g, bf, R + 1.6 + Math.random(), 0.15 + Math.random()*0.2,
       Math.random()*2.6, Math.random()*2.6, 0.4, 2);
   }
-  return { couchN, bred, couch };
+  return { couchN, bred, percy, chippyPlush, couch };
 }
 
 /* ═══════════════ ASSEMBLE THE UNIVERSE ═══════════════ */
 const WORLD_DEFS = [
   { key:'chicago',  name:'Chicago',          emoji:'🏙️', tag:'small, gray, and a little lonely',
     mission:'<b>MISSION:</b> jump to another planet! Drag / swipe to aim your view at the little moon, then press <b>SPACE</b> to leap. Hop the tiny moons to reach each big world.',
-    pos:[0,0,0], r:7,  col:0xa2a2b4, step:'stone' },
+    pos:[0,0,0], r:7,  col:PALETTE.warmGray, step:'stone' },
   { key:'books',    name:'Book Stacks',      emoji:'📚', tag:'somebody should really tidy these',
     mission:'<b>MISSION:</b> say hi to Chippy (he is napping on a book pile), then keep leaping!',
-    pos:[90,15,-25], r:9.5, col:0xe6d8c4, step:'book' },
+    pos:[90,15,-25], r:9.5, col:PALETTE.lightBeige, step:'book' },
   { key:'cucumber', name:'Cucumber Meadow',  emoji:'🥒', tag:'they school like fish out here',
     mission:'<b>MISSION:</b> listen to the grass under your feet… and keep leaping!',
-    pos:[170,-5,-85], r:12, col:0x9ecf92, step:'grass' },
+    pos:[170,-5,-85], r:12, col:PALETTE.moss, step:'grass' },
   { key:'sea',      name:'The Deep Blue',    emoji:'🐋', tag:'walk gently — the whales are singing',
     mission:'<b>MISSION:</b> cross the sea. Something is fluttering on the next world…',
-    pos:[120,-25,-175], r:14, col:0x8fc6e8, step:'water' },
+    pos:[120,-25,-175], r:14, col:PALETTE.dustyBlue, step:'water' },
   { key:'pigeon',   name:'Pigeon Plaza',     emoji:'🕊️', tag:'way, WAY too many pigeons',
     mission:'<b>MISSION:</b> one of these pigeons is not like the others. Find <b>Percy</b> and press <b>SPACE</b> to talk to him.',
-    pos:[20,5,-205], r:16, col:0xcabed2, step:'stone' },
+    pos:[20,5,-205], r:16, col:PALETTE.mutedLavender, step:'stone' },
   { key:'garden',   name:'The Garden',       emoji:'💐', tag:'happy birthday, Beanie 🤍',
     mission:'<b>MISSION:</b> wander the garden… someone set up a big white couch for you. 🤍',
-    pos:[-160,25,-60], r:22, col:0xaed99f, step:'grass' },
+    pos:[-160,25,-60], r:22, col:PALETTE.sageGreen, step:'grass' },
 ];
 const MOON_NAMES = ['Mochi Moon','Sorbet Moon','Taffy Moon','Macaron Moon',
                     'Pudding Moon','Custard Moon','Jelly Moon','Waffle Moon'];
-const MOON_COLS  = [0xf2b8c6, 0xb0e0cc, 0xc8bce8, 0xf6dfa6, 0xaed4f0, 0xf6c4a8, 0xd8ecb0, 0xe8c0dc];
+const MOON_COLS  = [PALETTE.softPink, PALETTE.sageGreen, PALETTE.mutedLavender, PALETTE.mutedMustard,
+                     PALETTE.dustyBlue, PALETTE.warmPeach, PALETTE.moss, PALETTE.lightBeige];
 
 const bodies = [];
 function addBody(b){
@@ -1409,7 +1500,7 @@ const GARDEN_I = 5, PIGEON_I = 4;
   bodies[GARDEN_I].landN = V().copy(gLandN).multiplyScalar(Math.cos(1.5))
     .addScaledVector(t0g, Math.sin(1.5)).normalize();
   worldRefs.chicago = buildChicago(bodies[0].group, bodies[0].r);
-  buildBooks(bodies[1].group, bodies[1].r);
+  worldRefs.books = buildBooks(bodies[1].group, bodies[1].r);
   buildCucumber(bodies[2].group, bodies[2].r);
   buildSea(bodies[3].group, bodies[3].r);
   worldRefs.pigeon = buildPigeons(bodies[PIGEON_I].group, bodies[PIGEON_I].r);
@@ -1432,10 +1523,65 @@ const GARDEN_I = 5, PIGEON_I = 4;
   }
 }
 
-/* ---------- beanie ---------- */
-const her = makeChibi('beanie');
-her.scale.setScalar(1.05);
+/* ---------- beanie: real rigged Blender model (game-assets/beanie/beanie.glb) ----------
+   Loaded async into a placeholder Group, same pattern as the other real models.
+   her.userData is a single persistent object (moving/sitting/sit()) so the rest of
+   the engine (updateWalk, percy-flight, finale) never needs to know whether the
+   real skinned model or the procedural fallback is behind it. See ART_BIBLE.md —
+   only "Idle" (bind/rest pose) and "Walk" (the rig's native RunFK2 action) are
+   proven; there is no dedicated sitting/talking animation yet, so sit(true)
+   currently just holds the rest pose rather than visually bending into a seat. */
+const her = new THREE.Group();
+her.userData = {
+  moving:false, sitting:false, walkP:0, lastStep:0,
+  inner: new THREE.Object3D(),   // inert stand-in so updateWalk's turn-recovery tweak never crashes
+  sit(v){ this.sitting = v; },
+};
 scene.add(her);
+let herMixer = null, herWalkAction = null, herIdleAction = null, herUsingFallback = false;
+loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
+  her.add(gltf.scene);
+  herMixer = new THREE.AnimationMixer(gltf.scene);
+  const walkClip = gltf.animations.find((a) => a.name === 'Walk');
+  const idleClip = gltf.animations.find((a) => a.name === 'Idle');
+  // Both actions play continuously; only their relative weight changes, so the
+  // mixer always has a well-defined blended pose (an unweighted "no action"
+  // state exports as the raw T-pose-ish edit-bone rest, not the relaxed stance).
+  if (idleClip){
+    herIdleAction = herMixer.clipAction(idleClip);
+    herIdleAction.setLoop(THREE.LoopRepeat);
+    herIdleAction.play();
+    herIdleAction.setEffectiveWeight(1);
+  }
+  if (walkClip){
+    herWalkAction = herMixer.clipAction(walkClip);
+    herWalkAction.setLoop(THREE.LoopRepeat);
+    herWalkAction.play();
+    herWalkAction.setEffectiveWeight(0);
+  }
+}).catch((err) => {
+  console.error('Beanie model failed to load, falling back to procedural', err);
+  const fallback = makeChibi('beanie');
+  fallback.scale.setScalar(1.05);
+  her.add(fallback);
+  Object.assign(her.userData, fallback.userData);   // keep the same object identity
+  herUsingFallback = true;
+});
+function animBeanieSkinned(dt){
+  if (!herMixer) return;
+  herMixer.update(dt);
+  const u = her.userData;
+  if (u.moving && !u.sitting) u.walkP += dt*10.5;   // keeps footstep cadence in sync
+  const walkTarget = (u.moving && !u.sitting) ? 1 : 0;
+  if (herWalkAction){
+    const w = herWalkAction.getEffectiveWeight();
+    herWalkAction.setEffectiveWeight(w + (walkTarget - w) * Math.min(1, dt*8));
+  }
+  if (herIdleAction){
+    const w = herIdleAction.getEffectiveWeight();
+    herIdleAction.setEffectiveWeight(w + ((1 - walkTarget) - w) * Math.min(1, dt*8));
+  }
+}
 
 /* ---------- movement / state ---------- */
 const X_AXIS = new THREE.Vector3(1,0,0), Y_AXIS = new THREE.Vector3(0,1,0),
@@ -1766,7 +1912,7 @@ function arriveGarden(){
   scene.remove(holder);
   percyFly = null;
   her.userData.sit(false);
-  her.scale.setScalar(1.05);
+  her.scale.setScalar(1);   // real model's height is already baked in at export time
   const g = bodies[GARDEN_I];
   const landPos = V().copy(g.center).addScaledVector(g.landN, g.r);
   const couchPos = V().copy(g.center).addScaledVector(worldRefs.garden.couchN, g.r);
@@ -1776,7 +1922,7 @@ function arriveGarden(){
   // pastel daylight
   scene.background.copy(GARDEN_BG);
   for (const s of starLayers) s.visible = false;
-  hemi.intensity = 1.7; sun.intensity = 1.7;
+  hemi.intensity = 1.85; sun.intensity = 1.25;   // golden-hour warmth, still low-contrast
   playMelody(MELODY_BDAY);          // ...now it can be the birthday song
   arrive(GARDEN_I);
   followCam(1, her.position, herUp(tmpV), herFwd(tmpV2), 9, true);
@@ -2038,8 +2184,10 @@ function step(dt){
   simT += dt;
   const t = simT;
   for (const fn of animators) fn(t, dt);
-  animAvatar(her, t, dt);
-  if (worldRefs.garden) animAvatar(worldRefs.garden.bred, t, dt);
+  if (herUsingFallback) animAvatar(her, t, dt); else animBeanieSkinned(dt);
+  // note: garden.bred is now a real-model placeholder Group, not a makeChibi
+  // rig — its breathing pulse is handled by the animator registered in
+  // buildGarden() instead of animAvatar().
   updateEphemerals(dt);
   updatePercyScatter(dt);
   maybeShoot(dt);
@@ -2065,10 +2213,14 @@ function step(dt){
   else if (state === 'percyfly') updatePercyFlight(dt, t);
   else if (state === 'finale')   updateFinale(dt, t);
 }
+let debugFreeze = false;      // when true, the loop stops stepping/rendering so a
+                               // one-off debug camera shot (framePoint/lookAt) survives
+                               // long enough for an external screenshot to capture it.
 function tick(){
   requestAnimationFrame(tick);
+  if (debugFreeze) return;
   step(Math.min(clock.getDelta(), 0.05));
-  renderer.render(scene, camera);
+  renderScene();
 }
 tick();
 
@@ -2080,13 +2232,43 @@ window.__world = {
   get visited(){ return [...visitedWorlds]; },
   get target(){ return target ? target.name : null; },
   pos(){ return her.position.toArray().map(v => +v.toFixed(2)); },
+  lookAt(x, y, z){                  // point the raw camera at a world position (debug only)
+    camera.lookAt(x, y, z);
+    renderScene();
+  },
+  framePoint(x, y, z, planetCenter, dist=4){  // hover the raw camera near a world point (debug only)
+    const p = new THREE.Vector3(x, y, z);
+    const c = planetCenter ? new THREE.Vector3(...planetCenter) : new THREE.Vector3(0,0,0);
+    const up = p.clone().sub(c).normalize();
+    let side = new THREE.Vector3(1,0,0).cross(up);
+    if (side.lengthSq() < 1e-6) side.set(0,0,1).cross(up);
+    side.normalize();
+    camera.position.copy(p).addScaledVector(up, dist*0.4).addScaledVector(side, dist);
+    camera.up.copy(up);
+    camera.lookAt(p);
+    debugFreeze = true;
+    renderScene();
+  },
+  freeze(v){ debugFreeze = v; renderScene(); },
+  planetCenter(i){ return bodies[i].center.toArray(); },
+  chippyWorldPos(){
+    return worldRefs.books ? worldRefs.books.chippy.getWorldPosition(new THREE.Vector3()).toArray() : null;
+  },
+  chippyLoaded(){ return worldRefs.books ? worldRefs.books.chippy.children.length > 0 : false; },
+  couchWorldPos(){
+    return worldRefs.garden ? worldRefs.garden.couch.getWorldPosition(new THREE.Vector3()).toArray() : null;
+  },
+  couchCharWorldPos(who){          // who: 'bred' | 'percy' | 'chippyPlush'
+    return worldRefs.garden ? worldRefs.garden[who].getWorldPosition(new THREE.Vector3()).toArray() : null;
+  },
+  waitFor(ms){ return new Promise((r) => setTimeout(r, ms)); },
   start(){ startJourney(); },
   jumpChain(){ const n = bodies[curI].chainNext; if (n != null) jumpTo(bodies[n]); },
   get chainNext(){ return bodies[curI].chainNext; },
   pump(seconds){                    // advance the simulation manually (testing when tab is hidden)
     const n = Math.ceil(seconds*30);
     for (let i = 0; i < n; i++) step(1/30);
-    renderer.render(scene, camera);
+    renderScene();
   },
   aimAtBody(i){
     const b = bodies[i];

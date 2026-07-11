@@ -33,3 +33,21 @@ window.__world: pump(seconds) steps the sim manually; aimAtBody(i) brute-forces
 a real aim lock; goto/gotoPercy/gotoCouch; jumpChain; info(). ?test=1 enables a
 hashchange bridge; inert otherwise. Full regression = chain 12 hops via
 aimAtBody+SPACE, percy dialogue, garden, finale, card, console must be silent.
+
+Debug-only additions for verifying placed objects on small planets: `freeze(v)`
+halts the main tick loop (needed because a normal screenshot round-trip is slow
+enough for the live rAF loop to re-render and clobber a one-off debug camera
+shot before it's captured); `framePoint(x,y,z,planetCenter,dist)` hovers the raw
+camera near a world point — pass the actual planet center (bodies[i].center),
+not the origin, since planets are NOT centered at (0,0,0); `lookAt`,
+`chippyWorldPos`, `chippyLoaded`, `waitFor(ms)` support this. None of these run
+automatically; harmless if untouched.
+
+## Real 3D models
+Loaded via GLTFLoader + DRACOLoader (`three/addons/` mapped in the importmap to
+the same jsdelivr CDN as the bare `three` import — Three r160 addons path).
+`loadModel(url)` returns a Promise<THREE.Group>; call sites create a
+placeholder `THREE.Group()` synchronously (positioned/oriented immediately) and
+`.add()` the resolved model into it once the async load finishes, so world
+construction is never blocked by the network. See ART_BIBLE.md for the Blender
+export pipeline and per-model orientation notes.
