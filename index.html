@@ -2255,6 +2255,22 @@ window.__world = {
     return worldRefs.books ? worldRefs.books.chippy.getWorldPosition(new THREE.Vector3()).toArray() : null;
   },
   chippyLoaded(){ return worldRefs.books ? worldRefs.books.chippy.children.length > 0 : false; },
+  beanieBoneDebug(){
+    const model = her.children[0];
+    if (!model) return null;
+    const out = { bones:{}, allBoneNames:[] };
+    model.traverse((o) => {
+      if (o.isBone){
+        out.allBoneNames.push(o.name);
+        if (/upperarm/i.test(o.name)){
+          out.bones[o.name] = { quat: o.quaternion.toArray().map(v => +v.toFixed(4)) };
+        }
+      }
+    });
+    out.idleWeight = herIdleAction ? +herIdleAction.getEffectiveWeight().toFixed(3) : null;
+    out.walkWeight = herWalkAction ? +herWalkAction.getEffectiveWeight().toFixed(3) : null;
+    return out;
+  },
   couchWorldPos(){
     return worldRefs.garden ? worldRefs.garden.couch.getWorldPosition(new THREE.Vector3()).toArray() : null;
   },

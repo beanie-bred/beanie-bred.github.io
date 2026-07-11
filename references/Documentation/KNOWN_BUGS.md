@@ -2,11 +2,17 @@
 - No blocking bugs open after the 2026-07-11 regression (zero console errors;
   12-hop + Percy + Garden + finale run passes with the real skinned Beanie
   avatar driving the whole journey).
-- Cosmetic: BeanieRig's native "Walk" action (RunFK2) swings her arms in a
-  wide sideways reach rather than a natural front-back stride. This is the
-  rig's own pre-existing authored motion, not something introduced by the
-  retargeting/wiring work — no Mixamo retargeting was needed for Walk at all.
-  Fixing the swing itself would mean editing the source animation in Blender.
+- Investigated (2026-07-12), turned out to be a false alarm: the "wide
+  sideways arm swing" reported earlier was a debug-camera parallax artifact
+  (framePoint() viewed close-up from behind/above), not a real pose problem.
+  Direct comparison confirmed Idle and Walk have nearly identical UpperArmL/R
+  rotation (x≈-0.31 both), and from the normal in-game camera angle both read
+  as a natural relaxed stance. Do NOT re-attempt "fixing" this by rotating
+  UpperArmL/R without visually confirming from the standard follow-camera
+  angle first, not framePoint() — three attempts (+22°, +8°, -10° extra
+  rotation about local X) all produced a broken crossed-arm look, reverted.
+  If arm feel is ever revisited, verify the local-X axis assumption first
+  (decompose the bone's actual world-space axes) rather than trial-and-error.
 - Missing: no sitting/talking pose for the real Beanie model — sit(true)
   currently just holds the Idle pose (title screen, Percy-mount). Bred,
   Percy, and Chippy on the finale couch stand rather than sit for the same
