@@ -7,7 +7,7 @@
 <style>
   :root{ --gold:#ffd166; --pink:#f2a0b4; --ink:#3a3050; }
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{width:100%;height:100%;overflow:hidden;background:#20304f;
+  html,body{width:100%;height:100%;overflow:hidden;background:#394a6b;
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:#fff}
   canvas{display:block;cursor:grab}
   canvas:active{cursor:grabbing}
@@ -21,6 +21,10 @@
   #intro h1{font-family:"Snell Roundhand","Apple Chancery","Segoe Script","Brush Script MT",cursive;
     font-size:clamp(38px,6.2vw,68px);font-weight:400;color:#ffeef5;line-height:1.02;
     text-shadow:0 0 34px rgba(242,160,180,.6),0 0 70px rgba(150,180,255,.3)}
+  #introLogo{width:clamp(280px,42vw,520px);max-width:88vw;height:auto;
+    filter:drop-shadow(0 6px 30px rgba(0,0,0,.35)) drop-shadow(0 0 60px rgba(150,180,255,.25));
+    animation:logoFloat 4.2s ease-in-out infinite}
+  @keyframes logoFloat{50%{transform:translateY(-10px)}}
   #intro .sub{font-size:clamp(14px,2.2vw,18px);color:#c8d4ee;max-width:520px;line-height:1.6}
   #pressSpace{margin-top:1vh;font-size:clamp(16px,2.6vw,21px);font-weight:600;color:#ffe9c9;
     letter-spacing:1px;animation:pulseTxt 1.6s ease-in-out infinite;
@@ -38,6 +42,12 @@
     background:rgba(30,32,64,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,224,138,.35);
     color:#ffeccf;transition:opacity .6s}
   #mission b{color:var(--gold)}
+  #guide{position:fixed;top:74px;left:50%;transform:translateX(-50%) translateY(-6px);z-index:20;
+    font-size:12.5px;font-weight:600;padding:7px 16px;border-radius:999px;white-space:nowrap;
+    background:rgba(30,32,64,.55);backdrop-filter:blur(8px);border:1px solid rgba(150,200,255,.4);
+    color:#dbe7ff;opacity:0;transition:opacity .4s,transform .4s;pointer-events:none}
+  #guide.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #guide .near{color:#a8f0c0}
   #dots{position:fixed;top:70px;right:16px;z-index:20;display:flex;gap:8px;align-items:center}
   .dot{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.18);
     border:1px solid rgba(255,255,255,.3);transition:all .5s}
@@ -130,14 +140,15 @@
 <body>
 
 <div id="intro">
-  <h1 id="introTitle">Rachel's<br/>Little Universe</h1>
-  <div class="sub">a tiny birthday journey across the worlds you love</div>
+  <img id="introLogo" src="./logo.png" alt="Beanie & Bred"/>
+  <div class="sub">a tiny journey across the worlds you love</div>
   <div id="pressSpace">— press SPACE to start —</div>
   <div class="controls">arrow keys walk · drag with your cursor / two-finger swipe to look around</div>
 </div>
 
 <div id="hud" class="hidden"><div class="chip" id="planetName">…</div></div>
 <div id="mission" class="hidden"></div>
+<div id="guide" class="hidden"></div>
 <div id="dots" class="hidden"></div>
 <button id="muteBtn" class="hidden">🔊</button>
 <div id="hint" class="chip hidden">↑ ↓ ← → walk · cursor drag / trackpad swipe to look · SPACE leap / talk</div>
@@ -172,11 +183,37 @@
 </div>
 
 <script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
 </script>
 
 <script type="module">
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+// Loader for real (Blender/Rodin-authored) character models, sitting alongside
+// the procedural geometry factories below. Models are Draco-compressed .glb
+// exports from game-assets/ — see Documentation/ART_BIBLE.md for the pipeline.
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/');
+const gltfLoader = new GLTFLoader();
+gltfLoader.setDRACOLoader(dracoLoader);
+function loadModel(url){
+  return new Promise((resolve, reject) => {
+    gltfLoader.load(url, (gltf) => resolve(gltf.scene), undefined, reject);
+  });
+}
+function loadModelFull(url){        // like loadModel, but keeps gltf.animations too
+  return new Promise((resolve, reject) => {
+    gltfLoader.load(url, (gltf) => resolve(gltf), undefined, reject);
+  });
+}
 
 /* ═══════════════ EDIT ME ═══════════════ */
 const CONFIG = {
@@ -197,7 +234,6 @@ Happy birthday, my Beanie. 🤍`,
 /* ═══════════════════════════════════════ */
 
 document.title = `${CONFIG.herNick}'s Little Universe 💫`;
-document.getElementById('introTitle').innerHTML = `${CONFIG.herName}'s<br/>Little Universe`;
 document.getElementById('cardTitle').textContent = `Happy Birthday, ${CONFIG.herName} ❤️`;
 document.getElementById('cardSig').textContent = `— ${CONFIG.yourName}`;
 
@@ -216,8 +252,21 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.14;
 document.body.appendChild(renderer.domElement);
 
-const SPACE_BG  = new THREE.Color(0x2b3a5e);   // dark pastel blue
-const GARDEN_BG = new THREE.Color(0xbcd8ee);   // light pastel blue
+/* ═══════════════ DOLL-DIORAMA PALETTE ═══════════════
+   Handcrafted felt/wool/knit storybook look — Animal Crossing × The Little
+   Prince × Scandinavian children's books. Every color carries a little gray;
+   nothing pure/neon/metallic. See ART_BIBLE.md "Palette & Lighting". */
+const PALETTE = {
+  cream:0xfbf6ee, warmWhite:0xfffcf7, lightBeige:0xefe7d6,
+  softBrown:0xbb926a, walnut:0x8a6a54, warmGray:0xcbc4bd,
+  sageGreen:0xc6d8b6, moss:0xa4bd8a, mutedPine:0x7a9b72,
+  dustyBlue:0xbdd6f2, skyBlue:0xd6ecf8, mutedLavender:0xdcd4f2,
+  softPink:0xf5d4d4, warmPeach:0xf8dcc0, mutedMustard:0xe1c67d,
+  nightNavy:0x394a6b,          // dark PASTEL blue space background (never pure black)
+  lampAmber:0xffe0ad,          // warm table-lamp glow for lanterns/fireflies
+};
+const SPACE_BG  = new THREE.Color(PALETTE.nightNavy);
+const GARDEN_BG = new THREE.Color(PALETTE.skyBlue);
 const scene = new THREE.Scene();
 scene.background = SPACE_BG.clone();
 const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 3000);
@@ -226,22 +275,35 @@ addEventListener('resize', () => {
   camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
 });
 
-/* ---------- lights ---------- */
-const hemi = new THREE.HemisphereLight(0xe8eeff, 0x8a7a9e, 1.45);
+/* ---------- tiny warm bloom (lanterns, fireflies, stars, gate glow only) ----------
+   High threshold so only genuinely bright/emissive things soften-glow — the
+   diorama itself should never look blown out, just gently sun-through-curtains. */
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.35, 0.6, 0.82);
+composer.addPass(bloomPass);
+function renderScene(){ composer.render(); }
+
+/* ---------- lights: soft, warm, no black shadows anywhere ----------
+   Hemisphere ground bounce is a warm cream (not a cold/purple tint) so the
+   undersides of everything stay lit like sun through a curtain, and the
+   directional "sun" is a low-contrast warm peach rather than a hard key. */
+const hemi = new THREE.HemisphereLight(PALETTE.warmWhite, PALETTE.lightBeige, 1.55);
 scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfff6e8, 1.4);
+const sun = new THREE.DirectionalLight(PALETTE.warmPeach, 1.05);
 sun.position.set(80, 120, 60);
 scene.add(sun);
 scene.add(camera);
-const camFill = new THREE.PointLight(0xffeeda, 110, 110, 2);
+const camFill = new THREE.PointLight(PALETTE.lampAmber, 95, 110, 2);
 camFill.position.set(0, 2.5, 3);
 camera.add(camFill);
 
 /* ---------- helpers ---------- */
 const V = () => new THREE.Vector3();
-const mat = (c, o={}) => new THREE.MeshStandardMaterial({ color:c, roughness:0.88, metalness:0, ...o });
+const mat = (c, o={}) => new THREE.MeshStandardMaterial({ color:c, roughness:0.92, metalness:0, ...o });
 const animators  = [];
 const ephemerals = [];
 function randDir(){
@@ -272,6 +334,24 @@ function placeOn(group, obj, nLocal, R, lift=0){
   group.add(obj);
   return obj;
 }
+// Solid-object collision: each collider is a circular footprint on a
+// planet's surface (direction + angular radius). Movement toward one is
+// blocked ("bumps back") — see updateWalk(). Water/creatures/decorations
+// that shouldn't block her are simply never registered here.
+const HER_FOOTPRINT = 0.4;   // her own half-width, in world units
+function addCollider(list, n, footprintRadius, R){
+  list.push({ n: n.clone().normalize(), angRadius: footprintRadius/R });
+}
+function isBlocked(body, testOrientation){
+  if (!body.colliders || !body.colliders.length) return false;
+  const up = tmpBlockV.set(0,1,0).applyQuaternion(testOrientation);
+  const herAng = HER_FOOTPRINT/body.r;
+  for (const c of body.colliders){
+    if (up.angleTo(c.n) < c.angRadius + herAng) return true;
+  }
+  return false;
+}
+const tmpBlockV = new THREE.Vector3();
 function spawnEphemeral(mesh, pos, vel, life, spin=0){
   mesh.position.copy(pos);
   mesh.material = mesh.material.clone();
@@ -308,6 +388,23 @@ const heartGeo = makeHeartGeo();
 const sparkGeo = new THREE.OctahedronGeometry(0.16);
 const sparkMat = mat(0xffe08a, { emissive:0xffc23e, emissiveIntensity:1.6 });
 const heartBurstMat = mat(0xf2889e, { emissive:0xe86a86, emissiveIntensity:0.7 });
+
+/* ---------- footstep dust puffs ---------- */
+const dustGeo = new THREE.SphereGeometry(0.13, 7, 5);
+const DUST_COLORS = { stone:0xbcb8c4, grass:0x9fb48f, book:0xe6dcc0, pop:0xd8cfe0 };
+function spawnDust(kind, pos, up, fwd){
+  if (kind === 'water') return;   // splashing, not dust
+  const col = DUST_COLORS[kind] || 0xd0c8b8;
+  const n = 3 + Math.floor(Math.random()*2);
+  for (let i = 0; i < n; i++){
+    const puff = new THREE.Mesh(dustGeo, mat(col, { roughness:1, transparent:true, opacity:0.55 }));
+    puff.scale.setScalar(0.55 + Math.random()*0.5);
+    const vel = V().copy(up).multiplyScalar(0.55 + Math.random()*0.5)
+      .addScaledVector(fwd, -0.35 - Math.random()*0.35)
+      .addScaledVector(randDir(), 0.4);
+    spawnEphemeral(puff, pos, vel, 0.4 + Math.random()*0.25, 1.4);
+  }
+}
 
 /* ---------- starfield ---------- */
 const dotTex = (() => {
@@ -493,7 +590,7 @@ function makeChibi(style){  // 'beanie' | 'bred'
     const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.255, 0.262, 0.07, 16), mat(0x6a4426));
     belt.position.y = 0.85; inner.add(belt);
     const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.05, 0.025),
-      mat(0xc9ccd6, { roughness:0.3, metalness:0.6 }));
+      mat(0xc9ccd6, { roughness:0.6, metalness:0.25 }));   // brushed, not chrome
     buckle.position.set(0, 0.85, 0.252); inner.add(buckle);
     const shirt = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.3, 6, 14), mat(0x232329));
     shirt.position.y = 1.08; inner.add(shirt);
@@ -530,7 +627,7 @@ function makeChibi(style){  // 'beanie' | 'bred'
       btn.position.set(0, 0.9 + b*0.11, 0.258); inner.add(btn);
     }
     const chain = new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.008, 6, 20, Math.PI),
-      mat(0xd8a94e, { roughness:0.35, metalness:0.5 }));
+      mat(0xd8a94e, { roughness:0.55, metalness:0.3 }));   // warm brushed gold, not glossy
     chain.position.set(0, 1.27, 0.13); chain.rotation.set(1.15, 0, Math.PI); inner.add(chain);
   }
 
@@ -672,7 +769,7 @@ function animAvatar(av, t, dt){
   for (const s of u.sway) s.rotation.x = Math.sin(t*2.6 + u.phase)*(u.moving ? 0.22 : 0.07);
   if (u.sitting) return;
   if (u.moving){
-    u.walkP += dt*10.5;
+    u.walkP += dt*21;
     const sw = Math.sin(u.walkP);
     u.legL.rotation.x =  sw*0.6;  u.legR.rotation.x = -sw*0.6;
     u.armL.rotation.x = -sw*0.42; u.armR.rotation.x =  sw*0.42;
@@ -702,9 +799,13 @@ function plushPigeon(colors={}, o={}){
   beak.rotation.x = Math.PI/2; beak.position.set(0, 0.58, 0.36); g.add(beak);
   const beakTip = new THREE.Mesh(new THREE.SphereGeometry(0.024, 6, 6), mat(0xf2f2ee));
   beakTip.position.set(0, 0.6, 0.34); g.add(beakTip);
-  for (const ex of [-0.09, 0.09]){
-    const e = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 6), mat(0x18140f, { roughness:0.3 }));
-    e.position.set(ex, 0.62, 0.29); g.add(e);
+  // big cute eyes (with a white glint) that read clearly from a distance
+  for (const ex of [-0.088, 0.088]){
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.052, 12, 10), mat(0x181410, { roughness:0.25 }));
+    e.position.set(ex, 0.63, 0.30); g.add(e);
+    const glint = new THREE.Mesh(new THREE.SphereGeometry(0.017, 6, 6),
+      new THREE.MeshBasicMaterial({ color:0xffffff }));
+    glint.position.set(ex + (ex > 0 ? 0.016 : -0.016), 0.657, 0.338); g.add(glint);
   }
   const wings = [];
   for (const s of [-1, 1]){
@@ -901,6 +1002,7 @@ function school(group, makeOne, count, radius, speed, spread, scale){
 /* ═══════════════ WORLD BUILDERS ═══════════════ */
 function buildChicago(g, R){
   const topN = V().set(0, 1, 0);
+  const colliders = [];
   // Willis-style stepped tower
   const tower = new THREE.Group();
   const shades = [0x4d4d62, 0x585870, 0x64647e];
@@ -945,6 +1047,7 @@ function buildChicago(g, R){
     cloth.rotation.y = Math.sin(t*4)*0.12;
   });
   placeOn(g, tower, topN, R);
+  addCollider(colliders, topN, 1.4, R);   // tower footprint (widest tier ~2.0 wide)
   // gray blocky skyline
   for (let i = 0; i < 9; i++){
     const n = dirNear(topN, 0.5 + Math.random()*0.4);
@@ -958,6 +1061,7 @@ function buildChicago(g, R){
     win.position.set(0, hh/2, w/2 + 0.011); b.add(win);
     b.rotation.y = Math.random()*Math.PI;
     placeOn(g, b, n, R);
+    addCollider(colliders, n, w*0.6, R);
   }
   // gloomy little clouds
   for (let i = 0; i < 3; i++){
@@ -969,7 +1073,33 @@ function buildChicago(g, R){
     }
     orbiter(g, cloud, R + 3 + i*0.7, 0.05 + i*0.02, 0.4 + Math.random(), Math.random());
   }
-  return { towerN: topN };
+  // ---------- snow: flakes falling radially inward, blown sideways by wind ----------
+  const SNOW_N = 320;
+  const snowGeo = new THREE.SphereGeometry(0.05, 5, 4);
+  const snow = new THREE.InstancedMesh(snowGeo,
+    mat(0xffffff, { roughness:1, emissive:0xffffff, emissiveIntensity:0.12 }), SNOW_N);
+  snow.frustumCulled = false;
+  g.add(snow);
+  const WIND_AXIS = new THREE.Vector3(0.15, 1, 0.1).normalize();
+  const flakes = [];
+  for (let i = 0; i < SNOW_N; i++)
+    flakes.push({ dir: randDir(), rad: R + 0.4 + Math.random()*(R*2.4 + 4),
+      spd: R*0.35 + Math.random()*R*0.5, ph: Math.random()*6.28 });
+  const sdq = new THREE.Object3D();
+  animators.push((t, dt) => {
+    for (let i = 0; i < SNOW_N; i++){
+      const f = flakes[i];
+      f.rad -= f.spd*dt;
+      if (f.rad < R + 0.15){ f.rad = R + R*2.2 + 3 + Math.random()*3; f.dir.copy(randDir()); }
+      f.dir.applyAxisAngle(WIND_AXIS, dt*(0.5 + 0.4*Math.sin(t*0.6 + f.ph)));   // wind gust
+      sdq.position.copy(f.dir).multiplyScalar(f.rad);
+      sdq.scale.setScalar(0.7 + 0.5*Math.sin(t*3 + f.ph));
+      sdq.updateMatrix();
+      snow.setMatrixAt(i, sdq.matrix);
+    }
+    snow.instanceMatrix.needsUpdate = true;
+  });
+  return { towerN: topN, colliders };
 }
 
 function buildBooks(g, R){
@@ -996,21 +1126,39 @@ function buildBooks(g, R){
     }
     return st;
   }
+  const colliders = [];
   const chippyN = V().set(0.3, 1, 0.35).normalize();
-  for (let i = 0; i < 28; i++)
-    placeOn(g, makeStack(2 + Math.floor(Math.random()*4), 0.9 + Math.random()*0.5), randDir(), R);
+  for (let i = 0; i < 700; i++){
+    const n = randDir();
+    const s = 0.9 + Math.random()*0.5;
+    placeOn(g, makeStack(2 + Math.floor(Math.random()*4), s), n, R);
+    addCollider(colliders, n, 0.9*s, R);
+  }
   const grand = makeStack(6, 1.5, 0.25);          // the landmark tower of books
-  placeOn(g, grand, dirNear(chippyN, 0.25), R);
+  const grandN = dirNear(chippyN, 0.25);
+  placeOn(g, grand, grandN, R);
+  addCollider(colliders, grandN, 1.35, R);
   // chippy napping on his own little stack
   const seat = makeStack(3, 1.1, 0.15);
   placeOn(g, seat, chippyN, R);
-  const chippy = makeChippy();
-  chippy.scale.setScalar(0.9); // palm-sized beside Rachel
+  addCollider(colliders, chippyN, 0.99, R);
+  // Chippy: real Blender/Rodin model (game-assets/chippy/chippy.glb), loaded async
+  // into a placeholder group so world-building never blocks on the network.
+  const chippy = new THREE.Group();
   chippy.position.copy(chippyN).multiplyScalar(R + 3*0.26*1.1);
   orientToNormal(chippy, chippyN);
+  chippy.rotateY(2.4); // face toward the landing spot; tuned against the model's raw front
   g.add(chippy);
+  let chippyModel = null;
+  loadModel('./game-assets/chippy/chippy.glb').then((model) => {
+    chippyModel = model;
+    chippy.add(model);
+  }).catch((err) => {
+    console.error('Chippy model failed to load, falling back to placeholder', err);
+    chippy.add(makeChippy());
+  });
   animators.push((t) => {
-    chippy.children[0].scale.setScalar(1 + 0.03*Math.sin(t*1.6));   // gentle breathing
+    if (chippyModel) chippyModel.scale.setScalar(1 + 0.03*Math.sin(t*1.6));   // gentle breathing
   });
   // a few floating loose pages
   for (let i = 0; i < 9; i++){
@@ -1019,12 +1167,15 @@ function buildBooks(g, R){
     animators.push((t) => { page.rotation.x = Math.sin(t*1.4 + i)*0.6; page.rotation.z = Math.sin(t + i)*0.4; });
     orbiter(g, page, R + 2 + i*0.5, 0.12 + i*0.04, Math.random()*2.5, Math.random()*2.5, 0.4, 1.3);
   }
+  return { chippy, colliders };
 }
 
 function grassField(g, R, count, color, skipN=null, skipAng=0){
-  const blade = new THREE.ConeGeometry(0.05, 0.55, 5);
-  blade.translate(0, 0.27, 0);
-  const im = new THREE.InstancedMesh(blade, mat(color, { roughness:0.95 }), count);
+  // soft rounded "velvet tuft" instead of a spiky blade — reads like short
+  // brushed fleece rather than individual grass blades (see ART_BIBLE.md)
+  const blade = new THREE.CapsuleGeometry(0.1, 0.22, 3, 6);
+  blade.translate(0, 0.21, 0);
+  const im = new THREE.InstancedMesh(blade, mat(color, { roughness:0.97 }), count);
   const dummy = new THREE.Object3D();
   for (let i = 0; i < count; i++){
     let n = randDir();
@@ -1043,13 +1194,13 @@ function grassField(g, R, count, color, skipN=null, skipAng=0){
 }
 
 function buildCucumber(g, R){
-  grassField(g, R, 550, 0x7fbf6f);
+  grassField(g, R, 11000, PALETTE.moss);
   // cucumbers schooling like fish
   school(g, () => makeCucumber(1), 9, R + 3.2, 0.28, 2.6, 0.8);
   school(g, () => makeCucumber(1), 8, R + 4.4, -0.2, 2.4, 0.65);
   school(g, () => makeCucumber(1), 7, R + 5.6, 0.16, 2.8, 0.95);
   // some resting in the grass
-  for (let i = 0; i < 6; i++){
+  for (let i = 0; i < 120; i++){
     const holder = new THREE.Group();
     const c = makeCucumber(0.85);
     c.rotation.z = Math.PI/2; c.rotation.y = Math.random()*Math.PI;
@@ -1057,7 +1208,7 @@ function buildCucumber(g, R){
     placeOn(g, holder, randDir(), R, 0.3);
   }
   // pastel wildflower dots
-  for (let i = 0; i < 24; i++){
+  for (let i = 0; i < 480; i++){
     const f = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6),
       mat([0xf2c0d0, 0xf6e0a8, 0xc8d8f4][i%3], { roughness:0.8 }));
     const holder = new THREE.Group(); holder.add(f); f.position.y = 0.12;
@@ -1133,9 +1284,9 @@ function buildPigeons(g, R, ctx){
   placeOn(g, fount, dirNear(plazaN, 0.18), R);
   animators.push((t) => { water.scale.setScalar(1 + 0.05*Math.sin(t*3)); water.rotation.y = t*0.4; });
 
-  // WAY too many pigeons
+  // WAY too many pigeons — nearly all standing/pecking ON the ground
   const crowd = [];
-  for (let i = 0; i < 44; i++){
+  for (let i = 0; i < 290; i++){
     const pg = plushPigeon(PIGEON_VARIANTS[i % PIGEON_VARIANTS.length]);
     pg.scale.setScalar(0.85 + Math.random()*0.35);
     pg.rotation.y = Math.random()*Math.PI*2;
@@ -1151,7 +1302,8 @@ function buildPigeons(g, R, ctx){
       pg.position.y = Math.abs(Math.sin(t*1.6 + ph))*0.015;
     });
   }
-  for (let i = 0; i < 14; i++){
+  // just a few still circling overhead (most have landed, per request)
+  for (let i = 0; i < 10; i++){
     const pg = plushPigeon(PIGEON_VARIANTS[(i+1) % PIGEON_VARIANTS.length]);
     pg.scale.setScalar(0.8); pg.rotation.y = Math.PI;
     const ph = Math.random()*7;
@@ -1159,7 +1311,7 @@ function buildPigeons(g, R, ctx){
       for (let w = 0; w < 2; w++)
         pg.userData.wings[w].rotation.z = (w===0?1:-1)*Math.sin(t*11 + ph)*0.9;
     });
-    orbiter(g, pg, R + 2.4 + i*0.5, 0.3 + i*0.08, Math.random()*2.4, Math.random()*2.4, 0.35, 1.7);
+    orbiter(g, pg, R + 2 + i*0.4, 0.3 + i*0.08, Math.random()*2.4, Math.random()*2.4, 0.3, 1.4);
   }
   // PERCY — the only teal-headed one, slightly grand
   const percy = plushPigeon({}, { stripes:true });
@@ -1177,7 +1329,7 @@ function buildPigeons(g, R, ctx){
 }
 
 function buildGarden(g, R, ctx){
-  grassField(g, R, 4200, 0x8fd08a);
+  grassField(g, R, 60000, PALETTE.sageGreen);
   const couchN = V().set(0.2, 1, 0.1).normalize();
   const landN = ctx.gardenLandN;
   const dummy = new THREE.Object3D();
@@ -1197,17 +1349,17 @@ function buildGarden(g, R, ctx){
     g.add(im);
     return im;
   }
-  const TULIP = [0xf2a0b4, 0xf6d98f, 0xc8b0e8, 0xf0937f, 0xf6b8d8];
-  const HYD   = [0xa8c4f0, 0xc0aee8, 0xf2b8cc, 0x9fd0e8];
-  const ROSE  = [0xe87f9a, 0xf2aabf, 0xf6d4dc, 0xf0937f];
+  const TULIP = [PALETTE.softPink, PALETTE.mutedMustard, PALETTE.mutedLavender, PALETTE.warmPeach, 0xe6b8c4];
+  const HYD   = [PALETTE.dustyBlue, PALETTE.mutedLavender, PALETTE.softPink, PALETTE.skyBlue];
+  const ROSE  = [0xd9899e, PALETTE.softPink, 0xe8d4d8, PALETTE.warmPeach];
   const col = new THREE.Color();
   // stems for everything
   const stemGeo = new THREE.CylinderGeometry(0.03, 0.045, 0.5, 6);
   stemGeo.translate(0, 0.25, 0);
-  const stems = instanced(stemGeo, 0x5f9f56, 2400);
+  const stems = instanced(stemGeo, 0x5f9f56, 35000);
   let stemI = 0;
   const flowerSpots = [];   // reuse spots so heads sit on stems
-  scatter(2400, (n) => {
+  scatter(35000, (n) => {
     const s = 0.8 + Math.random()*0.7;
     dummy.position.copy(n).multiplyScalar(R);
     dummy.quaternion.setFromUnitVectors(Y, n);
@@ -1239,28 +1391,28 @@ function buildGarden(g, R, ctx){
   }
   // tulips
   const tulipGeo = new THREE.SphereGeometry(0.16, 8, 8); tulipGeo.scale(1, 1.25, 1);
-  heads(instanced(tulipGeo, 0xffffff, 650, TULIP), 650, 0.56, 1, TULIP);
+  heads(instanced(tulipGeo, 0xffffff, 9500, TULIP), 9500, 0.56, 1, TULIP);
   // daisies: white petal disc + yellow center
   const discGeo = new THREE.CylinderGeometry(0.17, 0.17, 0.03, 9);
   const centGeo = new THREE.SphereGeometry(0.07, 8, 6);
-  const dDisc = instanced(discGeo, 0xfdfaf2, 600);
-  const dCent = instanced(centGeo, 0xf2c94a, 600);
-  heads(dDisc, 600, 0.52, 1, null, dCent, 0.56, 1);
+  const dDisc = instanced(discGeo, 0xfdfaf2, 8750);
+  const dCent = instanced(centGeo, 0xf2c94a, 8750);
+  heads(dDisc, 8750, 0.52, 1, null, dCent, 0.56, 1);
   // roses: flat-shaded swirl + darker heart
   const roseGeo = new THREE.SphereGeometry(0.15, 7, 5);
   const roseInGeo = new THREE.SphereGeometry(0.07, 6, 5);
-  const rOut = instanced(roseGeo, 0xffffff, 500, ROSE);
-  const rIn  = instanced(roseInGeo, 0xc4526e, 500);
-  heads(rOut, 500, 0.55, 1, ROSE, rIn, 0.62, 1);
+  const rOut = instanced(roseGeo, 0xffffff, 7250, ROSE);
+  const rIn  = instanced(roseInGeo, 0xc4526e, 7250);
+  heads(rOut, 7250, 0.55, 1, ROSE, rIn, 0.62, 1);
   // hydrangea puffs (lumpy flat-shaded balls)
-  heads(instanced('puff', 0xffffff, 350, HYD), 350, 0.6, 1, HYD);
+  heads(instanced('puff', 0xffffff, 5000, HYD), 5000, 0.6, 1, HYD);
   // calla lilies: white cone + yellow spadix
   const callaGeo = new THREE.ConeGeometry(0.14, 0.26, 9);
   callaGeo.rotateX(Math.PI); // open upward
   const spadGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.18, 6);
-  const cCone = instanced(callaGeo, 0xfdf8f0, 300);
-  const cSpad = instanced(spadGeo, 0xf2c94a, 300);
-  heads(cCone, 300, 0.58, 1, null, cSpad, 0.62, 1);
+  const cCone = instanced(callaGeo, 0xfdf8f0, 4250);
+  const cSpad = instanced(spadGeo, 0xf2c94a, 4250);
+  heads(cCone, 4250, 0.58, 1, null, cSpad, 0.62, 1);
 
   // ---------- the big white couch ----------
   const couch = new THREE.Group();
@@ -1304,23 +1456,48 @@ function buildGarden(g, R, ctx){
   // soft glow so she can find it
   const glow = new THREE.PointLight(0xfff4dd, 60, 30, 2);
   glow.position.set(0, 4, 0); couch.add(glow);
-  // bred sitting on the couch
-  const bred = makeChibi('bred');
-  bred.position.set(-0.1, 0.37, 0.42);
-  bred.userData.sit(true);
+  // bred: real Blender/Rodin model. No rig, so (like Chippy/Percy) he stands
+  // on the cushion top (y=1.03 = cush.position.y 0.9 + half cush height 0.13)
+  // rather than attempting an unrigged "sitting" pose.
+  const bred = new THREE.Group();
+  bred.position.set(-0.15, 1.03, 0.1);
   couch.add(bred);
-  // percy (puppy-sized plush) + chippy resting beside him
-  const percyPlush = plushPigeon({}, { stripes:true });
-  percyPlush.scale.setScalar(1.5);
-  percyPlush.position.set(1.15, 1.03, 0.1); percyPlush.rotation.y = -0.4;
-  couch.add(percyPlush);
-  const chippyPlush = makeChippy();
-  chippyPlush.scale.setScalar(1.35);
+  let bredModel = null;
+  loadModel('./game-assets/bred/bred.glb').then((model) => {
+    model.rotation.y = Math.PI; // face outward, toward the camera/Rachel
+    bredModel = model;
+    bred.add(model);
+  }).catch((err) => {
+    console.error('Bred model failed to load, falling back to placeholder', err);
+    const fallback = makeChibi('bred');
+    fallback.userData.sit(true);
+    bred.add(fallback);
+  });
+  // percy (real model, puppy-sized) + chippy resting beside him
+  const percy = new THREE.Group();
+  percy.position.set(1.15, 0.9, 0.1); percy.rotation.y = -0.4 + Math.PI;
+  couch.add(percy);
+  loadModel('./game-assets/percy/percy.glb').then((model) => { percy.add(model); })
+    .catch((err) => {
+      console.error('Percy model failed to load, falling back to placeholder', err);
+      const fb = plushPigeon({}, { stripes:true }); fb.scale.setScalar(1.5);
+      percy.add(fb);
+    });
+  const chippyPlush = new THREE.Group();
   chippyPlush.position.set(-1.25, 1.03, 0.15); chippyPlush.rotation.y = 0.5;
   couch.add(chippyPlush);
+  loadModel('./game-assets/chippy/chippy.glb').then((model) => {
+    model.scale.setScalar(1.35);
+    chippyPlush.add(model);
+  }).catch((err) => {
+    console.error('Chippy model failed to load, falling back to placeholder', err);
+    const fb = makeChippy(); fb.scale.setScalar(1.35);
+    chippyPlush.add(fb);
+  });
   animators.push((t) => {
-    percyPlush.position.y = 1.03 + Math.abs(Math.sin(t*1.9))*0.02;
-    chippyPlush.children[0].scale.setScalar(1 + 0.03*Math.sin(t*1.5));
+    percy.position.y = 0.9 + Math.abs(Math.sin(t*1.9))*0.02;
+    if (chippyPlush.children[0]) chippyPlush.children[0].scale.setScalar(1 + 0.03*Math.sin(t*1.5));
+    if (bredModel) bredModel.scale.setScalar(1 + 0.02*Math.sin(t*1.3));
   });
   // butterflies + floating petals
   for (let i = 0; i < 12; i++){
@@ -1340,34 +1517,28 @@ function buildGarden(g, R, ctx){
     orbiter(g, bf, R + 1.6 + Math.random(), 0.15 + Math.random()*0.2,
       Math.random()*2.6, Math.random()*2.6, 0.4, 2);
   }
-  return { couchN, bred, couch };
+  return { couchN, bred, percy, chippyPlush, couch };
 }
 
 /* ═══════════════ ASSEMBLE THE UNIVERSE ═══════════════ */
 const WORLD_DEFS = [
   { key:'chicago',  name:'Chicago',          emoji:'🏙️', tag:'small, gray, and a little lonely',
-    mission:'<b>MISSION:</b> jump to another planet! Drag / swipe to aim your view at the little moon, then press <b>SPACE</b> to leap. Hop the tiny moons to reach each big world.',
-    pos:[0,0,0], r:7,  col:0xa2a2b4, step:'stone' },
+    mission:'<b>MISSION:</b> jump to the next world! Drag / swipe to aim your view at it, then press <b>SPACE</b> to leap up high and land there.',
+    pos:[0,0,0], r:7,  col:0xe4e8f0, step:'stone' },
   { key:'books',    name:'Book Stacks',      emoji:'📚', tag:'somebody should really tidy these',
     mission:'<b>MISSION:</b> say hi to Chippy (he is napping on a book pile), then keep leaping!',
-    pos:[90,15,-25], r:9.5, col:0xe6d8c4, step:'book' },
+    pos:[130,20,-60], r:23.75, col:PALETTE.lightBeige, step:'book' },
   { key:'cucumber', name:'Cucumber Meadow',  emoji:'🥒', tag:'they school like fish out here',
     mission:'<b>MISSION:</b> listen to the grass under your feet… and keep leaping!',
-    pos:[170,-5,-85], r:12, col:0x9ecf92, step:'grass' },
-  { key:'sea',      name:'The Deep Blue',    emoji:'🐋', tag:'walk gently — the whales are singing',
-    mission:'<b>MISSION:</b> cross the sea. Something is fluttering on the next world…',
-    pos:[120,-25,-175], r:14, col:0x8fc6e8, step:'water' },
+    pos:[300,-10,-190], r:30, col:PALETTE.moss, step:'grass' },
   { key:'pigeon',   name:'Pigeon Plaza',     emoji:'🕊️', tag:'way, WAY too many pigeons',
     mission:'<b>MISSION:</b> one of these pigeons is not like the others. Find <b>Percy</b> and press <b>SPACE</b> to talk to him.',
-    pos:[20,5,-205], r:16, col:0xcabed2, step:'stone' },
+    pos:[170,20,-400], r:40, col:PALETTE.mutedLavender, step:'stone' },
   { key:'garden',   name:'The Garden',       emoji:'💐', tag:'happy birthday, Beanie 🤍',
     mission:'<b>MISSION:</b> wander the garden… someone set up a big white couch for you. 🤍',
-    pos:[-160,25,-60], r:22, col:0xaed99f, step:'grass' },
+    pos:[-250,50,-120], r:55, col:PALETTE.sageGreen, step:'grass' },
 ];
-const MOON_NAMES = ['Mochi Moon','Sorbet Moon','Taffy Moon','Macaron Moon',
-                    'Pudding Moon','Custard Moon','Jelly Moon','Waffle Moon'];
-const MOON_COLS  = [0xf2b8c6, 0xb0e0cc, 0xc8bce8, 0xf6dfa6, 0xaed4f0, 0xf6c4a8, 0xd8ecb0, 0xe8c0dc];
-
+// NOTE: Sea world archived (2026-07-12) — chain is now Chicago→Books→Cucumber→Pigeon→Garden.
 const bodies = [];
 function addBody(b){
   const group = new THREE.Group();
@@ -1380,62 +1551,124 @@ function addBody(b){
   bodies.push(body);
   return body;
 }
-// main worlds
+// main worlds — jumped directly world-to-world, no mini-moons in between
 const worldRefs = {};
 WORLD_DEFS.forEach((def, wi) => addBody({ ...def, isWorld:true, worldIndex:wi }));
-// two pastel mini-moons between consecutive worlds (up to pigeon plaza)
-let moonI = 0;
-for (let wi = 0; wi < 4; wi++){
-  const a = bodies[wi].center, b = bodies[wi+1].center;
-  const seg = V().subVectors(b, a);
-  for (const k of [0.36, 0.68]){
-    const perp = arbitraryPerp(seg).multiplyScalar((moonI%2 ? -1 : 1)*(6 + Math.random()*4));
-    const pos = V().copy(a).addScaledVector(seg, k).add(perp);
-    addBody({ key:'moon'+moonI, name:MOON_NAMES[moonI], emoji:'🌙',
-      tag:'a tiny stop on the way', pos:[pos.x, pos.y, pos.z],
-      r:2.7 + Math.random()*0.7, col:MOON_COLS[moonI], step:'pop' });
-    moonI++;
-  }
-}
-// jump chain (for guidance on landing): W0 m0 m1 W1 m2 m3 W2 m4 m5 W3 m6 m7 W4
-const chain = [0, 6, 7, 1, 8, 9, 2, 10, 11, 3, 12, 13, 4];
+const chain = [0, 1, 2, 3];
 chain.forEach((bi, ci) => { bodies[bi].chainNext = ci < chain.length-1 ? chain[ci+1] : null; });
+// Mission-gating: you cannot aim/lock the next world until the current world's
+// mission is done. Worlds without a to-do mission default open; gated worlds
+// flip to done via their NPC flow. (Chicago = accept Bred's letter.)
+bodies.forEach(b => { b.missionDone = true; });
+bodies[0].missionDone = false;   // Chicago — gated by the pigeon's letter intro
 
 // decorate: worlds get builders, moons get sprinkles
-const GARDEN_I = 5, PIGEON_I = 4;
+const GARDEN_I = 4, PIGEON_I = 3;
 {
   const gLandN = V().subVectors(bodies[PIGEON_I].center, bodies[GARDEN_I].center).normalize();
   const t0g = arbitraryPerp(gLandN);
   bodies[GARDEN_I].landN = V().copy(gLandN).multiplyScalar(Math.cos(1.5))
     .addScaledVector(t0g, Math.sin(1.5)).normalize();
   worldRefs.chicago = buildChicago(bodies[0].group, bodies[0].r);
-  buildBooks(bodies[1].group, bodies[1].r);
+  worldRefs.books = buildBooks(bodies[1].group, bodies[1].r);
+  bodies[0].colliders = worldRefs.chicago.colliders;
+  bodies[1].colliders = worldRefs.books.colliders;
   buildCucumber(bodies[2].group, bodies[2].r);
-  buildSea(bodies[3].group, bodies[3].r);
   worldRefs.pigeon = buildPigeons(bodies[PIGEON_I].group, bodies[PIGEON_I].r);
   worldRefs.garden = buildGarden(bodies[GARDEN_I].group, bodies[GARDEN_I].r,
     { gardenLandN: bodies[GARDEN_I].landN });
-  for (let bi = 6; bi < bodies.length; bi++){
-    const b = bodies[bi];
-    for (let i = 0; i < 5; i++){
-      const crater = new THREE.Mesh(new THREE.SphereGeometry(0.3 + Math.random()*0.3, 8, 6),
-        mat(b.col, { roughness:1 }));
-      crater.material.color.multiplyScalar(0.85);
-      crater.scale.y = 0.3;
-      const holder = new THREE.Group(); holder.add(crater);
-      placeOn(b.group, holder, randDir(), b.r, -0.02);
-    }
-    const star = new THREE.Mesh(sparkGeo, sparkMat);
-    star.scale.setScalar(1.4);
-    animators.push((t, dt) => { star.rotation.y += dt*1.4; });
-    placeOn(b.group, star, randDir(), b.r, 1.1);
-  }
 }
 
-/* ---------- beanie ---------- */
-const her = makeChibi('beanie');
-her.scale.setScalar(1.05);
+/* ---------- beanie: real rigged Blender model (game-assets/beanie/beanie.glb) ----------
+   Loaded async into a placeholder Group, same pattern as the other real models.
+   her.userData is a single persistent object (moving/sitting/sit()) so the rest of
+   the engine (updateWalk, percy-flight, finale) never needs to know whether the
+   real skinned model or the procedural fallback is behind it. See ART_BIBLE.md —
+   only "Idle" (bind/rest pose) and "Walk" (the rig's native RunFK2 action) are
+   proven; there is no dedicated sitting/talking animation yet, so sit(true)
+   currently just holds the rest pose rather than visually bending into a seat. */
+const her = new THREE.Group();
+her.userData = {
+  moving:false, sitting:false, walkP:0, lastStep:0,
+  inner: new THREE.Object3D(),   // inert stand-in so updateWalk's turn-recovery tweak never crashes
+  sit(v){ this.sitting = v; },
+};
 scene.add(her);
+let herMixer = null, herWalkAction = null, herIdleAction = null, herUsingFallback = false;
+let herJumpLaunchAction = null, herJumpSoarAction = null, herJumpLandAction = null;
+loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
+  her.add(gltf.scene);
+  herMixer = new THREE.AnimationMixer(gltf.scene);
+  const walkClip = gltf.animations.find((a) => a.name === 'Walk');
+  const idleClip = gltf.animations.find((a) => a.name === 'Idle');
+  const launchClip = gltf.animations.find((a) => a.name === 'JumpLaunch');
+  const soarClip = gltf.animations.find((a) => a.name === 'JumpSoar');
+  const landClip = gltf.animations.find((a) => a.name === 'JumpLand');
+  // All actions play continuously; only their relative weight changes, so the
+  // mixer always has a well-defined blended pose (an unweighted "no action"
+  // state exports as the raw T-pose-ish edit-bone rest, not the relaxed stance).
+  if (idleClip){
+    herIdleAction = herMixer.clipAction(idleClip);
+    herIdleAction.setLoop(THREE.LoopRepeat);
+    herIdleAction.play();
+    herIdleAction.setEffectiveWeight(1);
+  }
+  if (walkClip){
+    herWalkAction = herMixer.clipAction(walkClip);
+    herWalkAction.setLoop(THREE.LoopRepeat);
+    herWalkAction.play();
+    herWalkAction.setEffectiveWeight(0);
+  }
+  // Extracted + retimed from winter-beanie-jump.blend's cinematic (same rig,
+  // no retargeting needed) — see ART_BIBLE.md. Crossfaded by updateJumpAnim()
+  // across a leap's flight progress instead of Idle/Walk while state='fly'.
+  for (const [clip, setter] of [[launchClip, (a) => herJumpLaunchAction = a],
+                                 [soarClip, (a) => herJumpSoarAction = a],
+                                 [landClip, (a) => herJumpLandAction = a]]){
+    if (!clip) continue;
+    const action = herMixer.clipAction(clip);
+    action.setLoop(THREE.LoopRepeat);
+    action.play();
+    action.setEffectiveWeight(0);
+    setter(action);
+  }
+}).catch((err) => {
+  console.error('Beanie model failed to load, falling back to procedural', err);
+  const fallback = makeChibi('beanie');
+  fallback.scale.setScalar(1.05);
+  her.add(fallback);
+  Object.assign(her.userData, fallback.userData);   // keep the same object identity
+  herUsingFallback = true;
+});
+function animBeanieSkinned(dt){
+  if (!herMixer) return;
+  herMixer.update(dt);
+  if (state === 'fly') return;   // updateJumpAnim() drives Launch/Soar/Land weights directly
+  if (herJumpLaunchAction) herJumpLaunchAction.setEffectiveWeight(0);
+  if (herJumpSoarAction) herJumpSoarAction.setEffectiveWeight(0);
+  if (herJumpLandAction) herJumpLandAction.setEffectiveWeight(0);
+  const u = her.userData;
+  if (u.moving && !u.sitting) u.walkP += dt*21;   // keeps footstep cadence in sync
+  const walkTarget = (u.moving && !u.sitting) ? 1 : 0;
+  if (herWalkAction){
+    const w = herWalkAction.getEffectiveWeight();
+    herWalkAction.setEffectiveWeight(w + (walkTarget - w) * Math.min(1, dt*8));
+    herWalkAction.timeScale = u.movingBackward ? -2 : 2;   // reverse the cycle when backing up; 2x to match doubled WALK_SPEED
+  }
+  if (herIdleAction){
+    const w = herIdleAction.getEffectiveWeight();
+    herIdleAction.setEffectiveWeight(w + ((1 - walkTarget) - w) * Math.min(1, dt*8));
+  }
+}
+function updateJumpAnim(e){        // e: 0..1 flight progress — crossfade the leap pose
+  if (!herJumpLaunchAction) return;
+  const launchW = 1 - Math.max(0, Math.min(1, e/0.25));
+  const landW   = Math.max(0, Math.min(1, (e - 0.72)/0.22));
+  const soarW   = Math.max(0, 1 - launchW - landW);
+  herJumpLaunchAction.setEffectiveWeight(launchW);
+  herJumpSoarAction.setEffectiveWeight(soarW);
+  herJumpLandAction.setEffectiveWeight(landW);
+}
 
 /* ---------- movement / state ---------- */
 const X_AXIS = new THREE.Vector3(1,0,0), Y_AXIS = new THREE.Vector3(0,1,0),
@@ -1445,8 +1678,9 @@ let curI = 0;
 let state = 'intro';       // intro | walk | fly | talk | percyfly | finale
 const visitedWorlds = new Array(WORLD_DEFS.length).fill(false);
 const keys = {};
-const WALK_SPEED = 6.0, TURN_SPEED = 2.3;
-const tmpQ = new THREE.Quaternion(), tmpV = V(), tmpV2 = V(), tmpV3 = V();
+const WALK_SPEED = 12.0, TURN_SPEED = 2.3;
+const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion(),
+      tmpV = V(), tmpV2 = V(), tmpV3 = V();
 const cA = V(), cB = V(), cC = V(), aimDir = V();
 
 function herUp(out){ return out.set(0,1,0).applyQuaternion(orientation); }
@@ -1470,7 +1704,7 @@ const CHICAGO_START_N = arbitraryPerp(CHICAGO_TARGET_DIR);
 }
 
 /* ---------- camera: follow + trackpad orbit ---------- */
-let camYaw = 0, camPitch = 0.3, camDist = 9;
+let camYaw = 0, camPitch = 0.3, camDist = 9, camYawTarget = 0;
 const camPos = camera.position.clone();
 const camUp = V().set(0,1,0);
 function followCam(dt, pos, up, fwd, dist, snap=false){
@@ -1480,7 +1714,7 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
   cB.crossVectors(up, cA).normalize();            // side axis
   tmpQ.setFromAxisAngle(cB, -camPitch);
   cA.applyQuaternion(tmpQ);                       // pitch
-  cC.copy(pos).addScaledVector(cA, dist).addScaledVector(up, 1.3);
+  cC.copy(pos).addScaledVector(cA, dist).addScaledVector(up, 7.5);
   // Keep the third-person camera outside the current spherical world.
   if ((state === 'walk' || state === 'talk') && bodies[curI]){
     const b = bodies[curI];
@@ -1495,11 +1729,42 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
   camera.up.copy(camUp);
   camera.lookAt(cC.copy(pos).addScaledVector(up, 1.5));
 }
-// drag + trackpad
+/* Conversation two-shot: Beanie on screen-left facing right, the NPC upper-
+   right facing back toward her (both faces visible). Beanie is turned to face
+   the NPC each frame (rotation only — her sphere position is unchanged). */
+let TALK_CAM_SIDE = 1;
+function updateTalkCam(dt){
+  const npc = (dialog && dialog.npcPos) ? dialog.npcPos() : null;
+  if (!npc){ followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 6.5); return; }
+  const up = herUp(new THREE.Vector3());
+  orientation.copy(quatFromBasis(up, tangentToward(her.position, up, npc)));   // face the NPC
+  updatePose();
+  const mid  = new THREE.Vector3().addVectors(her.position, npc).multiplyScalar(0.5);
+  const axis = new THREE.Vector3().subVectors(npc, her.position);
+  const gap  = Math.max(0.6, axis.length()); axis.normalize();
+  const side = new THREE.Vector3().crossVectors(up, axis).normalize().multiplyScalar(TALK_CAM_SIDE);
+  const goal = new THREE.Vector3().copy(mid)
+    .addScaledVector(side, gap*0.85 + 3.4)
+    .addScaledVector(up,   gap*0.26 + 1.9)
+    .addScaledVector(axis, -gap*0.18);
+  const look = new THREE.Vector3().copy(mid).addScaledVector(up, 1.0).addScaledVector(axis, gap*0.14);
+  camPos.lerp(goal, 1 - Math.exp(-5*dt));
+  camUp.lerp(up, 1 - Math.exp(-4*dt)).normalize();
+  camera.position.copy(camPos);
+  camera.up.copy(camUp);
+  camera.lookAt(look);
+}
+// drag + trackpad — only while Beanie is stopped. While she's actively
+// walking, arrow keys already steer the camera-relative view (updateWalk),
+// so free-look input is disabled to avoid the two fighting each other.
 let dragging = false, lastX = 0, lastY = 0;
-renderer.domElement.addEventListener('pointerdown', (e) => { dragging = true; lastX = e.clientX; lastY = e.clientY; });
+function cameraLookLocked(){ return false; }   // cursor/trackpad always changes perspective, even while moving
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (cameraLookLocked()) return;
+  dragging = true; lastX = e.clientX; lastY = e.clientY;
+});
 addEventListener('pointermove', (e) => {
-  if (!dragging) return;
+  if (!dragging || cameraLookLocked()){ dragging = false; return; }
   camYaw   -= (e.clientX - lastX)*0.006;
   camPitch += (e.clientY - lastY)*0.005;
   camPitch = Math.max(-1.05, Math.min(1.2, camPitch));
@@ -1508,6 +1773,7 @@ addEventListener('pointermove', (e) => {
 addEventListener('pointerup', () => { dragging = false; });
 addEventListener('wheel', (e) => {
   e.preventDefault();
+  if (cameraLookLocked()) return;
   if (e.ctrlKey){ camDist = Math.max(5, Math.min(16, camDist + e.deltaY*0.05)); return; }
   camYaw   -= e.deltaX*0.0035;
   camPitch += e.deltaY*0.0035;
@@ -1540,7 +1806,7 @@ function updateAim(t){
     document.body.dataset.aimAngle = ang.toFixed(3);
     document.body.dataset.aimThreshold = th.toFixed(3);
     document.body.dataset.targetDistance = surf.toFixed(2);
-    if (surf < 64 && ang < th) target = b;
+    if (surf < 250 && ang < th && cur.missionDone) target = b;   // gated: finish the mission first
   } else {
     delete document.body.dataset.nextBody;
     delete document.body.dataset.aimAngle;
@@ -1569,28 +1835,47 @@ function bezierTangent(p0, p1, p2, t, out){
           2*(1-t)*(p1.z-p0.z) + 2*t*(p2.z-p1.z));
   return out.lengthSq() < 1e-8 ? out.set(0,1,0) : out.normalize();
 }
+// cubic variant: asymmetric control points give a "leap up, then fall flat"
+// arc (tall pull near launch, barely-lifted near landing) instead of a
+// symmetric loft — see jumpTo().
+function bezierCubic(p0, c1, c2, p3, t, out){
+  const u = 1-t, a = u*u*u, b = 3*u*u*t, c = 3*u*t*t, d = t*t*t;
+  return out.set(a*p0.x + b*c1.x + c*c2.x + d*p3.x,
+                  a*p0.y + b*c1.y + c*c2.y + d*p3.y,
+                  a*p0.z + b*c1.z + c*c2.z + d*p3.z);
+}
+function bezierCubicTangent(p0, c1, c2, p3, t, out){
+  const u = 1-t;
+  out.set(3*u*u*(c1.x-p0.x) + 6*u*t*(c2.x-c1.x) + 3*t*t*(p3.x-c2.x),
+          3*u*u*(c1.y-p0.y) + 6*u*t*(c2.y-c1.y) + 3*t*t*(p3.y-c2.y),
+          3*u*u*(c1.z-p0.z) + 6*u*t*(c2.z-c1.z) + 3*t*t*(p3.z-c2.z));
+  return out.lengthSq() < 1e-8 ? out.set(0,1,0) : out.normalize();
+}
 function jumpTo(body){
   if (state !== 'walk' || !body) return;
   const p0 = her.position.clone();
+  const n0 = herUp(V()).clone();
   const n1 = body.worldIndex === PIGEON_I
     ? dirNear(worldRefs.pigeon.plazaN, 0.18)
     : V().subVectors(p0, body.center).normalize();
-  const p2 = V().copy(body.center).addScaledVector(n1, body.r);
-  const dist = p0.distanceTo(p2);
-  const mid = V().addVectors(p0, p2).multiplyScalar(0.5);
-  const cmid = V().addVectors(bodies[curI].center, body.center).multiplyScalar(0.5);
-  const outDir = V().subVectors(mid, cmid);
-  if (outDir.lengthSq() < 1e-4) outDir.copy(herUp(V()));
-  outDir.normalize();
-  const p1 = mid.addScaledVector(outDir, Math.max(10, dist*0.4));
+  const p3 = V().copy(body.center).addScaledVector(n1, body.r);
+  const dist = p0.distanceTo(p3);
+  // Cubic arc, asymmetric on purpose: a tall pull straight up from launch
+  // (reads as "jumps up high"), then only a shallow lift near landing (reads
+  // as "falls flat" onto the next world) instead of a symmetric loft.
+  const jumpHeight = Math.max(50, Math.min(130, dist*0.55));
+  const c1 = V().copy(p0).addScaledVector(n0, jumpHeight);
+  const c2 = V().copy(p3).addScaledVector(n1, jumpHeight*0.18);
   const faceTo = body.chainNext != null ? bodies[body.chainNext].center
     : (body.worldIndex === PIGEON_I ? V().copy(bodies[PIGEON_I].center).addScaledVector(worldRefs.pigeon.percyN, body.r) : p0);
-  const qEnd = quatFromBasis(n1, tangentToward(p2, n1, faceTo));
-  flight = { t:0, dur:Math.min(3.2, Math.max(1.5, dist/34)), p0, p1, p2,
-    n0:herUp(V()), n1, qStart:orientation.clone(), qEnd,
+  const qEnd = quatFromBasis(n1, tangentToward(p3, n1, faceTo));
+  flight = { t:0, dur:Math.min(4.5, Math.max(2.2, dist/120)), p0, c1, c2, p2:p3,
+    n0, n1, qStart:orientation.clone(), qEnd,
     to:bodies.indexOf(body), trail:0 };
   state = 'fly';
   camYaw = 0;
+  if (herWalkAction) herWalkAction.setEffectiveWeight(0);
+  if (herIdleAction) herIdleAction.setEffectiveWeight(0);
   promptEl.classList.remove('show');
   playChime();
 }
@@ -1599,18 +1884,25 @@ function updateFlight(dt){
   f.t += dt/f.dur;
   const tt = Math.min(f.t, 1);
   const e = 0.5 - 0.5*Math.cos(Math.PI*tt);
-  bezier(f.p0, f.p1, f.p2, e, her.position);
-  const flipK = Math.min(1, Math.max(0, (e - 0.12)/0.66));
-  const flip = flipK*flipK*(3 - 2*flipK);
-  her.quaternion.slerpQuaternions(f.qStart, f.qEnd, e)
-    .multiply(tmpQ.setFromAxisAngle(X_AXIS, Math.PI*2*flip));
+  bezierCubic(f.p0, f.c1, f.c2, f.p2, e, her.position);
+  if (herUsingFallback){
+    // procedural fallback: keep the old whole-body front-flip since there's
+    // no skeletal jump animation to fall back on.
+    const flipK = Math.min(1, Math.max(0, (e - 0.12)/0.66));
+    const flip = flipK*flipK*(3 - 2*flipK);
+    her.quaternion.slerpQuaternions(f.qStart, f.qEnd, e)
+      .multiply(tmpQ.setFromAxisAngle(X_AXIS, Math.PI*2*flip));
+  } else {
+    her.quaternion.slerpQuaternions(f.qStart, f.qEnd, e);
+    updateJumpAnim(e);
+  }
   f.trail -= dt;
   if (f.trail <= 0){
     f.trail = 0.05;
     spawnEphemeral(new THREE.Mesh(sparkGeo, sparkMat), her.position, V().set(0,0,0), 0.9, 3);
   }
   const up = tmpV.copy(f.n0).lerp(f.n1, e).normalize();
-  const fwd = bezierTangent(f.p0, f.p1, f.p2, e, tmpV2);
+  const fwd = bezierCubicTangent(f.p0, f.c1, f.c2, f.p2, e, tmpV2);
   followCam(dt, her.position, up, fwd, 13);
   if (f.t >= 1){
     orientation.copy(f.qEnd);
@@ -1639,31 +1931,37 @@ function arrive(bi){
       randDir().multiplyScalar(2.5).addScaledVector(herUp(V()), 2), 0.8, 4);
 }
 
-/* ---------- percy: talk → ride → iris → garden ---------- */
+/* ---------- generic NPC dialogue ----------
+   Any NPC drives the dialog box through startDialog(lines, onDone). The box
+   types one line at a time; SPACE / A / ENTER advances; when the last line is
+   dismissed we return to 'walk' and fire onDone (which some flows use to jump
+   into another state, e.g. Percy's flight). */
 let percyNear = false, percyFly = null;
-const DIALOG_LINES = [
+const PERCY_LINES = [
   `Coo! Rachel… you found me. I have been waiting ALL day!`,
   'The other pigeons talk too much. *flap flap* Anyway —',
   'There is one more world out there, and somebody set it up just for you.',
   'Hop on my back and hold tight! 🕊️',
 ];
-let dialogIdx = 0, dialogTyping = null;
+let dialog = null, dialogTyping = null;   // dialog = { lines, idx, onDone, coo }
+function startDialog(lines, onDone, opts={}){
+  state = 'talk';
+  promptEl.classList.remove('show');
+  guideEl.classList.remove('show');
+  targetRing.visible = false;
+  reticleEl.classList.add('hidden');
+  dialogEl.classList.remove('hidden');
+  dialogNameEl.textContent = opts.speaker || 'Percy 🕊️';
+  dialog = { lines, idx:0, onDone, coo: opts.coo !== false };
+  showDialogLine();
+}
 function percyWorldPos(out){
   return out.copy(bodies[PIGEON_I].center)
     .addScaledVector(worldRefs.pigeon.percyN, bodies[PIGEON_I].r);
 }
-function startTalk(){
-  state = 'talk';
-  promptEl.classList.remove('show');
-  targetRing.visible = false;
-  reticleEl.classList.add('hidden');
-  dialogEl.classList.remove('hidden');
-  dialogIdx = 0;
-  showDialogLine();
-}
 function showDialogLine(){
-  playCoo();
-  const line = DIALOG_LINES[dialogIdx];
+  if (dialog.coo) playCoo();
+  const line = dialog.lines[dialog.idx];
   dialogTextEl.textContent = '';
   let i = 0;
   clearInterval(dialogTyping);
@@ -1673,15 +1971,20 @@ function showDialogLine(){
   }, 22);
 }
 function advanceDialog(){
-  const line = DIALOG_LINES[dialogIdx];
-  if (dialogTextEl.textContent.length < line.length){
+  if (!dialog) return;
+  const line = dialog.lines[dialog.idx];
+  if (dialogTextEl.textContent.length < line.length){   // still typing → reveal all first
     clearInterval(dialogTyping);
     dialogTextEl.textContent = line;
     return;
   }
-  dialogIdx++;
-  if (dialogIdx < DIALOG_LINES.length) showDialogLine();
-  else beginPercyFlight();
+  dialog.idx++;
+  if (dialog.idx < dialog.lines.length){ showDialogLine(); return; }
+  dialogEl.classList.add('hidden');
+  const cb = dialog.onDone;
+  dialog = null;
+  state = 'walk';
+  if (cb) cb();
 }
 function beginPercyFlight(){
   dialogEl.classList.add('hidden');
@@ -1699,8 +2002,8 @@ function beginPercyFlight(){
   const p0 = holder.position.clone();
   const up0 = V().subVectors(p0, bodies[PIGEON_I].center).normalize();
   const toGarden = V().subVectors(bodies[GARDEN_I].center, p0).normalize();
-  const p1 = V().copy(p0).addScaledVector(up0, 45);
-  const p2 = V().copy(p0).addScaledVector(toGarden, 150).addScaledVector(up0, 40);
+  const p1 = V().copy(p0).addScaledVector(up0, 112);
+  const p2 = V().copy(p0).addScaledVector(toGarden, 375).addScaledVector(up0, 100);
   percyFly = { t:0, holder, p0, p1, p2, up0, mounted:false, irisDone:false,
     percy:holder.userData.percy, herStart:her.position.clone() };
   playCoo();
@@ -1766,7 +2069,7 @@ function arriveGarden(){
   scene.remove(holder);
   percyFly = null;
   her.userData.sit(false);
-  her.scale.setScalar(1.05);
+  her.scale.setScalar(1);   // real model's height is already baked in at export time
   const g = bodies[GARDEN_I];
   const landPos = V().copy(g.center).addScaledVector(g.landN, g.r);
   const couchPos = V().copy(g.center).addScaledVector(worldRefs.garden.couchN, g.r);
@@ -1776,7 +2079,7 @@ function arriveGarden(){
   // pastel daylight
   scene.background.copy(GARDEN_BG);
   for (const s of starLayers) s.visible = false;
-  hemi.intensity = 1.7; sun.intensity = 1.7;
+  hemi.intensity = 1.85; sun.intensity = 1.25;   // golden-hour warmth, still low-contrast
   playMelody(MELODY_BDAY);          // ...now it can be the birthday song
   arrive(GARDEN_I);
   followCam(1, her.position, herUp(tmpV), herFwd(tmpV2), 9, true);
@@ -1853,9 +2156,16 @@ addEventListener('keydown', (e) => {
     if (state === 'intro') startJourney();
     else if (state === 'talk') advanceDialog();
     else if (state === 'walk'){
-      if (percyNear) startTalk();
+      if (percyNear) startDialog(PERCY_LINES, beginPercyFlight,
+        { npcPos: () => worldRefs.pigeon.percyHolder.getWorldPosition(new THREE.Vector3()) });
       else if (target) jumpTo(target);
     }
+  }
+  // A also advances/accepts dialogue ("press A to select")
+  if ((e.key === 'a' || e.key === 'A') && state === 'talk') advanceDialog();
+  // QA shortcut: 1-6 instantly warps to that world (skips aim-and-leap).
+  if (state === 'walk' && e.key >= '1' && e.key <= String(WORLD_DEFS.length)){
+    window.__world.goto(Number(e.key) - 1);
   }
 });
 addEventListener('keyup', (e) => { keys[e.key] = false; });
@@ -1866,25 +2176,25 @@ function updateWalk(dt){
   const iz = (keys['ArrowUp'] ? 1 : 0) - (keys['ArrowDown'] ? 1 : 0);
   const u = her.userData;
   u.moving = !!(ix || iz);
-  if (u.moving){
-    // camera-relative steering: ↑ always walks toward where Rachel is looking
+  u.movingBackward = iz < 0;
+  if (ix){
+    // ← → turn in place (Animal Crossing-style tank turning), and ease the
+    // camera around to peek at her front on that side rather than staying
+    // fixed behind her back.
     const up = herUp(tmpV);
-    camera.getWorldDirection(cA);
-    cA.addScaledVector(up, -cA.dot(up));
-    if (cA.lengthSq() < 1e-6) cA.copy(herFwd(tmpV2)).addScaledVector(up, -tmpV2.dot(up));
-    cA.normalize();
-    cB.setFromMatrixColumn(camera.matrixWorld, 0);   // screen-right in world space
-    cB.addScaledVector(up, -cB.dot(up));
-    if (cB.lengthSq() < 1e-6) cB.crossVectors(cA, up);
-    cB.normalize();
-    cC.copy(cA).multiplyScalar(iz).addScaledVector(cB, ix).normalize();
-    const fwd = herFwd(tmpV2);
-    const ang = Math.atan2(tmpV3.crossVectors(fwd, cC).dot(up), fwd.dot(cC));
-    const turn = Math.max(-11*dt, Math.min(11*dt, ang));
-    orientation.premultiply(tmpQ.setFromAxisAngle(up, turn));
-    camYaw -= turn;                       // the view holds still while she turns…
-    camYaw *= Math.exp(-0.9*dt);          // …then drifts gently back behind her
-    orientation.multiply(tmpQ.setFromAxisAngle(X_AXIS, WALK_SPEED*dt/b.r));
+    orientation.premultiply(tmpQ.setFromAxisAngle(up, -ix*2.4*dt));
+    camYawTarget = ix*0.65;
+  } else {
+    camYawTarget = 0;
+  }
+  camYaw += (camYawTarget - camYaw) * Math.min(1, dt*3.2);
+  if (iz){
+    // ↑ ↓ walk forward/backward along her current facing — no turning, so
+    // backing up never spins her whole body around.
+    const preForward = tmpQ2.copy(orientation);
+    orientation.multiply(tmpQ.setFromAxisAngle(X_AXIS, iz*WALK_SPEED*dt/b.r));
+    orientation.normalize();
+    if (isBlocked(b, orientation)) orientation.copy(preForward);   // bump back
   }
   orientation.normalize();
   u.inner.rotation.y *= Math.exp(-10*dt);
@@ -1892,7 +2202,23 @@ function updateWalk(dt){
   // footsteps synced to the walk cycle
   if (u.moving && !u.sitting){
     const step = Math.floor(u.walkP/Math.PI);
-    if (step !== u.lastStep){ u.lastStep = step; footstep(b.step); }
+    if (step !== u.lastStep){
+      u.lastStep = step;
+      footstep(b.step);
+      spawnDust(b.step, her.position, herUp(V()), herFwd(V()));
+    }
+  }
+  // distance-to-NPC guide — shown while the current world's mission isn't done
+  const bg = bodies[curI];
+  if (!bg.missionDone && bg.guideFn){
+    const npc = bg.guideFn(tmpV3);
+    const d = her.position.distanceTo(npc);
+    guideEl.innerHTML = d < (bg.guideNear || 4)
+      ? `<span class="near">${bg.guideLabel} — right here! press SPACE</span>`
+      : `${bg.guideLabel} — ${Math.round(d)} steps away`;
+    guideEl.classList.add('show');
+  } else {
+    guideEl.classList.remove('show');
   }
   // percy proximity
   percyNear = false;
@@ -1917,6 +2243,7 @@ function updateWalk(dt){
 const introEl = document.getElementById('intro');
 const hudEl = document.getElementById('hud');
 const missionEl = document.getElementById('mission');
+const guideEl = document.getElementById('guide');
 const dotsEl = document.getElementById('dots');
 const hintEl = document.getElementById('hint');
 const promptEl = document.getElementById('prompt');
@@ -1926,6 +2253,7 @@ const muteBtn = document.getElementById('muteBtn');
 const reticleEl = document.getElementById('reticle');
 const dialogEl = document.getElementById('dialog');
 const dialogTextEl = document.getElementById('dialogText');
+const dialogNameEl = document.getElementById('dialogName');
 const irisEl = document.getElementById('iris');
 const cardOverlay = document.getElementById('cardOverlay');
 
@@ -1947,6 +2275,57 @@ function setMission(html){
   missionEl.innerHTML = html;
   missionEl.classList.remove('hidden');
 }
+
+/* ---------- Chicago intro: Bred's messenger pigeon + letter ---------- */
+const CHICAGO_LETTER_LINES = [
+  `Coo! Rachel? …Rachel! Oh good — I found you. *pant pant*`,
+  `I flew a LONG way. I have something for you… a letter. 💌 It's from Bred.`,
+  `He couldn't FaceTime today, so he wrote this instead:`,
+  `"Beanie — I built you a little universe. Every world is something you love. Leap across them all and follow them to the very end…"`,
+  `"…and I'll be waiting for you there. Come find me. 🤍 — Bred"`,
+  `So don't stop, okay? Aim at the next little world and leap. Off you go!`,
+];
+let chicagoMessenger = null;
+function spawnChicagoMessenger(onLanded){
+  const b0 = bodies[0];
+  const pg = plushPigeon(PIGEON_VARIANTS ? PIGEON_VARIANTS[0] : {});
+  pg.scale.setScalar(0.9);
+  const fwd = herFwd(V());
+  // landing spot: ON the surface, a little in front of her
+  const groundN = V().copy(her.position).addScaledVector(fwd, 3.2).sub(b0.center).normalize();
+  const landPos = V().copy(b0.center).addScaledVector(groundN, b0.r);
+  const startPos = V().copy(b0.center).addScaledVector(groundN, b0.r + 9);   // swoops down from above
+  pg.position.copy(startPos);
+  scene.add(pg);
+  chicagoMessenger = { pg, groundN, landPos, startPos, t:0, landed:false, onLanded };
+  animators.push((t, dt) => {
+    const m = chicagoMessenger;
+    if (!m || m.pg !== pg) return;
+    const w = pg.userData.wings;
+    if (w) for (let i = 0; i < 2; i++) w[i].rotation.z = (i===0?1:-1)*Math.sin(t*(m.landed?7:16))*0.95;
+    if (!m.landed){
+      m.t += dt/1.15;
+      const k = Math.min(1, m.t), e = k*k*(3-2*k);
+      pg.position.lerpVectors(m.startPos, m.landPos, e);
+      if (k >= 1){ m.landed = true; const cb = m.onLanded; m.onLanded = null; if (cb) cb(); }
+    } else {
+      pg.position.copy(m.landPos).addScaledVector(m.groundN, Math.abs(Math.sin(t*2.2))*0.05);  // little hops
+    }
+    // stand upright on the surface, facing Beanie
+    pg.quaternion.copy(quatFromBasis(m.groundN, tangentToward(pg.position, m.groundN, her.position)));
+  });
+}
+function dismissChicagoMessenger(){
+  if (!chicagoMessenger) return;
+  const pg = chicagoMessenger.pg, up = chicagoMessenger.up;
+  const holder = new THREE.Group(); holder.position.copy(pg.position);
+  scene.add(holder); scene.remove(pg); pg.position.set(0,0,0); holder.add(pg);
+  percyScatter.push({ obj: holder, life: 3.2,
+    vel: up.clone().multiplyScalar(9).addScaledVector(randDir(), 3) });
+  chicagoMessenger = null;
+  playCoo();
+}
+
 addEventListener('click', () => { if (state === 'intro') startJourney(); });
 function startJourney(){
   if (state !== 'intro') return;
@@ -1965,9 +2344,23 @@ function startJourney(){
   orientation.copy(quatFromBasis(CHICAGO_START_N,
     tangentToward(startPos, CHICAGO_START_N, bodies[b0.chainNext].center)));
   arrive(0);
+  missionEl.classList.add('hidden');   // mission appears only after the letter is read
   camPitch = 0.08;
   camYaw = 0.5;
   followCam(1, her.position, herUp(tmpV), herFwd(tmpV2), camDist, true);
+  // Bred's messenger pigeon flutters in with the letter (gates the first leap)
+  setTimeout(() => {
+    if (state !== 'walk' || bodies[0].missionDone) return;
+    // messenger swoops down and LANDS, then reads the letter
+    spawnChicagoMessenger(() => {
+      startDialog(CHICAGO_LETTER_LINES, () => {
+        bodies[0].missionDone = true;
+        setMission(bodies[0].mission);
+        dismissChicagoMessenger();
+      }, { speaker:'🕊️ a breathless pigeon',
+           npcPos: () => chicagoMessenger ? chicagoMessenger.pg.getWorldPosition(new THREE.Vector3()) : null });
+    });
+  }, 950);
 }
 
 /* ---------- envelope & card ---------- */
@@ -2038,8 +2431,10 @@ function step(dt){
   simT += dt;
   const t = simT;
   for (const fn of animators) fn(t, dt);
-  animAvatar(her, t, dt);
-  if (worldRefs.garden) animAvatar(worldRefs.garden.bred, t, dt);
+  if (herUsingFallback) animAvatar(her, t, dt); else animBeanieSkinned(dt);
+  // note: garden.bred is now a real-model placeholder Group, not a makeChibi
+  // rig — its breathing pulse is handled by the animator registered in
+  // buildGarden() instead of animAvatar().
   updateEphemerals(dt);
   updatePercyScatter(dt);
   maybeShoot(dt);
@@ -2061,14 +2456,18 @@ function step(dt){
   }
   else if (state === 'walk')     updateWalk(dt);
   else if (state === 'fly')      updateFlight(dt);
-  else if (state === 'talk')     followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 7);
+  else if (state === 'talk')     updateTalkCam(dt);
   else if (state === 'percyfly') updatePercyFlight(dt, t);
   else if (state === 'finale')   updateFinale(dt, t);
 }
+let debugFreeze = false;      // when true, the loop stops stepping/rendering so a
+                               // one-off debug camera shot (framePoint/lookAt) survives
+                               // long enough for an external screenshot to capture it.
 function tick(){
   requestAnimationFrame(tick);
+  if (debugFreeze) return;
   step(Math.min(clock.getDelta(), 0.05));
-  renderer.render(scene, camera);
+  renderScene();
 }
 tick();
 
@@ -2080,13 +2479,93 @@ window.__world = {
   get visited(){ return [...visitedWorlds]; },
   get target(){ return target ? target.name : null; },
   pos(){ return her.position.toArray().map(v => +v.toFixed(2)); },
+  lookAt(x, y, z){                  // point the raw camera at a world position (debug only)
+    camera.lookAt(x, y, z);
+    renderScene();
+  },
+  framePoint(x, y, z, planetCenter, dist=4){  // hover the raw camera near a world point (debug only)
+    const p = new THREE.Vector3(x, y, z);
+    const c = planetCenter ? new THREE.Vector3(...planetCenter) : new THREE.Vector3(0,0,0);
+    const up = p.clone().sub(c).normalize();
+    let side = new THREE.Vector3(1,0,0).cross(up);
+    if (side.lengthSq() < 1e-6) side.set(0,0,1).cross(up);
+    side.normalize();
+    camera.position.copy(p).addScaledVector(up, dist*0.4).addScaledVector(side, dist);
+    camera.up.copy(up);
+    camera.lookAt(p);
+    debugFreeze = true;
+    renderScene();
+  },
+  freeze(v){ debugFreeze = v; renderScene(); },
+  planetCenter(i){ return bodies[i].center.toArray(); },
+  chippyWorldPos(){
+    return worldRefs.books ? worldRefs.books.chippy.getWorldPosition(new THREE.Vector3()).toArray() : null;
+  },
+  chippyLoaded(){ return worldRefs.books ? worldRefs.books.chippy.children.length > 0 : false; },
+  beanieBoneDebug(){
+    const model = her.children[0];
+    if (!model) return null;
+    const out = { bones:{}, allBoneNames:[] };
+    model.traverse((o) => {
+      if (o.isBone){
+        out.allBoneNames.push(o.name);
+        if (/upperarm/i.test(o.name)){
+          out.bones[o.name] = { quat: o.quaternion.toArray().map(v => +v.toFixed(4)) };
+        }
+      }
+    });
+    out.idleWeight = herIdleAction ? +herIdleAction.getEffectiveWeight().toFixed(3) : null;
+    out.walkWeight = herWalkAction ? +herWalkAction.getEffectiveWeight().toFixed(3) : null;
+    return out;
+  },
+  couchWorldPos(){
+    return worldRefs.garden ? worldRefs.garden.couch.getWorldPosition(new THREE.Vector3()).toArray() : null;
+  },
+  couchCharWorldPos(who){          // who: 'bred' | 'percy' | 'chippyPlush'
+    return worldRefs.garden ? worldRefs.garden[who].getWorldPosition(new THREE.Vector3()).toArray() : null;
+  },
+  camDebug(){ return { camYaw, camPitch, camDist, moving: her.userData.moving, locked: cameraLookLocked() }; },
+  colliderDebug(){
+    const b = bodies[curI];
+    return { count: (b.colliders||[]).length,
+      colliders: (b.colliders||[]).map(c => ({ n: c.n.toArray().map(v=>+v.toFixed(3)), angRadius: +c.angRadius.toFixed(4) })) };
+  },
+  facing(){ return herFwd(new THREE.Vector3()).toArray().map(v=>+v.toFixed(4)); },
+  walkToward(nArr, seconds){          // steer her toward a world-space direction on the current planet, for testing
+    const b = bodies[curI];
+    const targetN = new THREE.Vector3(...nArr).normalize();
+    const steps = Math.ceil(seconds*30);
+    const positions = [];
+    for (let i = 0; i < steps; i++){
+      const up = herUp(new THREE.Vector3());
+      const fwd = herFwd(new THREE.Vector3());
+      const toward = targetN.clone().addScaledVector(up, -targetN.dot(up)).normalize();
+      const ang = Math.atan2(new THREE.Vector3().crossVectors(fwd, toward).dot(up), fwd.dot(toward));
+      const turn = Math.max(-11/30, Math.min(11/30, ang));
+      orientation.premultiply(new THREE.Quaternion().setFromAxisAngle(up, turn));
+      const preForward = orientation.clone();
+      orientation.multiply(new THREE.Quaternion().setFromAxisAngle(X_AXIS, WALK_SPEED/30/b.r));
+      orientation.normalize();
+      if (isBlocked(b, orientation)) orientation.copy(preForward);
+      updatePose();
+      positions.push(her.position.toArray().map(v=>+v.toFixed(2)));
+    }
+    renderer.render(scene, camera);
+    return { finalPos: positions[positions.length-1], sample: positions.slice(-6) };
+  },
+  jumpWeights(){
+    return { launch: herJumpLaunchAction && herJumpLaunchAction.getEffectiveWeight(),
+      soar: herJumpSoarAction && herJumpSoarAction.getEffectiveWeight(),
+      land: herJumpLandAction && herJumpLandAction.getEffectiveWeight() };
+  },
+  waitFor(ms){ return new Promise((r) => setTimeout(r, ms)); },
   start(){ startJourney(); },
   jumpChain(){ const n = bodies[curI].chainNext; if (n != null) jumpTo(bodies[n]); },
   get chainNext(){ return bodies[curI].chainNext; },
   pump(seconds){                    // advance the simulation manually (testing when tab is hidden)
     const n = Math.ceil(seconds*30);
     for (let i = 0; i < n; i++) step(1/30);
-    renderer.render(scene, camera);
+    renderScene();
   },
   aimAtBody(i){
     const b = bodies[i];
