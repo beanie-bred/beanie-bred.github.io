@@ -117,11 +117,48 @@
             breathless messenger pigeon flutters in and reads Bred's letter
             ("come find me"), then flies off → mission appears, first leap
             unlocks. Verified end-to-end incl. downstream Percy/finale/card.
-      - [ ] TODO item pickup ("A" key) + inventory (Chippy's 5 books, pigeon book)
+      - [x] all pigeons given big glinting eyes (were tiny dots, invisible at
+            range); Chicago messenger now SWOOPS DOWN and LANDS on the surface
+            before talking; Pigeon Plaza flock mostly grounded (orbiters 70→10).
+      - [x] Chicago 2x bigger (r3.5→7) per follow-up (still the smallest world).
+      - [x] conversation two-shot camera: during any dialogue the camera frames
+            Beanie screen-left facing right + the NPC on the right facing her
+            (both faces visible). Beanie auto-turns to face the NPC (rotation
+            only). TALK_CAM_SIDE flips the handedness. Used by every startDialog.
+      - [x] item pickup: press A near a glowing item to collect it (inventory).
+      - [x] World 2 quest: 5 glowing "gift books" float around the planet; find
+            Chippy (🐿️, resting), he asks for 5 favourite books, press A to
+            collect each, bring them back → he's satisfied → Book Stacks gate
+            opens. Verified: walk, pickup 0→5, Chippy talk phase 0→1, gate.
+            NOTE: only ~1/22 book stacks are colliders now — colliding on all
+            700 fenced her in and made the quest unwalkable.
       - [ ] TODO title polish: beanie sitting against the tower on the rotating
             snowball (currently stands; no sit anim yet)
-      - [ ] TODO World2 Chippy 5-books quest; Pigeon Plaza 5-pigeons+pat+Percy
-            grow/fly; Garden 4-char wave (+bbak) + walk-toward + KISS cutscene
+      - [x] all pigeons given big glinting eyes; Chicago messenger swoops down
+            and LANDS on the surface before talking; Pigeon Plaza flock grounded.
+      - [x] conversation camera = profile two-shot (Beanie screen-left, NPC
+            right, both faces visible); nearby props auto-hide during a talk so
+            nothing covers her; Beanie holds Idle while talking.
+      - [x] anim: Idle whenever still (incl. talking), Walk clip when walking,
+            Shift = run (1.5x speed + faster cycle). Feet-sink fixed with a
+            small radial model lift (HER_MODEL_LIFT). NOTE: distinct walk-vs-run
+            *clips* still pending — source clips are Mixamo 65-bone skeleton vs
+            the in-game 19-bone BeanieRig, so a retarget pass is needed; for now
+            "run" reuses the walk clip sped 1.5x. herRunAction is wired so a
+            'Run' clip drops in automatically once retargeted.
+      - [x] world-space NPC locator beacon (floating arrow + halo) hovers over
+            the current mission target; gift books enlarged + beacons + guide
+            now points to the nearest uncollected book; book-cover+title pop-up
+            on pickup. Number keys 1-6 no longer drag Chicago's letter along.
+      - [x] World 3 (Food/Cucumber) built + bbak cooling quest: bbak (real glb)
+            lounges on the grass; scattered foods + glowing pickable cold treats
+            (makeFood factory); talk bbak → bring 3 foods (each rejected) →
+            he reveals a glowing special cucumber → fetch + give → gate opens.
+            Verified end-to-end (talk, 3 rejects, cucumber reveal, give, gate,
+            leap to Pigeon Plaza), zero console errors (2026-07-12).
+      - [ ] TODO distinct run-clip retarget (Mixamo→BeanieRig); title beanie-sit
+      - [ ] TODO Pigeon Plaza 5-pigeons+pat+Percy grow/fly; Garden 4-char wave
+            (+bbak) + walk-toward + KISS cutscene
       - NOTE: WALK_SPEED still 12 — feels fast on the tiny Chicago (r3.5);
         revisit during the Chicago rework (may drop to ~8 or make per-world).
 - [ ] POLISH: RunFK2's arm swing reads as a wide sideways reach rather than a

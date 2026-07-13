@@ -48,6 +48,18 @@
     color:#dbe7ff;opacity:0;transition:opacity .4s,transform .4s;pointer-events:none}
   #guide.show{opacity:1;transform:translateX(-50%) translateY(0)}
   #guide .near{color:#a8f0c0}
+  #bookpop{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-14px) scale(.96);
+    z-index:24;display:flex;gap:14px;align-items:center;padding:12px 20px 12px 14px;border-radius:16px;
+    background:rgba(30,32,64,.72);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.22);
+    box-shadow:0 10px 40px rgba(0,0,0,.35);opacity:0;pointer-events:none;
+    transition:opacity .35s ease,transform .35s ease}
+  #bookpop.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+  #bookpopCover{position:relative;width:46px;height:62px;border-radius:4px 7px 7px 4px;flex:0 0 auto;
+    box-shadow:0 4px 14px rgba(0,0,0,.4),inset 0 0 0 2px rgba(255,255,255,.25)}
+  #bookpopSpine{position:absolute;left:5px;top:0;bottom:0;width:3px;background:rgba(0,0,0,.18);border-radius:3px}
+  #bookpopKicker{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#ffd9a0;opacity:.9}
+  #bookpopTitle{font-size:16px;font-weight:700;color:#fff;margin-top:2px;max-width:260px}
+  #bookpopCount{font-size:12px;color:#bcd0f0;margin-top:3px}
   #dots{position:fixed;top:70px;right:16px;z-index:20;display:flex;gap:8px;align-items:center}
   .dot{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.18);
     border:1px solid rgba(255,255,255,.3);transition:all .5s}
@@ -149,6 +161,8 @@
 <div id="hud" class="hidden"><div class="chip" id="planetName">…</div></div>
 <div id="mission" class="hidden"></div>
 <div id="guide" class="hidden"></div>
+<div id="bookpop"><div id="bookpopCover"><span id="bookpopSpine"></span></div>
+  <div id="bookpopMeta"><div id="bookpopKicker">📖 collected</div><div id="bookpopTitle"></div><div id="bookpopCount"></div></div></div>
 <div id="dots" class="hidden"></div>
 <button id="muteBtn" class="hidden">🔊</button>
 <div id="hint" class="chip hidden">↑ ↓ ← → walk · cursor drag / trackpad swipe to look · SPACE leap / talk</div>
@@ -959,6 +973,46 @@ function makeCucumber(scale=1){
   g.scale.setScalar(scale);
   return g;
 }
+// cute stylized foods for the Food world
+const FOOD_TYPES = ['burger','icecream','cake','donut','pizza','fries','sushi'];
+function makeFood(type){
+  const g = new THREE.Group();
+  const M = (c, o={}) => mat(c, { roughness:0.8, ...o });
+  if (type === 'burger'){
+    const topBun = new THREE.Mesh(new THREE.SphereGeometry(0.34,14,10), M(0xe0a85c));
+    topBun.position.set(0,0.34,0); topBun.scale.y = 0.7; g.add(topBun);
+    const seedM = M(0xfff4dd); for (let i=0;i<6;i++){ const s=new THREE.Mesh(new THREE.SphereGeometry(0.02,5,4),seedM); const a=i*1.05; s.position.set(Math.cos(a)*0.18,0.5,Math.sin(a)*0.18); g.add(s); }
+    const patty=new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.34,0.14,16),M(0x6b3f28)); patty.position.y=0.2; g.add(patty);
+    const lett=new THREE.Mesh(new THREE.CylinderGeometry(0.37,0.37,0.05,16),M(0x8fc46a)); lett.position.y=0.28; g.add(lett);
+    const bot=new THREE.Mesh(new THREE.CylinderGeometry(0.33,0.3,0.14,16),M(0xe0a85c)); bot.position.y=0.07; g.add(bot);
+  } else if (type === 'icecream'){
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(0.22,0.6,12),M(0xe0b070)); cone.position.y=0.3; cone.rotation.x=Math.PI; g.add(cone);
+    for (const [y,c] of [[0.62,0xf6b8c8],[0.86,0xfff0d0],[1.06,0xc0a0e0]]){ const s=new THREE.Mesh(new THREE.SphereGeometry(0.24,14,10),M(c)); s.position.y=y; g.add(s); }
+    const cherry=new THREE.Mesh(new THREE.SphereGeometry(0.07,8,6),M(0xd84a4a)); cherry.position.y=1.28; g.add(cherry);
+  } else if (type === 'cake'){
+    const base=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,0.4,18),M(0xf6e0c0)); base.position.y=0.2; g.add(base);
+    const icing=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,0.12,18),M(0xf6b8c8)); icing.position.y=0.44; g.add(icing);
+    for (let i=0;i<7;i++){ const a=i/7*6.28; const b=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,5),M(0xd84a4a)); b.position.set(Math.cos(a)*0.3,0.52,Math.sin(a)*0.3); g.add(b); }
+    const candle=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.3,6),M(0xffffff)); candle.position.y=0.66; g.add(candle);
+    const flame=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,5),mat(0xffcf6a,{emissive:0xffa63e,emissiveIntensity:2})); flame.position.y=0.84; flame.scale.y=1.6; g.add(flame);
+  } else if (type === 'donut'){
+    const d=new THREE.Mesh(new THREE.TorusGeometry(0.26,0.13,10,18),M(0xd98a5a)); d.rotation.x=Math.PI/2; d.position.y=0.2; g.add(d);
+    const ic=new THREE.Mesh(new THREE.TorusGeometry(0.26,0.135,10,18),M(0xf6a0c0)); ic.rotation.x=Math.PI/2; ic.position.y=0.24; ic.scale.y=0.7; g.add(ic);
+    for (let i=0;i<10;i++){ const a=i*1.9; const s=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.03,0.08),M([0xfff0d0,0x9fd8d0,0xf6e0a8][i%3])); s.position.set(Math.cos(a)*0.26,0.3,Math.sin(a)*0.26); s.rotation.y=a; g.add(s); }
+  } else if (type === 'pizza'){
+    const sl=new THREE.Mesh(new THREE.CircleGeometry(0.5,16,0,1.1),M(0xf6d28a)); sl.rotation.x=-Math.PI/2; sl.position.y=0.05; g.add(sl);
+    const cr=new THREE.Mesh(new THREE.TorusGeometry(0.5,0.05,6,16,1.1),M(0xe0a85c)); cr.rotation.x=Math.PI/2; cr.position.y=0.05; g.add(cr);
+    for (let i=0;i<4;i++){ const p=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.03,10),M(0xd84a4a)); p.position.set(0.12+Math.random()*0.25,0.08,(Math.random()-0.5)*0.4); g.add(p); }
+  } else if (type === 'fries'){
+    const box=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.14,0.32,4),M(0xd84a4a)); box.position.y=0.16; box.rotation.y=Math.PI/4; g.add(box);
+    for (let i=0;i<7;i++){ const f=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.4,0.04),M(0xf6cf6a)); f.position.set((Math.random()-0.5)*0.2,0.4,(Math.random()-0.5)*0.2); f.rotation.z=(Math.random()-0.5)*0.4; g.add(f); }
+  } else { // sushi
+    const rice=new THREE.Mesh(new THREE.CapsuleGeometry(0.16,0.3,4,10),M(0xfbf6ee)); rice.rotation.z=Math.PI/2; rice.position.y=0.16; g.add(rice);
+    const fish=new THREE.Mesh(new THREE.BoxGeometry(0.44,0.1,0.28),M(0xf29a7a)); fish.position.y=0.3; g.add(fish);
+    const nori=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.34,0.32),M(0x2c3a2c)); nori.position.y=0.2; g.add(nori);
+  }
+  return g;
+}
 function orbiter(group, obj, radius, speed, tiltX, tiltZ, bobAmp=0, bobSpeed=1){
   const pivot = new THREE.Group();
   pivot.rotation.x = tiltX; pivot.rotation.z = tiltZ;
@@ -1132,7 +1186,9 @@ function buildBooks(g, R){
     const n = randDir();
     const s = 0.9 + Math.random()*0.5;
     placeOn(g, makeStack(2 + Math.floor(Math.random()*4), s), n, R);
-    addCollider(colliders, n, 0.9*s, R);
+    // Only a sparse subset block movement — colliding on all 700 would fence
+    // her in and make the book-collecting quest impossible to walk.
+    if (i % 22 === 0) addCollider(colliders, n, 0.9*s, R);
   }
   const grand = makeStack(6, 1.5, 0.25);          // the landmark tower of books
   const grandN = dirNear(chippyN, 0.25);
@@ -1167,7 +1223,45 @@ function buildBooks(g, R){
     animators.push((t) => { page.rotation.x = Math.sin(t*1.4 + i)*0.6; page.rotation.z = Math.sin(t + i)*0.4; });
     orbiter(g, page, R + 2 + i*0.5, 0.12 + i*0.04, Math.random()*2.5, Math.random()*2.5, 0.4, 1.3);
   }
-  return { chippy, colliders };
+  // ---- 5 special "gift" books for Chippy (glowing + floating; press A to collect) ----
+  const GIFT_COLORS = [0xf2a0b4, 0xa8c8f0, 0xb8e0c0, 0xf2d8a0, 0xd8b8e8];
+  const GIFT_TITLES = [
+    'Knits for Cold Cities', 'Pigeons: A Love Story', 'The Deep Blue: a Whale Tale',
+    'A Field Guide to Cucumbers', 'Percy the Brave',
+  ];
+  const giftBooks = [];
+  for (let i = 0; i < 5; i++){
+    const holder = new THREE.Group();
+    const bk = makeBook(2.4);   // big, obvious
+    bk.children[0].material = mat(GIFT_COLORS[i], { roughness:0.5, emissive:GIFT_COLORS[i], emissiveIntensity:0.75 });
+    bk.position.y = 1.4;        // lift the book up off the ground so it stands out
+    holder.add(bk);
+    // glowing halo around the book
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(1.5, 14, 12),
+      new THREE.MeshBasicMaterial({ color:GIFT_COLORS[i], transparent:true, opacity:0.2, depthWrite:false }));
+    halo.position.y = 1.4; holder.add(halo);
+    // a bright beacon that floats above and catches the bloom — a findable landmark
+    const beacon = new THREE.Mesh(new THREE.OctahedronGeometry(0.34),
+      mat(GIFT_COLORS[i], { emissive:GIFT_COLORS[i], emissiveIntensity:2.4, roughness:0.3 }));
+    beacon.position.y = 3.4; holder.add(beacon);
+    // thin light column joining them
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.0, 8),
+      new THREE.MeshBasicMaterial({ color:GIFT_COLORS[i], transparent:true, opacity:0.35, depthWrite:false }));
+    beam.position.y = 2.4; holder.add(beam);
+    // scattered around the planet, spread away from Chippy's stack
+    const n = dirNear(chippyN, 0.9 + (i/5)*1.7 + Math.random()*0.4);
+    placeOn(g, holder, n, R, 0.1);
+    const ph = i*1.3;
+    animators.push((t) => {
+      if (!holder.visible) return;
+      bk.rotation.y = t*0.9 + ph;
+      bk.position.y = 1.4 + 0.2*Math.sin(t*1.6 + ph);
+      beacon.rotation.y = t*1.6; beacon.position.y = 3.4 + 0.25*Math.sin(t*2 + ph);
+      halo.material.opacity = 0.16 + 0.09*Math.sin(t*2 + ph);
+    });
+    giftBooks.push({ holder, dir: n.clone(), taken:false, color: GIFT_COLORS[i], title: GIFT_TITLES[i] });
+  }
+  return { chippy, chippyN, giftBooks, colliders };
 }
 
 function grassField(g, R, count, color, skipN=null, skipAng=0){
@@ -1195,12 +1289,12 @@ function grassField(g, R, count, color, skipN=null, skipAng=0){
 
 function buildCucumber(g, R){
   grassField(g, R, 11000, PALETTE.moss);
-  // cucumbers schooling like fish
+  // cucumbers schooling like a planet ring
   school(g, () => makeCucumber(1), 9, R + 3.2, 0.28, 2.6, 0.8);
   school(g, () => makeCucumber(1), 8, R + 4.4, -0.2, 2.4, 0.65);
   school(g, () => makeCucumber(1), 7, R + 5.6, 0.16, 2.8, 0.95);
-  // some resting in the grass
-  for (let i = 0; i < 120; i++){
+  // some cucumbers resting in the grass
+  for (let i = 0; i < 90; i++){
     const holder = new THREE.Group();
     const c = makeCucumber(0.85);
     c.rotation.z = Math.PI/2; c.rotation.y = Math.random()*Math.PI;
@@ -1208,12 +1302,68 @@ function buildCucumber(g, R){
     placeOn(g, holder, randDir(), R, 0.3);
   }
   // pastel wildflower dots
-  for (let i = 0; i < 480; i++){
+  for (let i = 0; i < 300; i++){
     const f = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6),
       mat([0xf2c0d0, 0xf6e0a8, 0xc8d8f4][i%3], { roughness:0.8 }));
     const holder = new THREE.Group(); holder.add(f); f.position.y = 0.12;
     placeOn(g, holder, randDir(), R, 0.1);
   }
+  // bbak (sleeping polar-bear plush) lounging on the grass — the NPC
+  const bbakN = V().set(-0.25, 1, 0.35).normalize();
+  const bbak = new THREE.Group();
+  placeOn(g, bbak, bbakN, R, 0.1);
+  bbak.rotateY(1.2);
+  let bbakModel = null;
+  loadModel('./game-assets/bbak/bbak.glb').then((model) => {
+    model.scale.setScalar(2.2); bbakModel = model; bbak.add(model);
+  }).catch((err) => { console.error('bbak model failed', err); });
+  animators.push((t) => { if (bbakModel) bbakModel.scale.setScalar(2.2 + 0.04*Math.sin(t*1.3)); });   // slow breathing
+  // ---- lots of random foods scattered around (decor) ----
+  for (let i = 0; i < 70; i++){
+    const holder = new THREE.Group();
+    const f = makeFood(FOOD_TYPES[i % FOOD_TYPES.length]);
+    f.scale.setScalar(0.8 + Math.random()*0.7); f.rotation.y = Math.random()*6.28;
+    holder.add(f);
+    const n = randDir();
+    if (n.angleTo(bbakN) < 3/R){ i--; continue; }
+    placeOn(g, holder, n, R, 0.1);
+  }
+  // ---- pickable "cold treats" (glowing) she can bring to bbak ----
+  const COLD = ['icecream','cake','donut','pizza','burger','fries'];
+  const foods = [];
+  for (let i = 0; i < 6; i++){
+    const holder = new THREE.Group();
+    const f = makeFood(COLD[i]); f.scale.setScalar(1.25); holder.add(f);
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(1.1, 12, 10),
+      new THREE.MeshBasicMaterial({ color:0xbfe6ff, transparent:true, opacity:0.22, depthWrite:false }));
+    halo.position.y = 0.5; holder.add(halo);
+    const beacon = new THREE.Mesh(new THREE.OctahedronGeometry(0.28),
+      mat(0xbfe6ff, { emissive:0x9fd8f0, emissiveIntensity:2.2, roughness:0.3 }));
+    beacon.position.y = 2.4; holder.add(beacon);
+    const n = dirNear(bbakN, 0.7 + (i/6)*1.7 + Math.random()*0.3);
+    placeOn(g, holder, n, R, 0.1);
+    const ph = i*1.1;
+    animators.push((t) => { if (!holder.visible) return;
+      f.rotation.y = t*0.7 + ph; beacon.rotation.y = t*1.6; beacon.position.y = 2.4 + 0.2*Math.sin(t*2 + ph);
+      halo.material.opacity = 0.16 + 0.08*Math.sin(t*2 + ph); });
+    foods.push({ holder, taken:false, name: COLD[i] });
+  }
+  // ---- the special COLD cucumber (revealed only after bbak's hint) ----
+  const cukeN = dirNear(bbakN, 2.4);
+  const cuke = new THREE.Group();
+  const cukeMesh = makeCucumber(1.3); cukeMesh.rotation.z = Math.PI/2; cuke.add(cukeMesh);
+  const cukeHalo = new THREE.Mesh(new THREE.SphereGeometry(1.3, 12, 10),
+    new THREE.MeshBasicMaterial({ color:0x9fe0c0, transparent:true, opacity:0.28, depthWrite:false }));
+  cukeHalo.position.y = 0.4; cuke.add(cukeHalo);
+  const cukeBeacon = new THREE.Mesh(new THREE.OctahedronGeometry(0.34),
+    mat(0x9fe0c0, { emissive:0x7fd0a0, emissiveIntensity:2.6, roughness:0.3 }));
+  cukeBeacon.position.y = 2.6; cuke.add(cukeBeacon);
+  placeOn(g, cuke, cukeN, R, 0.4);
+  cuke.visible = false;   // appears when bbak gives the hint
+  animators.push((t) => { if (!cuke.visible) return;
+    cukeBeacon.rotation.y = t*1.8; cukeBeacon.position.y = 2.6 + 0.25*Math.sin(t*2);
+    cukeHalo.material.opacity = 0.2 + 0.1*Math.sin(t*2.2); });
+  return { bbak, bbakN, foods, cuke, cukeN };
 }
 
 function buildSea(g, R){
@@ -1526,10 +1676,10 @@ const WORLD_DEFS = [
     mission:'<b>MISSION:</b> jump to the next world! Drag / swipe to aim your view at it, then press <b>SPACE</b> to leap up high and land there.',
     pos:[0,0,0], r:7,  col:0xe4e8f0, step:'stone' },
   { key:'books',    name:'Book Stacks',      emoji:'📚', tag:'somebody should really tidy these',
-    mission:'<b>MISSION:</b> say hi to Chippy (he is napping on a book pile), then keep leaping!',
+    mission:'<b>MISSION:</b> find <b>Chippy</b>, then bring him <b>5 favourite books</b> (the glowy ones — press <b>A</b> to pick up).',
     pos:[130,20,-60], r:23.75, col:PALETTE.lightBeige, step:'book' },
   { key:'cucumber', name:'Cucumber Meadow',  emoji:'🥒', tag:'they school like fish out here',
-    mission:'<b>MISSION:</b> listen to the grass under your feet… and keep leaping!',
+    mission:'<b>MISSION:</b> find <b>bbak</b> the polar bear — he is overheating. Bring him something <b>cold</b> to cool him down!',
     pos:[300,-10,-190], r:30, col:PALETTE.moss, step:'grass' },
   { key:'pigeon',   name:'Pigeon Plaza',     emoji:'🕊️', tag:'way, WAY too many pigeons',
     mission:'<b>MISSION:</b> one of these pigeons is not like the others. Find <b>Percy</b> and press <b>SPACE</b> to talk to him.',
@@ -1561,6 +1711,8 @@ chain.forEach((bi, ci) => { bodies[bi].chainNext = ci < chain.length-1 ? chain[c
 // flip to done via their NPC flow. (Chicago = accept Bred's letter.)
 bodies.forEach(b => { b.missionDone = true; });
 bodies[0].missionDone = false;   // Chicago — gated by the pigeon's letter intro
+bodies[1].missionDone = false;   // Book Stacks — gated by Chippy's 5-books quest
+bodies[2].missionDone = false;   // Cucumber/Food — gated by bbak's cooling quest
 
 // decorate: worlds get builders, moons get sprinkles
 const GARDEN_I = 4, PIGEON_I = 3;
@@ -1573,11 +1725,190 @@ const GARDEN_I = 4, PIGEON_I = 3;
   worldRefs.books = buildBooks(bodies[1].group, bodies[1].r);
   bodies[0].colliders = worldRefs.chicago.colliders;
   bodies[1].colliders = worldRefs.books.colliders;
-  buildCucumber(bodies[2].group, bodies[2].r);
+  worldRefs.cucumber = buildCucumber(bodies[2].group, bodies[2].r);
   worldRefs.pigeon = buildPigeons(bodies[PIGEON_I].group, bodies[PIGEON_I].r);
   worldRefs.garden = buildGarden(bodies[GARDEN_I].group, bodies[GARDEN_I].r,
     { gardenLandN: bodies[GARDEN_I].landN });
 }
+
+/* ---------- World 2: Chippy's 5-books quest ---------- */
+const booksQuest = { phase:0, got:0, need:5 };   // 0=find Chippy, 1=collecting, 2=done
+function chippyPos(out){ return worldRefs.books.chippy.getWorldPosition(out || new THREE.Vector3()); }
+const CHIPPY_ASK_LINES = [
+  `Oh! Hello Rachel. *yaaawn* …I was just about to make some tea. 🍵`,
+  `Say — while the kettle boils, would you fetch me something to read?`,
+  `Bring me 5 of your favourite books from around here. The glowy ones! ✨`,
+  `Press A to pick each one up, then come back to me. Off you pop!`,
+];
+const CHIPPY_NEED_MORE = [
+  `Mmm, a lovely start… but that's not 5 yet. Keep looking! 📚`,
+];
+const CHIPPY_DONE_LINES = [
+  `Ooh! Now THESE are good picks. *happy squeak* 🐿️`,
+  `Perfect reading for a slow afternoon. Thank you, Rachel!`,
+  `Now — the way onward. Aim past the tallest stack and leap. Go find him! 🤍`,
+];
+bodies[1].guideNear = 3.6;
+function nearestUncollected(){
+  if (!worldRefs.books) return null;
+  let best = null, bd = Infinity;
+  for (const gb of worldRefs.books.giftBooks){
+    if (gb.taken) continue;
+    const d = her.position.distanceTo(gb.holder.getWorldPosition(new THREE.Vector3()));
+    if (d < bd){ bd = d; best = gb; }
+  }
+  return best;
+}
+function refreshBooksGuide(){
+  const collecting = booksQuest.phase >= 1 && booksQuest.got < booksQuest.need;
+  const gotAll = booksQuest.got >= booksQuest.need;
+  if (booksQuest.phase === 2){ bodies[1].guideFn = null; return; }
+  if (gotAll){
+    bodies[1].guideLabel = '📚 take the books back to Chippy!';
+    bodies[1].guideFn = () => chippyPos();
+  } else if (collecting){
+    bodies[1].guideLabel = `✨ glowing book (${booksQuest.got}/${booksQuest.need}) — press A to collect`;
+    bodies[1].guideFn = () => { const gb = nearestUncollected(); return gb ? gb.holder.getWorldPosition(new THREE.Vector3()) : chippyPos(); };
+  } else {
+    bodies[1].guideLabel = '🐿️ find Chippy (he is resting on a book pile)';
+    bodies[1].guideFn = () => chippyPos();
+  }
+}
+refreshBooksGuide();
+function talkChippy(){
+  const npc = { npcPos: () => chippyPos(), speaker:'🐿️ Chippy', npcObj: worldRefs.books.chippy };
+  if (booksQuest.phase === 0){
+    startDialog(CHIPPY_ASK_LINES, () => { booksQuest.phase = 1; refreshBooksGuide(); }, npc);
+  } else if (booksQuest.phase === 1 && booksQuest.got < booksQuest.need){
+    startDialog(CHIPPY_NEED_MORE, null, npc);
+  } else if (booksQuest.phase === 1){
+    startDialog(CHIPPY_DONE_LINES, () => {
+      booksQuest.phase = 2;
+      bodies[1].missionDone = true;
+      setMission('<b>MISSION:</b> aim past the tallest stack and <b>leap</b> to the next world!');
+    }, npc);
+  }
+}
+function nearestGiftBook(){
+  if (!worldRefs.books) return null;
+  let best = null, bd = 2.6;   // pickup radius
+  for (const gb of worldRefs.books.giftBooks){
+    if (gb.taken) continue;
+    const d = her.position.distanceTo(gb.holder.getWorldPosition(new THREE.Vector3()));
+    if (d < bd){ bd = d; best = gb; }
+  }
+  return best;
+}
+function pickupBook(gb){
+  if (!gb || gb.taken) return;
+  gb.taken = true;
+  gb.holder.visible = false;
+  booksQuest.got++;
+  playChime();
+  for (let i = 0; i < 8; i++)
+    spawnEphemeral(new THREE.Mesh(sparkGeo, sparkMat), her.position,
+      randDir().multiplyScalar(2).addScaledVector(herUp(V()), 2), 0.7, 4);
+  if (booksQuest.phase === 0) booksQuest.phase = 1;   // allow grabbing before talking, too
+  refreshBooksGuide();
+  showBookPop(gb.color, gb.title);
+}
+
+/* ---------- World 3: bbak's "cool me down" quest ---------- */
+const bbakQuest = { phase:0, tries:0, need:3, holding:null, cukeRevealed:false };
+function bbakPos(out){ return worldRefs.cucumber.bbak.getWorldPosition(out || new THREE.Vector3()); }
+const BBAK_INTRO = [
+  `Hnngh… oh, hi Rachel. *pant pant* It is SO hot out here… 🥵`,
+  `This global-warming business is melting my brain. I need something COLD.`,
+  `Fetch me a cold treat? Grab a glowy snack (press A) and bring it back to me.`,
+];
+const BBAK_REJECT = [
+  [`…ice cream? It melted before you even got here. Blehh. Try again? 🫠`],
+  [`Too sweet, not cold enough — my fur's still sweating. One more, maybe?`],
+  [`Nnnope, that won't do either. *flops dramatically* …Okay. New plan.`,
+   `There's a special little cucumber growing nearby — cold, crisp, PERFECT.`,
+   `I marked it with a green sparkle. Go fetch THAT one for me! 🥒`],
+];
+const BBAK_NEEDCUKE = [`No no — the glowing green CUCUMBER I told you about. Go get it! 🥒`];
+const BBAK_SUCCESS = [
+  `Ahhh… *CRUNCH* …cold and crisp and perfect. You're the best, Rachel. 💙`,
+  `I feel cooler already. Now go on — aim at the next world and leap! 🤍`,
+];
+function nearestFood(){
+  if (!worldRefs.cucumber) return null;
+  let best=null, bd=Infinity;
+  for (const f of worldRefs.cucumber.foods){ if (f.taken) continue;
+    const d = her.position.distanceTo(f.holder.getWorldPosition(new THREE.Vector3()));
+    if (d<bd){ bd=d; best=f; } }
+  return best;
+}
+function nearestFoodPickup(){
+  if (!worldRefs.cucumber) return null;
+  const R = 3.0, cuke = worldRefs.cucumber.cuke;
+  if (cuke.visible && her.position.distanceTo(cuke.getWorldPosition(new THREE.Vector3())) < R) return { cuke:true };
+  let best=null, bd=R;
+  for (const f of worldRefs.cucumber.foods){ if (f.taken) continue;
+    const d = her.position.distanceTo(f.holder.getWorldPosition(new THREE.Vector3()));
+    if (d<bd){ bd=d; best=f; } }
+  return best;
+}
+function refreshBbakGuide(){
+  const b = bodies[2];
+  if (bbakQuest.phase === 2){ b.guideFn = null; return; }
+  if (bbakQuest.holding){ b.guideLabel = '🐻‍❄️ take it back to bbak'; b.guideFn = () => bbakPos(); return; }
+  if (bbakQuest.phase === 0){ b.guideLabel = '🐻‍❄️ find bbak (lounging in the grass)'; b.guideFn = () => bbakPos(); return; }
+  if (bbakQuest.cukeRevealed){
+    b.guideLabel = '🥒 fetch the glowing cucumber — press A';
+    b.guideFn = () => worldRefs.cucumber.cuke.getWorldPosition(new THREE.Vector3());
+    return;
+  }
+  b.guideLabel = '🍨 grab a cold treat (press A), then bring it to bbak';
+  b.guideFn = () => { const f = nearestFood(); return f ? f.holder.getWorldPosition(new THREE.Vector3()) : bbakPos(); };
+}
+bodies[2].guideNear = 3.6;
+function pickupFood(f){
+  if (!f || f.taken) return;
+  f.taken = true; f.holder.visible = false;
+  bbakQuest.holding = f.name;
+  playChime();
+  showToast(`🍨 picked up ${f.name}`, 'bring it to bbak!');
+  refreshBbakGuide();
+}
+function pickupCuke(){
+  const cuke = worldRefs.cucumber.cuke;
+  if (!cuke.visible) return;
+  cuke.visible = false;
+  bbakQuest.holding = 'cucumber';
+  playChime();
+  for (let i = 0; i < 8; i++)
+    spawnEphemeral(new THREE.Mesh(sparkGeo, sparkMat), her.position,
+      randDir().multiplyScalar(2).addScaledVector(herUp(V()), 2), 0.7, 4);
+  showToast('🥒 got the special cucumber!', 'bring it to bbak!');
+  refreshBbakGuide();
+}
+function talkBbak(){
+  const npc = { npcPos: () => bbakPos(), speaker:'🐻‍❄️ bbak', npcObj: worldRefs.cucumber.bbak };
+  if (bbakQuest.phase === 0){ startDialog(BBAK_INTRO, () => { bbakQuest.phase = 1; refreshBbakGuide(); }, npc); return; }
+  if (bbakQuest.phase >= 2) return;
+  const h = bbakQuest.holding;
+  if (!h){ startDialog([`Bring me something cold, please… anything! 🥵`], null, npc); return; }
+  if (h === 'cucumber'){
+    startDialog(BBAK_SUCCESS, () => {
+      bbakQuest.phase = 2; bodies[2].missionDone = true;
+      setMission('<b>MISSION:</b> aim at the next world and <b>leap</b>!');
+      refreshBbakGuide();
+    }, npc);
+    bbakQuest.holding = null; return;
+  }
+  if (bbakQuest.cukeRevealed){ startDialog(BBAK_NEEDCUKE, null, npc); bbakQuest.holding = null; return; }
+  const idx = Math.min(bbakQuest.tries, BBAK_REJECT.length - 1);
+  startDialog(BBAK_REJECT[idx], () => {
+    bbakQuest.tries++;
+    if (bbakQuest.tries >= bbakQuest.need){ bbakQuest.cukeRevealed = true; worldRefs.cucumber.cuke.visible = true; }
+    refreshBbakGuide();
+  }, npc);
+  bbakQuest.holding = null;
+}
+refreshBbakGuide();
 
 /* ---------- beanie: real rigged Blender model (game-assets/beanie/beanie.glb) ----------
    Loaded async into a placeholder Group, same pattern as the other real models.
@@ -1594,12 +1925,14 @@ her.userData = {
   sit(v){ this.sitting = v; },
 };
 scene.add(her);
-let herMixer = null, herWalkAction = null, herIdleAction = null, herUsingFallback = false;
+let herMixer = null, herWalkAction = null, herRunAction = null, herIdleAction = null, herUsingFallback = false;
 let herJumpLaunchAction = null, herJumpSoarAction = null, herJumpLandAction = null;
 loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
   her.add(gltf.scene);
+  gltf.scene.position.y = HER_MODEL_LIFT;   // lift so her feet rest ON the surface (idle root sinks otherwise)
   herMixer = new THREE.AnimationMixer(gltf.scene);
   const walkClip = gltf.animations.find((a) => a.name === 'Walk');
+  const runClip  = gltf.animations.find((a) => a.name === 'Run');
   const idleClip = gltf.animations.find((a) => a.name === 'Idle');
   const launchClip = gltf.animations.find((a) => a.name === 'JumpLaunch');
   const soarClip = gltf.animations.find((a) => a.name === 'JumpSoar');
@@ -1618,6 +1951,12 @@ loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
     herWalkAction.setLoop(THREE.LoopRepeat);
     herWalkAction.play();
     herWalkAction.setEffectiveWeight(0);
+  }
+  if (runClip){
+    herRunAction = herMixer.clipAction(runClip);
+    herRunAction.setLoop(THREE.LoopRepeat);
+    herRunAction.play();
+    herRunAction.setEffectiveWeight(0);
   }
   // Extracted + retimed from winter-beanie-jump.blend's cinematic (same rig,
   // no retargeting needed) — see ART_BIBLE.md. Crossfaded by updateJumpAnim()
@@ -1648,12 +1987,25 @@ function animBeanieSkinned(dt){
   if (herJumpSoarAction) herJumpSoarAction.setEffectiveWeight(0);
   if (herJumpLandAction) herJumpLandAction.setEffectiveWeight(0);
   const u = her.userData;
-  if (u.moving && !u.sitting) u.walkP += dt*21;   // keeps footstep cadence in sync
-  const walkTarget = (u.moving && !u.sitting) ? 1 : 0;
+  // She only "moves" while actually walking — so she holds the Idle pose while
+  // standing still AND while talking to a character (any non-walk state).
+  const moving = (state === 'walk') && u.moving && !u.sitting;
+  const run = moving && u.running;
+  if (moving) u.walkP += dt*(run ? 31.5 : 21);   // footstep cadence follows walk/run
+  const walkTarget = moving ? 1 : 0;
+  // Walk clip when walking; Run clip when running (falls back to the walk clip
+  // sped up if the run clip isn't present in the glb).
   if (herWalkAction){
+    const walkW = (moving && !run) ? 1 : 0;
     const w = herWalkAction.getEffectiveWeight();
-    herWalkAction.setEffectiveWeight(w + (walkTarget - w) * Math.min(1, dt*8));
-    herWalkAction.timeScale = u.movingBackward ? -2 : 2;   // reverse the cycle when backing up; 2x to match doubled WALK_SPEED
+    herWalkAction.setEffectiveWeight(w + (walkW - w) * Math.min(1, dt*8));
+    herWalkAction.timeScale = (u.movingBackward ? -1 : 1) * (herRunAction ? 1 : (run ? 1.5 : 1)) * 2;
+  }
+  if (herRunAction){
+    const runW = (moving && run) ? 1 : 0;
+    const w = herRunAction.getEffectiveWeight();
+    herRunAction.setEffectiveWeight(w + (runW - w) * Math.min(1, dt*8));
+    herRunAction.timeScale = (u.movingBackward ? -1 : 1) * 1.5;
   }
   if (herIdleAction){
     const w = herIdleAction.getEffectiveWeight();
@@ -1679,6 +2031,7 @@ let state = 'intro';       // intro | walk | fly | talk | percyfly | finale
 const visitedWorlds = new Array(WORLD_DEFS.length).fill(false);
 const keys = {};
 const WALK_SPEED = 12.0, TURN_SPEED = 2.3;
+const HER_MODEL_LIFT = 0.18;   // radial lift of the visual model so idle feet don't sink
 const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion(),
       tmpV = V(), tmpV2 = V(), tmpV3 = V();
 const cA = V(), cB = V(), cC = V(), aimDir = V();
@@ -1729,31 +2082,51 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
   camera.up.copy(camUp);
   camera.lookAt(cC.copy(pos).addScaledVector(up, 1.5));
 }
-/* Conversation two-shot: Beanie on screen-left facing right, the NPC upper-
-   right facing back toward her (both faces visible). Beanie is turned to face
-   the NPC each frame (rotation only — her sphere position is unchanged). */
-let TALK_CAM_SIDE = 1;
+/* Conversation shot: Beanie sits low in the bottom-left, turned to look
+   diagonally up at the NPC, who reads ~3/4 up the right side of frame facing
+   her. Camera is low and just behind-and-beside Beanie (she's the foreground);
+   the look-point is raised and biased toward the NPC so the NPC floats high-
+   right. Beanie is rotated to face the NPC (position unchanged). Nearby props
+   are hidden while talking so nothing covers her. */
+let TALK_CAM_SIDE = -1;
 function updateTalkCam(dt){
   const npc = (dialog && dialog.npcPos) ? dialog.npcPos() : null;
   if (!npc){ followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 6.5); return; }
   const up = herUp(new THREE.Vector3());
   orientation.copy(quatFromBasis(up, tangentToward(her.position, up, npc)));   // face the NPC
   updatePose();
-  const mid  = new THREE.Vector3().addVectors(her.position, npc).multiplyScalar(0.5);
   const axis = new THREE.Vector3().subVectors(npc, her.position);
-  const gap  = Math.max(0.6, axis.length()); axis.normalize();
+  axis.length() < 1e-4 ? axis.copy(herFwd(new THREE.Vector3())) : axis.normalize();
   const side = new THREE.Vector3().crossVectors(up, axis).normalize().multiplyScalar(TALK_CAM_SIDE);
+  // Profile two-shot: camera to Beanie's side so we see her face (she's turned
+  // to face the NPC), Beanie screen-left, NPC screen-right, both faces visible.
+  const gap  = new THREE.Vector3().subVectors(npc, her.position).length();
+  const mid  = new THREE.Vector3().addVectors(her.position, npc).multiplyScalar(0.5);
   const goal = new THREE.Vector3().copy(mid)
     .addScaledVector(side, gap*0.85 + 3.4)
-    .addScaledVector(up,   gap*0.26 + 1.9)
+    .addScaledVector(up,   gap*0.26 + 2.0)
     .addScaledVector(axis, -gap*0.18);
-  const look = new THREE.Vector3().copy(mid).addScaledVector(up, 1.0).addScaledVector(axis, gap*0.14);
+  const look = new THREE.Vector3().copy(mid).addScaledVector(up, 0.9).addScaledVector(axis, gap*0.12);
   camPos.lerp(goal, 1 - Math.exp(-5*dt));
   camUp.lerp(up, 1 - Math.exp(-4*dt)).normalize();
   camera.position.copy(camPos);
   camera.up.copy(camUp);
   camera.lookAt(look);
 }
+// Hide props near Beanie during a conversation so nothing covers her; the
+// speaker (npcObj) and the planet base are never hidden.
+let hiddenObstacles = [];
+function hideNearbyObstacles(npcObj){
+  restoreObstacles();
+  const b = bodies[curI]; if (!b || !b.group) return;
+  const hp = her.position, tmp = new THREE.Vector3();
+  b.group.children.forEach((c, i) => {
+    if (i === 0 || !c.visible || c === npcObj) return;   // skip base sphere + the speaker
+    c.getWorldPosition(tmp);
+    if (tmp.distanceTo(hp) < 7.5){ c.visible = false; hiddenObstacles.push(c); }
+  });
+}
+function restoreObstacles(){ for (const c of hiddenObstacles) c.visible = true; hiddenObstacles = []; }
 // drag + trackpad — only while Beanie is stopped. While she's actively
 // walking, arrow keys already steer the camera-relative view (updateWalk),
 // so free-look input is disabled to avoid the two fighting each other.
@@ -1786,6 +2159,35 @@ const targetRing = new THREE.Mesh(new THREE.TorusGeometry(1, 0.035, 8, 40),
   new THREE.MeshBasicMaterial({ color:0xffd166, transparent:true, opacity:0.9 }));
 targetRing.visible = false;
 scene.add(targetRing);
+
+/* ---------- world-space "locator" marker floating over the current NPC/goal ---------- */
+const locator = new THREE.Group();
+{
+  const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.1, 5),
+    mat(0xffd166, { emissive:0xffb43e, emissiveIntensity:2.2, roughness:0.3 }));
+  arrow.rotation.x = Math.PI;   // point down at the target
+  arrow.position.y = 1.1; locator.add(arrow);
+  const ballo = new THREE.Mesh(new THREE.SphereGeometry(0.9, 12, 10),
+    new THREE.MeshBasicMaterial({ color:0xffd9a0, transparent:true, opacity:0.16, depthWrite:false }));
+  ballo.position.y = 1.1; locator.add(ballo);
+  locator.userData = { arrow, ballo };
+}
+locator.visible = false;
+scene.add(locator);
+const _locTmp = new THREE.Vector3();
+function updateLocator(t){
+  const b = bodies[curI];
+  const active = (state === 'walk') && b && !b.missionDone && b.guideFn;
+  if (!active){ locator.visible = false; return; }
+  const tp = b.guideFn(_locTmp);
+  if (!tp){ locator.visible = false; return; }
+  const n = new THREE.Vector3().subVectors(tp, b.center).normalize();
+  const bob = 0.35*Math.sin(t*2.2);
+  locator.position.copy(tp).addScaledVector(n, 2.6 + bob);
+  locator.quaternion.copy(quatFromBasis(n, tangentToward(locator.position, n, camera.position)));
+  locator.userData.arrow.rotation.y = t*2;
+  locator.visible = true;
+}
 function updateAim(t){
   target = null;
   if (state !== 'walk'){ targetRing.visible = false; reticleEl.classList.remove('lock'); return; }
@@ -1875,6 +2277,7 @@ function jumpTo(body){
   state = 'fly';
   camYaw = 0;
   if (herWalkAction) herWalkAction.setEffectiveWeight(0);
+  if (herRunAction) herRunAction.setEffectiveWeight(0);
   if (herIdleAction) herIdleAction.setEffectiveWeight(0);
   promptEl.classList.remove('show');
   playChime();
@@ -1936,7 +2339,7 @@ function arrive(bi){
    types one line at a time; SPACE / A / ENTER advances; when the last line is
    dismissed we return to 'walk' and fire onDone (which some flows use to jump
    into another state, e.g. Percy's flight). */
-let percyNear = false, percyFly = null;
+let percyNear = false, percyFly = null, chippyNear = false, bbakNear = false, pickTarget = null;
 const PERCY_LINES = [
   `Coo! Rachel… you found me. I have been waiting ALL day!`,
   'The other pigeons talk too much. *flap flap* Anyway —',
@@ -1952,7 +2355,8 @@ function startDialog(lines, onDone, opts={}){
   reticleEl.classList.add('hidden');
   dialogEl.classList.remove('hidden');
   dialogNameEl.textContent = opts.speaker || 'Percy 🕊️';
-  dialog = { lines, idx:0, onDone, coo: opts.coo !== false };
+  dialog = { lines, idx:0, onDone, coo: opts.coo !== false, npcPos: opts.npcPos || null };
+  hideNearbyObstacles(opts.npcObj || null);   // clear props so nothing covers Beanie
   showDialogLine();
 }
 function percyWorldPos(out){
@@ -1984,6 +2388,7 @@ function advanceDialog(){
   const cb = dialog.onDone;
   dialog = null;
   state = 'walk';
+  restoreObstacles();
   if (cb) cb();
 }
 function beginPercyFlight(){
@@ -2156,13 +2561,23 @@ addEventListener('keydown', (e) => {
     if (state === 'intro') startJourney();
     else if (state === 'talk') advanceDialog();
     else if (state === 'walk'){
-      if (percyNear) startDialog(PERCY_LINES, beginPercyFlight,
-        { npcPos: () => worldRefs.pigeon.percyHolder.getWorldPosition(new THREE.Vector3()) });
+      if (chippyNear) talkChippy();
+      else if (bbakNear) talkBbak();
+      else if (percyNear) startDialog(PERCY_LINES, beginPercyFlight,
+        { npcPos: () => worldRefs.pigeon.percyHolder.getWorldPosition(new THREE.Vector3()),
+          npcObj: worldRefs.pigeon.percyHolder });
       else if (target) jumpTo(target);
     }
   }
-  // A also advances/accepts dialogue ("press A to select")
-  if ((e.key === 'a' || e.key === 'A') && state === 'talk') advanceDialog();
+  // A picks up items during play ("press A to select"), and accepts dialogue
+  if (e.key === 'a' || e.key === 'A'){
+    if (state === 'talk') advanceDialog();
+    else if (state === 'walk' && pickTarget){
+      if (pickTarget.cuke) pickupCuke();
+      else if (curI === 2) pickupFood(pickTarget);
+      else pickupBook(pickTarget);
+    }
+  }
   // QA shortcut: 1-6 instantly warps to that world (skips aim-and-leap).
   if (state === 'walk' && e.key >= '1' && e.key <= String(WORLD_DEFS.length)){
     window.__world.goto(Number(e.key) - 1);
@@ -2177,6 +2592,8 @@ function updateWalk(dt){
   const u = her.userData;
   u.moving = !!(ix || iz);
   u.movingBackward = iz < 0;
+  u.running = u.moving && !!(keys['Shift'] || keys['ShiftLeft'] || keys['ShiftRight']);
+  const moveSpeed = WALK_SPEED * (u.running ? 1.5 : 1);   // hold Shift to run (1.5x)
   if (ix){
     // ← → turn in place (Animal Crossing-style tank turning), and ease the
     // camera around to peek at her front on that side rather than staying
@@ -2192,7 +2609,7 @@ function updateWalk(dt){
     // ↑ ↓ walk forward/backward along her current facing — no turning, so
     // backing up never spins her whole body around.
     const preForward = tmpQ2.copy(orientation);
-    orientation.multiply(tmpQ.setFromAxisAngle(X_AXIS, iz*WALK_SPEED*dt/b.r));
+    orientation.multiply(tmpQ.setFromAxisAngle(X_AXIS, iz*moveSpeed*dt/b.r));
     orientation.normalize();
     if (isBlocked(b, orientation)) orientation.copy(preForward);   // bump back
   }
@@ -2220,12 +2637,33 @@ function updateWalk(dt){
   } else {
     guideEl.classList.remove('show');
   }
-  // percy proximity
-  percyNear = false;
+  // NPC / pickup proximity
+  percyNear = false; chippyNear = false; bbakNear = false; pickTarget = null;
   if (curI === PIGEON_I && !worldRefs.pigeon.percyHolder.userData.flying){
     percyNear = her.position.distanceTo(percyWorldPos(tmpV3)) < 3.6;
   }
-  if (percyNear){
+  if (curI === 1 && worldRefs.books){
+    if (booksQuest.phase !== 2) chippyNear = her.position.distanceTo(chippyPos(tmpV3)) < 3.6;
+    pickTarget = nearestGiftBook();
+  }
+  if (curI === 2 && worldRefs.cucumber){
+    if (bbakQuest.phase !== 2) bbakNear = her.position.distanceTo(bbakPos(tmpV3)) < 4.2;
+    pickTarget = nearestFoodPickup();
+  }
+  if (chippyNear){
+    promptEl.textContent = (booksQuest.phase === 1 && booksQuest.got >= booksQuest.need)
+      ? '🐿️ press SPACE to give Chippy the books'
+      : '🐿️ press SPACE to talk to Chippy';
+    promptEl.classList.add('show');
+  } else if (bbakNear){
+    promptEl.textContent = bbakQuest.holding
+      ? '🐻‍❄️ press SPACE to give it to bbak'
+      : '🐻‍❄️ press SPACE to talk to bbak';
+    promptEl.classList.add('show');
+  } else if (pickTarget){
+    promptEl.textContent = pickTarget.cuke ? '🥒 press A to pick the cucumber' : '📖 press A to pick up';
+    promptEl.classList.add('show');
+  } else if (percyNear){
     promptEl.textContent = '🕊️ press SPACE to talk to Percy';
     promptEl.classList.add('show');
   } else if (target){
@@ -2274,6 +2712,19 @@ function showToast(title, tag){
 function setMission(html){
   missionEl.innerHTML = html;
   missionEl.classList.remove('hidden');
+}
+const bookpopEl = document.getElementById('bookpop');
+let bookpopTimer = null;
+function showBookPop(color, title){
+  const hex = '#' + color.toString(16).padStart(6, '0');
+  document.getElementById('bookpopCover').style.background =
+    `linear-gradient(135deg, ${hex}, ${hex}cc)`;
+  document.getElementById('bookpopTitle').textContent = `“${title}”`;
+  document.getElementById('bookpopCount').textContent =
+    `${booksQuest.got} of ${booksQuest.need} for Chippy`;
+  bookpopEl.classList.add('show');
+  clearTimeout(bookpopTimer);
+  bookpopTimer = setTimeout(() => bookpopEl.classList.remove('show'), 2800);
 }
 
 /* ---------- Chicago intro: Bred's messenger pigeon + letter ---------- */
@@ -2350,7 +2801,9 @@ function startJourney(){
   followCam(1, her.position, herUp(tmpV), herFwd(tmpV2), camDist, true);
   // Bred's messenger pigeon flutters in with the letter (gates the first leap)
   setTimeout(() => {
-    if (state !== 'walk' || bodies[0].missionDone) return;
+    // only run the Chicago letter if she is actually still standing on Chicago
+    // (a QA warp with 1-6 moves her on, and must NOT drag Chicago's intro along)
+    if (state !== 'walk' || curI !== 0 || bodies[0].missionDone) return;
     // messenger swoops down and LANDS, then reads the letter
     spawnChicagoMessenger(() => {
       startDialog(CHICAGO_LETTER_LINES, () => {
@@ -2439,6 +2892,7 @@ function step(dt){
   updatePercyScatter(dt);
   maybeShoot(dt);
   updateAim(t);
+  updateLocator(t);
 
   if (state === 'intro'){
     const a = t*0.075;
@@ -2560,6 +3014,15 @@ window.__world = {
   },
   waitFor(ms){ return new Promise((r) => setTimeout(r, ms)); },
   start(){ startJourney(); },
+  giftBooks(){ return worldRefs.books ? worldRefs.books.giftBooks.map(g => ({ taken:g.taken,
+    pos: g.holder.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)) })) : null; },
+  booksQuest(){ return { ...booksQuest }; },
+  bbakInfo(){ return worldRefs.cucumber ? { quest:{...bbakQuest}, missionDone:bodies[2].missionDone,
+    bbakPos: bbakPos().toArray().map(v=>+v.toFixed(2)),
+    cukePos: worldRefs.cucumber.cuke.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)),
+    cukeVisible: worldRefs.cucumber.cuke.visible,
+    foods: worldRefs.cucumber.foods.map(f => ({ taken:f.taken, name:f.name,
+      pos: f.holder.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)) })) } : null; },
   jumpChain(){ const n = bodies[curI].chainNext; if (n != null) jumpTo(bodies[n]); },
   get chainNext(){ return bodies[curI].chainNext; },
   pump(seconds){                    // advance the simulation manually (testing when tab is hidden)
