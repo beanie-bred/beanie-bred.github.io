@@ -1434,38 +1434,66 @@ function buildPigeons(g, R, ctx){
   placeOn(g, fount, dirNear(plazaN, 0.18), R);
   animators.push((t) => { water.scale.setScalar(1 + 0.05*Math.sin(t*3)); water.rotation.y = t*0.4; });
 
-  // WAY too many pigeons — nearly all standing/pecking ON the ground
+  // WAY too many pigeons — spread over the whole planet; each one pecks,
+  // takes little steps around the surface, or flaps in place.
   const crowd = [];
-  for (let i = 0; i < 290; i++){
+  const TAU = Math.PI*2;
+  for (let i = 0; i < 480; i++){
     const pg = plushPigeon(PIGEON_VARIANTS[i % PIGEON_VARIANTS.length]);
-    pg.scale.setScalar(0.85 + Math.random()*0.35);
-    pg.rotation.y = Math.random()*Math.PI*2;
+    pg.scale.setScalar(0.8 + Math.random()*0.4);
+    pg.rotation.y = Math.random()*TAU;
     const holder = new THREE.Group(); holder.add(pg);
-    placeOn(g, holder, dirNear(plazaN, 0.28 + Math.random()*0.35), R, 0.02);
+    const n = dirNear(plazaN, 0.2 + Math.random()*2.7);   // cover most of the sphere
+    placeOn(g, holder, n, R, 0.02);
     crowd.push(holder);
-    const ph = Math.random()*7;
-    if (i % 3 === 0) animators.push((t) => {                      // peckers
-      pg.userData.head.position.y = 0.58 - Math.max(0, Math.sin(t*2.4 + ph))*0.18;
-    });
-    else animators.push((t) => {                                   // sitters shuffling
-      pg.rotation.y += Math.sin(t*0.5 + ph)*0.002;
-      pg.position.y = Math.abs(Math.sin(t*1.6 + ph))*0.015;
-    });
+    const ph = Math.random()*7, roll = i % 10;
+    if (roll < 4){                                         // peckers
+      animators.push((t) => {
+        if (percyHolder.userData.flying) return;
+        pg.userData.head.position.y = 0.58 - Math.max(0, Math.sin(t*2.6 + ph))*0.18;
+        pg.position.y = Math.abs(Math.sin(t*1.6 + ph))*0.015;
+      });
+    } else if (roll < 8){                                  // walkers — drift across the surface
+      const axis = randDir(), spd = (0.05 + Math.random()*0.12)*(Math.random() < 0.5 ? -1 : 1);
+      const cur = n.clone();
+      animators.push((t, dt) => {
+        if (percyHolder.userData.flying) return;
+        cur.applyAxisAngle(axis, spd*dt);
+        holder.position.copy(cur).multiplyScalar(R + 0.02);
+        orientToNormal(holder, cur);
+        pg.position.y = Math.abs(Math.sin(t*5 + ph))*0.05;     // little steps
+        pg.rotation.y += Math.sin(t*5 + ph)*0.01;              // waddle
+        if (pg.userData.head) pg.userData.head.position.y = 0.58 - Math.max(0, Math.sin(t*3 + ph))*0.1;
+      });
+    } else {                                               // flappers hopping in place
+      animators.push((t) => {
+        if (percyHolder.userData.flying) return;
+        pg.position.y = Math.abs(Math.sin(t*3 + ph))*0.12;      // hop
+        for (let w = 0; w < 2; w++)
+          pg.userData.wings[w].rotation.z = (w===0?1:-1)*Math.abs(Math.sin(t*8 + ph))*0.7;
+      });
+    }
   }
-  // just a few still circling overhead (most have landed, per request)
-  for (let i = 0; i < 10; i++){
+  // some genuinely flying overhead
+  for (let i = 0; i < 40; i++){
     const pg = plushPigeon(PIGEON_VARIANTS[(i+1) % PIGEON_VARIANTS.length]);
-    pg.scale.setScalar(0.8); pg.rotation.y = Math.PI;
+    pg.scale.setScalar(0.75); pg.rotation.y = Math.PI;
     const ph = Math.random()*7;
     animators.push((t) => {
       for (let w = 0; w < 2; w++)
         pg.userData.wings[w].rotation.z = (w===0?1:-1)*Math.sin(t*11 + ph)*0.9;
     });
-    orbiter(g, pg, R + 2 + i*0.4, 0.3 + i*0.08, Math.random()*2.4, Math.random()*2.4, 0.3, 1.4);
+    orbiter(g, pg, R + 2 + (i%12)*0.5, 0.28 + (i%7)*0.06, Math.random()*3.1, Math.random()*3.1, 0.3, 1.4);
   }
-  // PERCY — the only teal-headed one, slightly grand
-  const percy = plushPigeon({}, { stripes:true });
-  percy.scale.setScalar(1.25);
+  // PERCY — real 3D model (game-assets/percy/percy.glb), the grand one Beanie
+  // talks to and eventually rides.
+  const percy = new THREE.Group();
+  loadModel('./game-assets/percy/percy.glb').then((m) => {
+    m.scale.setScalar(1.7); m.rotation.y = Math.PI; percy.add(m);
+  }).catch((err) => {
+    console.error('Percy model failed, using plush fallback', err);
+    const fb = plushPigeon({}, { stripes:true }); fb.scale.setScalar(1.25); percy.add(fb);
+  });
   const percyN = dirNear(plazaN, 0.2);
   const percyHolder = new THREE.Group(); percyHolder.add(percy);
   placeOn(g, percyHolder, percyN, R, 0.02);
@@ -1473,7 +1501,7 @@ function buildPigeons(g, R, ctx){
   animators.push((t) => {
     if (percyHolder.userData.flying) return;
     percy.position.y = Math.abs(Math.sin(t*2.2))*0.05;             // proud little hops
-    percy.rotation.y = Math.sin(t*0.7)*0.4;
+    percy.rotation.y = Math.sin(t*0.7)*0.3;
   });
   return { percyHolder, percyN, plazaN, crowd };
 }
@@ -1682,7 +1710,7 @@ const WORLD_DEFS = [
     mission:'<b>MISSION:</b> find <b>bbak</b> the polar bear — he is overheating. Bring him something <b>cold</b> to cool him down!',
     pos:[300,-10,-190], r:30, col:PALETTE.moss, step:'grass' },
   { key:'pigeon',   name:'Pigeon Plaza',     emoji:'🕊️', tag:'way, WAY too many pigeons',
-    mission:'<b>MISSION:</b> one of these pigeons is not like the others. Find <b>Percy</b> and press <b>SPACE</b> to talk to him.',
+    mission:'<b>MISSION:</b> find <b>Percy</b> — he needs help finding a long-lost friend among all these pigeons.',
     pos:[170,20,-400], r:40, col:PALETTE.mutedLavender, step:'stone' },
   { key:'garden',   name:'The Garden',       emoji:'💐', tag:'happy birthday, Beanie 🤍',
     mission:'<b>MISSION:</b> wander the garden… someone set up a big white couch for you. 🤍',
@@ -1713,6 +1741,7 @@ bodies.forEach(b => { b.missionDone = true; });
 bodies[0].missionDone = false;   // Chicago — gated by the pigeon's letter intro
 bodies[1].missionDone = false;   // Book Stacks — gated by Chippy's 5-books quest
 bodies[2].missionDone = false;   // Cucumber/Food — gated by bbak's cooling quest
+bodies[3].missionDone = false;   // Pigeon Plaza — the Percy/Doodles quest (Percy flight is the exit)
 
 // decorate: worlds get builders, moons get sprinkles
 const GARDEN_I = 4, PIGEON_I = 3;
@@ -1909,6 +1938,161 @@ function talkBbak(){
   bbakQuest.holding = null;
 }
 refreshBbakGuide();
+
+/* ---------- World 4: Pigeon Plaza — find Percy's long-lost friend ---------- */
+const PLAZA_DECOYS = [
+  { name:'vanessa', glb:'vanessa', speaker:'👑 Vanessa', scale:1.0, rotY:0, bounce:false, lines:[
+    `Ahem. I am Vanessa, the Victoria Crowned Pigeon — the largest pigeon in all the world. 👑`,
+    `Do admire the crest, won't you? It fans out like a royal crown.`,
+    `Percy's dear old friend? *sniff* That is not me. I don't do "old friends". Move along.` ] },
+  { name:'nibbles', glb:'nibbles', speaker:'🌈 Nibbles', scale:1.0, rotY:0, bounce:true, lines:[
+    `Hihi! Nibbles here — a Nicobar Pigeon. 🌈`,
+    `These metallic rainbow feathers? I'm the dodo's closest living cousin, you know!`,
+    `Am I Percy's lost friend? Nope, not me — but you're close in spirit! 💫` ] },
+  { name:'alfred', glb:'alfred', speaker:'🫒 Alfred', scale:1.0, rotY:0, bounce:true, lines:[
+    `…hello. Down here. Alfred, African Green Pigeon. 🫒`,
+    `Wait — a parrot? No, no, NO. I am not a parrot in disguise. I'm a PIGEON, thank you.`,
+    `My green feathers hide me so well most folk hear me before they see me.`,
+    `Percy's friend? Afraid not, dear. Onward!` ] },
+  { name:'sunny', glb:'sunny', speaker:'🎨 Sunny', scale:1.0, rotY:0, bounce:true, lines:[
+    `Hey hey! Sunny the Superb Fruit Dove! 🎨`,
+    `Folks say I look hand-painted. I don't disagree, honestly.`,
+    `Percy's missing friend? Ha — not me, but good luck!` ] },
+  { name:'otto', glb:'otto', speaker:'🍊 Otto', scale:1.0, rotY:0, bounce:true, lines:[
+    `Bula! Otto, the Orange Dove, all the way from Fiji. 🍊`,
+    `I glow like a little ember in the forest, if I do say so myself.`,
+    `Percy's long-lost pal? Nope, sorry friend. Keep at it!` ] },
+  { name:'mochi', glb:'mochi', speaker:'🌈 Mochi', scale:1.0, rotY:0, bounce:true, lines:[
+    `Hi! I'm Mochi, a Many-colored Fruit Dove. 🌈`,
+    `Every one of us is a different little rainbow. I'm one of a kind!`,
+    `Am I who Percy misses? Aw, no — but you'll find them. 🩷` ] },
+  { name:'buckle', glb:'buckle', speaker:'❤️ Buckle', scale:1.0, rotY:0, bounce:true, lines:[
+    `Oh — hello. Buckle, a Bleeding-heart Dove. ❤️`,
+    `See the crimson patch on my chest? Looks just like a tiny heart.`,
+    `Percy's friend? …no, not me either. That's everyone, isn't it? Maybe ask Percy again.` ] },
+];
+const DOODLES_CFG = { name:'doodles', glb:'doodles', speaker:'🦤 Doodles', scale:1.15, rotY:0, bounce:true, lines:[
+  `Oh! …hello there. I'm Doodles. A dodo. 🦤`,
+  `Everyone thinks we were clumsy — we weren't. We just never needed to fly. No predators. It was peaceful.`,
+  `…but it does get lonely now. I miss my family so much.`,
+  `You'll… be my family? Really? *sniffle* …okay. Lead the way — take me to your friend.` ] };
+const PERCY_INTRO = [
+  `Coo! Rachel — you found me! 🕊️`,
+  `Listen… long, long ago I had a dear, dear friend. We were inseparable.`,
+  `I've looked all over this plaza and I just can't find him. Would you help me look?`,
+  `Go say hello to the pigeons around here — maybe one of them is him!` ];
+const PERCY_NUDGE_SEARCH = [ `Keep saying hello to the pigeons — one of them might be my friend!` ];
+const PERCY_GIVEUP = [
+  `No luck? Hmm… let me think harder.`,
+  `The last time I saw him… goodness, it was AGES ago. Around 1690, maybe?`,
+  `…and his name — it started with a "D". Does that help, Rachel?` ];
+const PERCY_NUDGE_DOODLES = [ `A name starting with "D"… from way back in 1690… go find him, Rachel! I'll wait here.` ];
+const PERCY_REUNION = [
+  `…Doodles? DOODLES! Oh — it's really you! 🥹`,
+  `I thought I'd lost you forever, old friend.`,
+  `Rachel — you brought my family back to me. I could never thank you enough. 🤍`,
+  `Now: hop on my back and hold tight. I know EXACTLY where Bred is!` ];
+
+const plazaQuest = { phase:'intro', step:0, decoyHolders:[], active:null, doodles:null, talkingPigeon:null };
+function tiltDir(n, angle, azimuth){
+  const t1 = arbitraryPerp(n), t2 = new THREE.Vector3().crossVectors(n, t1).normalize();
+  const dir = new THREE.Vector3().copy(t1).multiplyScalar(Math.cos(azimuth)).addScaledVector(t2, Math.sin(azimuth));
+  return new THREE.Vector3().copy(n).multiplyScalar(Math.cos(angle)).addScaledVector(dir, Math.sin(angle)).normalize();
+}
+function spawnStoryPigeon(cfg){
+  const g = bodies[PIGEON_I].group, R = bodies[PIGEON_I].r;
+  const holder = new THREE.Group();
+  const inner = new THREE.Group(); holder.add(inner);
+  const n = dirNear(worldRefs.pigeon.plazaN, 0.7 + Math.random()*1.5);
+  placeOn(g, holder, n, R, 0.02);
+  loadModel(`./game-assets/pigeons/${cfg.glb}.glb`).then((m) => {
+    m.rotation.y = cfg.rotY || 0; m.scale.setScalar(cfg.scale || 1); inner.add(m);
+  }).catch((e) => console.error('pigeon load failed', cfg.glb, e));
+  const ph = Math.random()*6;
+  animators.push((t) => {
+    // bounce only while this pigeon is the one talking (Vanessa never bounces)
+    if (cfg.bounce && plazaQuest.talkingPigeon === holder) inner.position.y = Math.abs(Math.sin(t*6 + ph))*0.35;
+    else inner.position.y += (0 - inner.position.y)*0.15;
+    // face Beanie while talking, else idle
+    if (plazaQuest.talkingPigeon === holder)
+      holder.quaternion.copy(quatFromBasis(n, tangentToward(holder.getWorldPosition(tmpVP), n, her.position)));
+  });
+  holder.userData = { cfg, n };
+  return holder;
+}
+const tmpVP = new THREE.Vector3();
+function plazaTargetHolder(){        // the pigeon Beanie currently needs to reach (else null → Percy)
+  if (plazaQuest.phase === 'searching') return plazaQuest.active;
+  if (plazaQuest.phase === 'seek-doodles') return plazaQuest.doodles;
+  return null;
+}
+function plazaWantsPercy(){ return ['intro','giveup','bring-doodles'].includes(plazaQuest.phase); }
+function refreshPlazaGuide(){
+  const b = bodies[PIGEON_I];
+  if (plazaQuest.phase === 'done'){ b.guideFn = null; return; }
+  if (plazaWantsPercy()){
+    b.guideLabel = plazaQuest.phase === 'bring-doodles' ? '🕊️ bring Doodles to Percy!'
+      : (plazaQuest.phase === 'giveup' ? '🕊️ go back to Percy for a hint' : '🕊️ find Percy');
+    b.guideFn = () => percyWorldPos(new THREE.Vector3());
+  } else {
+    b.guideLabel = plazaQuest.phase === 'seek-doodles' ? '🦤 find the pigeon whose name starts with "D"'
+      : '🕊️ say hello to that pigeon';
+    b.guideFn = () => { const h = plazaTargetHolder(); return h ? h.getWorldPosition(new THREE.Vector3()) : percyWorldPos(new THREE.Vector3()); };
+  }
+}
+bodies[PIGEON_I].guideNear = 4.0;
+function spawnNextDecoy(){
+  if (plazaQuest.step >= PLAZA_DECOYS.length){   // met everyone → back to Percy
+    plazaQuest.phase = 'giveup'; plazaQuest.active = null; refreshPlazaGuide(); return;
+  }
+  const cfg = PLAZA_DECOYS[plazaQuest.step];
+  const h = spawnStoryPigeon(cfg);
+  plazaQuest.decoyHolders.push(h);
+  plazaQuest.active = h;
+  plazaQuest.phase = 'searching';
+  refreshPlazaGuide();
+}
+function talkPercy(){
+  const npc = { npcPos: () => percyWorldPos(new THREE.Vector3()), speaker:'Percy 🕊️',
+    npcObj: worldRefs.pigeon.percyHolder };
+  if (plazaQuest.phase === 'intro'){
+    startDialog(PERCY_INTRO, () => { plazaQuest.step = 0; spawnNextDecoy(); }, npc); return;
+  }
+  if (plazaQuest.phase === 'searching'){ startDialog(PERCY_NUDGE_SEARCH, null, npc); return; }
+  if (plazaQuest.phase === 'giveup'){
+    startDialog(PERCY_GIVEUP, () => { plazaQuest.phase = 'seek-doodles'; plazaQuest.doodles = spawnStoryPigeon(DOODLES_CFG); refreshPlazaGuide(); }, npc); return;
+  }
+  if (plazaQuest.phase === 'seek-doodles'){ startDialog(PERCY_NUDGE_DOODLES, null, npc); return; }
+  if (plazaQuest.phase === 'bring-doodles'){
+    startDialog(PERCY_REUNION, () => { plazaQuest.phase = 'done'; bodies[PIGEON_I].missionDone = true; doReunion(); }, npc);
+    return;
+  }
+}
+function talkActivePigeon(){
+  const h = plazaTargetHolder(); if (!h) return;
+  const cfg = h.userData.cfg;
+  plazaQuest.talkingPigeon = h;
+  const npc = { npcPos: () => h.getWorldPosition(new THREE.Vector3()), speaker: cfg.speaker, npcObj: h };
+  if (plazaQuest.phase === 'seek-doodles'){
+    startDialog(cfg.lines, () => { plazaQuest.talkingPigeon = null; plazaQuest.phase = 'bring-doodles'; refreshPlazaGuide(); }, npc);
+  } else {
+    startDialog(cfg.lines, () => { plazaQuest.talkingPigeon = null; plazaQuest.step++; spawnNextDecoy(); }, npc);
+  }
+}
+function doReunion(){
+  const pN = worldRefs.pigeon.percyN, R = bodies[PIGEON_I].r;
+  // move Doodles right next to Percy and ring the found pigeons around them
+  const flock = [...plazaQuest.decoyHolders, plazaQuest.doodles].filter(Boolean);
+  flock.forEach((h, i) => {
+    const az = i / flock.length * Math.PI * 2;
+    const n = tiltDir(pN, 0.3, az);
+    h.position.copy(n).multiplyScalar(R + 0.02);
+    orientToNormal(h, n);
+    h.quaternion.copy(quatFromBasis(n, tangentToward(h.position, n, V().copy(pN).multiplyScalar(R))));  // face Percy
+  });
+  beginPercyFlight();
+}
+refreshPlazaGuide();
 
 /* ---------- beanie: real rigged Blender model (game-assets/beanie/beanie.glb) ----------
    Loaded async into a placeholder Group, same pattern as the other real models.
@@ -2339,7 +2523,7 @@ function arrive(bi){
    types one line at a time; SPACE / A / ENTER advances; when the last line is
    dismissed we return to 'walk' and fire onDone (which some flows use to jump
    into another state, e.g. Percy's flight). */
-let percyNear = false, percyFly = null, chippyNear = false, bbakNear = false, pickTarget = null;
+let percyNear = false, percyFly = null, chippyNear = false, bbakNear = false, plazaNear = false, pickTarget = null;
 const PERCY_LINES = [
   `Coo! Rachel… you found me. I have been waiting ALL day!`,
   'The other pigeons talk too much. *flap flap* Anyway —',
@@ -2563,9 +2747,8 @@ addEventListener('keydown', (e) => {
     else if (state === 'walk'){
       if (chippyNear) talkChippy();
       else if (bbakNear) talkBbak();
-      else if (percyNear) startDialog(PERCY_LINES, beginPercyFlight,
-        { npcPos: () => worldRefs.pigeon.percyHolder.getWorldPosition(new THREE.Vector3()),
-          npcObj: worldRefs.pigeon.percyHolder });
+      else if (plazaNear) talkActivePigeon();
+      else if (percyNear) talkPercy();
       else if (target) jumpTo(target);
     }
   }
@@ -2638,9 +2821,11 @@ function updateWalk(dt){
     guideEl.classList.remove('show');
   }
   // NPC / pickup proximity
-  percyNear = false; chippyNear = false; bbakNear = false; pickTarget = null;
+  percyNear = false; chippyNear = false; bbakNear = false; plazaNear = false; pickTarget = null;
   if (curI === PIGEON_I && !worldRefs.pigeon.percyHolder.userData.flying){
-    percyNear = her.position.distanceTo(percyWorldPos(tmpV3)) < 3.6;
+    percyNear = her.position.distanceTo(percyWorldPos(tmpV3)) < 4.0;
+    const h = plazaTargetHolder();
+    if (h) plazaNear = her.position.distanceTo(h.getWorldPosition(tmpV3)) < 4.2;
   }
   if (curI === 1 && worldRefs.books){
     if (booksQuest.phase !== 2) chippyNear = her.position.distanceTo(chippyPos(tmpV3)) < 3.6;
@@ -2660,11 +2845,16 @@ function updateWalk(dt){
       ? '🐻‍❄️ press SPACE to give it to bbak'
       : '🐻‍❄️ press SPACE to talk to bbak';
     promptEl.classList.add('show');
-  } else if (pickTarget){
-    promptEl.textContent = pickTarget.cuke ? '🥒 press A to pick the cucumber' : '📖 press A to pick up';
+  } else if (plazaNear){
+    promptEl.textContent = '🕊️ press SPACE to say hello';
     promptEl.classList.add('show');
   } else if (percyNear){
-    promptEl.textContent = '🕊️ press SPACE to talk to Percy';
+    promptEl.textContent = plazaQuest.phase === 'bring-doodles'
+      ? '🕊️ press SPACE — bring Doodles to Percy'
+      : '🕊️ press SPACE to talk to Percy';
+    promptEl.classList.add('show');
+  } else if (pickTarget){
+    promptEl.textContent = pickTarget.cuke ? '🥒 press A to pick the cucumber' : '📖 press A to pick up';
     promptEl.classList.add('show');
   } else if (target){
     promptEl.textContent = '✨ press SPACE to leap! ✨';
@@ -3017,6 +3207,11 @@ window.__world = {
   giftBooks(){ return worldRefs.books ? worldRefs.books.giftBooks.map(g => ({ taken:g.taken,
     pos: g.holder.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)) })) : null; },
   booksQuest(){ return { ...booksQuest }; },
+  plazaInfo(){ const h = plazaTargetHolder(); return {
+    phase: plazaQuest.phase, step: plazaQuest.step, missionDone: bodies[PIGEON_I].missionDone,
+    percyPos: percyWorldPos(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)),
+    targetPos: h ? h.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)) : null,
+    talking: !!plazaQuest.talkingPigeon }; },
   bbakInfo(){ return worldRefs.cucumber ? { quest:{...bbakQuest}, missionDone:bodies[2].missionDone,
     bbakPos: bbakPos().toArray().map(v=>+v.toFixed(2)),
     cukePos: worldRefs.cucumber.cuke.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)),

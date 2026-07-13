@@ -156,9 +156,19 @@
             he reveals a glowing special cucumber → fetch + give → gate opens.
             Verified end-to-end (talk, 3 rejects, cucumber reveal, give, gate,
             leap to Pigeon Plaza), zero console errors (2026-07-12).
+      - [x] Pigeon Plaza mission built (see PIGEON_PLAZA_MISSION.md): 8 real
+            pigeon glbs (7 decoys + Doodles the dodo) converted from
+            `pigeon collection/`; find Percy → he asks for his lost friend →
+            decoys spawn one-at-a-time in order (Vanessa 3×/no-bounce, Nibbles,
+            Alfred "not a parrot", Sunny, Otto, Mochi, Buckle) each intro+fun-
+            fact+"No" and STAY standing → give up → Percy's "~1690, starts with
+            D" hint → Doodles appears (lonely, misses family) → "we'll be your
+            family" → lead him back → reunion → flock rings Percy → Percy grows
+            + Beanie rides → Garden. Pigeons bounce while talking except Vanessa.
+            Verified full flow, zero console errors (2026-07-13).
       - [ ] TODO distinct run-clip retarget (Mixamo→BeanieRig); title beanie-sit
-      - [ ] TODO Pigeon Plaza 5-pigeons+pat+Percy grow/fly; Garden 4-char wave
-            (+bbak) + walk-toward + KISS cutscene
+      - [ ] TODO Garden finale: bred+percy+chippy+bbak wave + walk-toward + KISS
+            cutscene → hearts → card
       - NOTE: WALK_SPEED still 12 — feels fast on the tiny Chicago (r3.5);
         revisit during the Chicago rework (may drop to ~8 or make per-world).
 - [ ] POLISH: RunFK2's arm swing reads as a wide sideways reach rather than a
