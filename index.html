@@ -937,7 +937,7 @@ function makeSeahorse(color){
   }
   return g;
 }
-function makeCucumber(scale=1){
+function makeCucumberProc(scale=1){  // procedural fallback (used if the model fails to load)
   const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.5, 6, 14), mat(0x3a7a3a, { roughness:0.7 }));
   g.add(body);
@@ -957,6 +957,33 @@ function makeCucumber(scale=1){
   const tipB = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), mat(0x2c5f2c));
   tipB.position.y = -0.98; g.add(tipB);
   g.scale.setScalar(scale);
+  return g;
+}
+// Real cucumber: Blender/Rodin model (game-assets/cucumber/cucumber.glb). Loaded once and
+// cloned for every schooling/resting cucumber. makeCucumber() hands back a placeholder group
+// immediately so world-building never blocks; clones drop in when the model arrives.
+let cucumberModel = null;
+const pendingCucumbers = [];
+function fillCucumber(g, scale){
+  const c = cucumberModel.clone();
+  c.scale.setScalar(scale);
+  g.add(c);
+}
+loadModel('./game-assets/cucumber/cucumber.glb').then((model) => {
+  cucumberModel = model;
+  for (const { group, scale } of pendingCucumbers) fillCucumber(group, scale);
+  pendingCucumbers.length = 0;
+}).catch((err) => {
+  console.error('Cucumber model failed to load, using procedural fallback', err);
+  for (const { group, scale } of pendingCucumbers) group.add(makeCucumberProc(scale));
+  pendingCucumbers.length = 0;
+  cucumberModel = false; // mark failed so later calls fall back too
+});
+function makeCucumber(scale=1){
+  const g = new THREE.Group();
+  if (cucumberModel) fillCucumber(g, scale);
+  else if (cucumberModel === false) g.add(makeCucumberProc(scale));
+  else pendingCucumbers.push({ group:g, scale });
   return g;
 }
 function orbiter(group, obj, radius, speed, tiltX, tiltZ, bobAmp=0, bobSpeed=1){
@@ -1729,27 +1756,30 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
   camera.up.copy(camUp);
   camera.lookAt(cC.copy(pos).addScaledVector(up, 1.5));
 }
-/* Conversation two-shot: Beanie on screen-left facing right, the NPC upper-
-   right facing back toward her (both faces visible). Beanie is turned to face
-   the NPC each frame (rotation only — her sphere position is unchanged). */
+/* Conversation camera: a FIXED over-the-shoulder shot — same framing as the
+   walking view but ~2x closer. The camera sits just behind Beanie's shoulder
+   and looks past her toward whoever she's talking to, no matter which way she
+   was facing when the chat started. Beanie turns to face the NPC (rotation
+   only — her sphere position is unchanged); the camera then holds still. */
 let TALK_CAM_SIDE = 1;
 function updateTalkCam(dt){
   const npc = (dialog && dialog.npcPos) ? dialog.npcPos() : null;
-  if (!npc){ followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 6.5); return; }
+  if (!npc){ followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 3.3); return; }
   const up = herUp(new THREE.Vector3());
-  orientation.copy(quatFromBasis(up, tangentToward(her.position, up, npc)));   // face the NPC
+  const toNpc = tangentToward(her.position, up, npc);   // along-surface dir Beanie -> NPC
+  orientation.copy(quatFromBasis(up, toNpc));            // Beanie faces the NPC
   updatePose();
-  const mid  = new THREE.Vector3().addVectors(her.position, npc).multiplyScalar(0.5);
-  const axis = new THREE.Vector3().subVectors(npc, her.position);
-  const gap  = Math.max(0.6, axis.length()); axis.normalize();
-  const side = new THREE.Vector3().crossVectors(up, axis).normalize().multiplyScalar(TALK_CAM_SIDE);
-  const goal = new THREE.Vector3().copy(mid)
-    .addScaledVector(side, gap*0.85 + 3.4)
-    .addScaledVector(up,   gap*0.26 + 1.9)
-    .addScaledVector(axis, -gap*0.18);
-  const look = new THREE.Vector3().copy(mid).addScaledVector(up, 1.0).addScaledVector(axis, gap*0.14);
-  camPos.lerp(goal, 1 - Math.exp(-5*dt));
-  camUp.lerp(up, 1 - Math.exp(-4*dt)).normalize();
+  const side = new THREE.Vector3().crossVectors(up, toNpc).normalize().multiplyScalar(TALK_CAM_SIDE);
+  const goal = new THREE.Vector3().copy(her.position)
+    .addScaledVector(toNpc, -2.8)    // behind her back (close ≈ 2x zoom vs the walk cam)
+    .addScaledVector(up,     1.35)   // roughly head height — level, not looking down
+    .addScaledVector(side,   0.5);   // slight shoulder offset
+  const look = new THREE.Vector3().copy(her.position)
+    .addScaledVector(up,    1.05)
+    .addScaledVector(toNpc,  1.6)    // aim past her, onto the NPC
+    .addScaledVector(side,   0.15);
+  camPos.lerp(goal, 1 - Math.exp(-6*dt));   // smooth push-in, then holds fixed
+  camUp.lerp(up, 1 - Math.exp(-5*dt)).normalize();
   camera.position.copy(camPos);
   camera.up.copy(camUp);
   camera.lookAt(look);
@@ -2309,7 +2339,8 @@ function spawnChicagoMessenger(onLanded){
       pg.position.lerpVectors(m.startPos, m.landPos, e);
       if (k >= 1){ m.landed = true; const cb = m.onLanded; m.onLanded = null; if (cb) cb(); }
     } else {
-      pg.position.copy(m.landPos).addScaledVector(m.groundN, Math.abs(Math.sin(t*2.2))*0.05);  // little hops
+      // planted flush on the ground — feet down, no hover (just a barely-there settle)
+      pg.position.copy(m.landPos).addScaledVector(m.groundN, -0.02 + Math.sin(t*2.2)*0.012);
     }
     // stand upright on the surface, facing Beanie
     pg.quaternion.copy(quatFromBasis(m.groundN, tangentToward(pg.position, m.groundN, her.position)));
