@@ -1222,10 +1222,35 @@ function grassField(g, R, count, color, skipN=null, skipAng=0){
 
 function buildCucumber(g, R){
   grassField(g, R, 11000, PALETTE.moss);
-  // cucumbers schooling like fish
-  school(g, () => makeCucumber(1), 9, R + 3.2, 0.28, 2.6, 0.8);
-  school(g, () => makeCucumber(1), 8, R + 4.4, -0.2, 2.4, 0.65);
-  school(g, () => makeCucumber(1), 7, R + 5.6, 0.16, 2.8, 0.95);
+  // A big planetary RING of cucumbers circling the world, like Saturn's rings —
+  // lots of them, tilted, tumbling as the whole band slowly orbits the planet.
+  const buildRing = (count, ringR, tiltX, tiltZ, spin, band=1.4, thick=1.0) => {
+    const ring = new THREE.Group();
+    ring.rotation.x = tiltX; ring.rotation.z = tiltZ;
+    g.add(ring);
+    const members = [];
+    for (let i = 0; i < count; i++){
+      const a = (i / count) * Math.PI * 2 + Math.random()*0.04;
+      const c = makeCucumber(0.6 + Math.random()*0.5);
+      const rr = ringR + (Math.random()-0.5)*band;      // radial spread = ring width
+      const baseY = (Math.random()-0.5)*thick;           // ring thickness
+      c.position.set(Math.cos(a)*rr, baseY, Math.sin(a)*rr);
+      c.rotation.y = -a + Math.PI/2 + (Math.random()-0.5)*0.6;  // lie roughly along the ring
+      c.rotation.x = (Math.random()-0.5)*0.7;
+      c.rotation.z = (Math.random()-0.5)*0.7;
+      ring.add(c);
+      members.push({ c, baseY, spin:(Math.random()-0.5)*0.7, ph:Math.random()*7 });
+    }
+    animators.push((t, dt) => {
+      ring.rotation.y += spin*dt;                         // the whole ring orbits the planet
+      for (const m of members){
+        m.c.rotation.x += m.spin*dt*0.5;                  // gentle individual tumble
+        m.c.position.y = m.baseY + Math.sin(t*0.6 + m.ph)*0.18;  // soft bob within the band
+      }
+    });
+  };
+  buildRing(90, R + 5.4, 1.15, 0.22,  0.16, 1.6, 1.1);   // main ring
+  buildRing(46, R + 7.2, 1.15, 0.22,  0.11, 1.2, 0.8);   // outer thinner ring (same plane)
   // some resting in the grass
   for (let i = 0; i < 120; i++){
     const holder = new THREE.Group();

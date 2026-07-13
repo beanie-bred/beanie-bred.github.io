@@ -1,7 +1,12 @@
 *.blend filter=lfs diff=lfs merge=lfs -text
 *.blend1 filter=lfs diff=lfs merge=lfs -text
-*.glb filter=lfs diff=lfs merge=lfs -text
-*.gltf filter=lfs diff=lfs merge=lfs -text
 *.obj filter=lfs diff=lfs merge=lfs -text
 *.fbx filter=lfs diff=lfs merge=lfs -text
 *.png filter=lfs diff=lfs merge=lfs -text
+
+# Site-critical files: GitHub Pages cannot serve Git LFS pointers, so the
+# assets the live game actually fetches at runtime must stay as plain,
+# regular git blobs (not LFS), regardless of the blanket rules above.
+game-assets/**/*.glb -filter -diff -merge -text
+game-assets/**/*.gltf -filter -diff -merge -text
+logo.png -filter -diff -merge -text
