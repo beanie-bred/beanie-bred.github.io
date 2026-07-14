@@ -1,4 +1,13 @@
 # ROADMAP
+- [x] HUD polish (2026-07-14): #planetTitle cinematic card (big "BOOK STACKS"-
+      style reveal) was vertically centered, so on small planets it sat right
+      on top of Beanie standing there — moved to justify-content:flex-start +
+      padding-top:14vh so she's clearly visible below it. Also removed the
+      arrival showToast(name, tag) call in arrive() — the planetTitle card
+      already announces the world by name, and the toast chip (top:76px) sat
+      directly on top of the mission banner/guide chip. Verified via a real
+      jumpChain() landing (fall/get-up/orbit/title/click-to-continue), zero
+      console errors.
 - [x] Engine: sphere walking, gravity orientation, camera orbit, aim-and-leap
 - [x] Six worlds + eight moons, missions, progress dots
 - [x] Percy sequence + iris wipe + Garden finale + card
