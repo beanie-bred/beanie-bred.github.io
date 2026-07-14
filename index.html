@@ -1059,7 +1059,12 @@ function makeFood(type){
   } else if (type === 'pizza'){
     const sl=new THREE.Mesh(new THREE.CircleGeometry(0.5,16,0,1.1),M(0xf6d28a)); sl.rotation.x=-Math.PI/2; sl.position.y=0.05; g.add(sl);
     const cr=new THREE.Mesh(new THREE.TorusGeometry(0.5,0.05,6,16,1.1),M(0xe0a85c)); cr.rotation.x=Math.PI/2; cr.position.y=0.05; g.add(cr);
-    for (let i=0;i<4;i++){ const p=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.03,10),M(0xd84a4a)); p.position.set(0.12+Math.random()*0.25,0.08,(Math.random()-0.5)*0.4); g.add(p); }
+    // pepperoni must land inside the slice's actual wedge (CircleGeometry
+    // thetaLength=1.1 rad sweeping x=r*cos(theta), z=-r*sin(theta)) — placing
+    // them with plain independent x/z randomness scatters half of them off
+    // the crust entirely, reading as separated floating discs.
+    for (let i=0;i<4;i++){ const a=0.15+Math.random()*0.8, r=0.12+Math.random()*0.28;
+      const p=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.03,10),M(0xd84a4a)); p.position.set(Math.cos(a)*r,0.08,-Math.sin(a)*r); g.add(p); }
   } else if (type === 'fries'){
     const box=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.14,0.32,4),M(0xd84a4a)); box.position.y=0.16; box.rotation.y=Math.PI/4; g.add(box);
     for (let i=0;i<7;i++){ const f=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.4,0.04),M(0xf6cf6a)); f.position.set((Math.random()-0.5)*0.2,0.4,(Math.random()-0.5)*0.2); f.rotation.z=(Math.random()-0.5)*0.4; g.add(f); }
@@ -1373,8 +1378,8 @@ function buildCucumber(g, R){
       }
     });
   };
-  buildRing(90, R + 5.4, 1.15, 0.22,  0.16, 1.6, 1.1);   // main ring
-  buildRing(46, R + 7.2, 1.15, 0.22,  0.11, 1.2, 0.8);   // outer thinner ring (same plane)
+  buildRing(180, R + 5.4, 1.15, 0.22,  0.16, 3.2, 1.1);   // main ring (2x count, 2x width)
+  buildRing(92,  R + 7.2, 1.15, 0.22,  0.11, 2.4, 0.8);   // outer thinner ring (2x count, 2x width)
   // some cucumbers resting in the grass
   for (let i = 0; i < 90; i++){
     const holder = new THREE.Group();
@@ -1522,7 +1527,9 @@ function buildPigeons(g, R, ctx){
   // flaps in place.
   const crowd = [];
   const TAU = Math.PI*2;
-  const PIGEON_COUNT = 850;
+  // Each pigeon is ~13 separate meshes (no instancing), so raw count is the
+  // single biggest lag lever on this planet — 850 was ~11k draw calls.
+  const PIGEON_COUNT = 260;
   for (let i = 0; i < PIGEON_COUNT; i++){
     const pg = plushPigeon(PIGEON_VARIANTS[i % PIGEON_VARIANTS.length]);
     pg.scale.setScalar(0.8 + Math.random()*0.4);
@@ -1563,7 +1570,7 @@ function buildPigeons(g, R, ctx){
     }
   }
   // some genuinely flying overhead
-  for (let i = 0; i < 40; i++){
+  for (let i = 0; i < 18; i++){
     const pg = plushPigeon(PIGEON_VARIANTS[(i+1) % PIGEON_VARIANTS.length]);
     pg.scale.setScalar(0.75); pg.rotation.y = Math.PI;
     const ph = Math.random()*7;
@@ -1790,20 +1797,24 @@ function buildGarden(g, R, ctx){
 const WORLD_DEFS = [
   { key:'chicago',  name:'Chicago',          emoji:'🏙️', tag:'small, gray, and a little lonely',
     mission:'<b>MISSION:</b> jump to the next world! Drag / swipe to aim your view at it, then press <b>SPACE</b> to leap up high and land there.',
-    pos:[0,0,0], r:7,  col:0xe4e8f0, step:'stone' },
+    pos:[0,0,0], r:5.25,  col:0xe4e8f0, step:'stone' },
   { key:'books',    name:'Book Stacks',      emoji:'📚', tag:'somebody should really tidy these',
     mission:'<b>MISSION:</b> find <b>Chippy</b>, then bring him <b>5 favourite books</b> (the glowy ones — press <b>A</b> to pick up).',
-    pos:[130,20,-60], r:23.75, col:PALETTE.lightBeige, step:'book' },
+    pos:[130,20,-60], r:17.8125, col:PALETTE.lightBeige, step:'book' },
   { key:'cucumber', name:'Cucumber Meadow',  emoji:'🥒', tag:'they school like fish out here',
     mission:'<b>MISSION:</b> find <b>bbak</b> the polar bear — he is overheating. Bring him something <b>cold</b> to cool him down!',
-    pos:[300,-10,-190], r:30, col:PALETTE.moss, step:'grass' },
+    pos:[300,-10,-190], r:22.5, col:PALETTE.moss, step:'grass' },
   { key:'pigeon',   name:'Pigeon Plaza',     emoji:'🕊️', tag:'way, WAY too many pigeons',
     mission:'<b>MISSION:</b> find <b>Percy</b> — he needs help finding a long-lost friend among all these pigeons.',
-    pos:[170,20,-400], r:40, col:PALETTE.mutedLavender, step:'stone' },
+    pos:[170,20,-400], r:30, col:PALETTE.mutedLavender, step:'stone' },
   { key:'garden',   name:'The Garden',       emoji:'💐', tag:'happy birthday, Beanie 🤍',
     mission:'<b>MISSION:</b> wander the garden… someone set up a big white couch for you. 🤍',
-    pos:[-250,50,-120], r:55, col:PALETTE.sageGreen, step:'grass' },
+    pos:[-250,50,-120], r:41.25, col:PALETTE.sageGreen, step:'grass' },
 ];
+// All five planets scaled to 3/4 their original radius (7/23.75/30/40/55) so
+// NPCs and landmarks are quicker to walk to — the cucumber ring's own radial
+// offsets from the surface are fixed absolute constants, so it reads as
+// relatively LARGER against the now-smaller Cucumber Meadow, not smaller.
 // NOTE: Sea world archived (2026-07-12) — chain is now Chicago→Books→Cucumber→Pigeon→Garden.
 const bodies = [];
 function addBody(b){
@@ -2388,6 +2399,11 @@ const X_AXIS = new THREE.Vector3(1,0,0), Y_AXIS = new THREE.Vector3(0,1,0),
 const orientation = new THREE.Quaternion();
 let curI = 0;
 let state = 'intro';       // intro | walk | fly | talk | percyfly | finale
+// True for the gap between arrive(0) (which must set state='walk' for camera/
+// HUD setup) and the messenger pigeon's letter dialogue actually starting —
+// without this, arrow keys worked during that ~1s window before the intro
+// conversation ever opened.
+let introLocked = false;
 const visitedWorlds = new Array(WORLD_DEFS.length).fill(false);
 const keys = {};
 const WALK_SPEED = 12.0, TURN_SPEED = 2.3;
@@ -2651,7 +2667,7 @@ function jumpTo(body){
   if (herRunAction) herRunAction.setEffectiveWeight(0);
   if (herIdleAction) herIdleAction.setEffectiveWeight(0);
   promptEl.classList.remove('show');
-  dragHintEl.classList.remove('show'); idleTime = 0;
+  dragHintEl.classList.remove('show'); hintEl.classList.add('hidden'); idleTime = 0;
   playChime();
 }
 function updateFlight(dt){
@@ -2729,7 +2745,11 @@ function updateLanding(dt){
     camUp.copy(up);
     camera.position.copy(camPos);
     camera.up.copy(camUp);
-    camera.lookAt(tmpV.copy(her.position).addScaledVector(up, 1.3));
+    // NOTE: must NOT reuse tmpV here — `up` above IS tmpV (herUp writes into
+    // and returns its argument), so overwriting tmpV before reading `up`
+    // again corrupted the look-at target into her.position*2.3, sending the
+    // orbit camera wildly off toward empty space instead of orbiting her.
+    camera.lookAt(tmpV3.copy(her.position).addScaledVector(up, 1.3));
   }
 }
 function finalizeLanding(){
@@ -2777,7 +2797,7 @@ function startDialog(lines, onDone, opts={}){
   state = 'talk';
   promptEl.classList.remove('show');
   guideEl.classList.remove('show');
-  dragHintEl.classList.remove('show'); idleTime = 0;
+  dragHintEl.classList.remove('show'); hintEl.classList.add('hidden'); idleTime = 0;
   targetRing.visible = false;
   reticleEl.classList.add('hidden');
   dialogEl.classList.remove('hidden');
@@ -3027,17 +3047,34 @@ addEventListener('keyup', (e) => { keys[e.key] = false; });
 // Nudge the player toward the free-look controls if she just stands still for
 // a while — fades in, and goes away the moment she moves or starts dragging.
 let idleTime = 0;
+// The control-legend chip (#hint) used to be shown once at game start and
+// never hidden again, so it sat on screen through every conversation and
+// every walk cycle. It now follows the exact same idle-only reveal as the
+// drag-to-look hint, since neither should ever cover movement or dialogue.
 function updateIdleHint(dt, moving){
-  if (moving || dragging){ idleTime = 0; dragHintEl.classList.remove('show'); return; }
+  if (moving || dragging){
+    idleTime = 0;
+    dragHintEl.classList.remove('show');
+    hintEl.classList.add('hidden');
+    return;
+  }
   idleTime += dt;
-  if (idleTime > 3.5) dragHintEl.classList.add('show');
+  if (idleTime > 5.0){
+    dragHintEl.classList.add('show');
+    hintEl.classList.remove('hidden');
+  }
 }
 
 function updateWalk(dt){
   const b = bodies[curI];
+  const u = her.userData;
+  if (introLocked){   // frozen until the messenger's letter dialogue finishes
+    u.moving = false;
+    updateIdleHint(dt, false);
+    return;
+  }
   const ix = (keys['ArrowRight'] ? 1 : 0) - (keys['ArrowLeft'] ? 1 : 0);
   const iz = (keys['ArrowUp'] ? 1 : 0) - (keys['ArrowDown'] ? 1 : 0);
-  const u = her.userData;
   u.moving = !!(ix || iz);
   updateIdleHint(dt, u.moving);
   u.movingBackward = iz < 0;
@@ -3049,11 +3086,13 @@ function updateWalk(dt){
     // fixed behind her back.
     const up = herUp(tmpV);
     orientation.premultiply(tmpQ.setFromAxisAngle(up, -ix*2.4*dt));
+    // Only nudge the camera toward the "peek" bias while actually turning —
+    // this used to run unconditionally every frame (targeting 0 whenever ix
+    // was 0), which fought and undid any manual cursor-drag orbit within
+    // about a second, making it impossible to hold a view of her front.
     camYawTarget = ix*0.65;
-  } else {
-    camYawTarget = 0;
+    camYaw += (camYawTarget - camYaw) * Math.min(1, dt*3.2);
   }
-  camYaw += (camYawTarget - camYaw) * Math.min(1, dt*3.2);
   if (iz){
     // ↑ ↓ walk forward/backward along her current facing — no turning, so
     // backing up never spins her whole body around.
@@ -3247,7 +3286,8 @@ function startJourney(){
   setTimeout(() => introEl.classList.add('hidden'), 1100);
   hudEl.classList.remove('hidden');
   dotsEl.classList.remove('hidden');
-  hintEl.classList.remove('hidden');
+  // #hint no longer forces itself on at journey start — updateIdleHint()
+  // reveals it only after she's genuinely idle for a few seconds.
   muteBtn.classList.remove('hidden');
   reticleEl.classList.remove('hidden');
   her.userData.sit(false);
@@ -3258,6 +3298,7 @@ function startJourney(){
   orientation.copy(quatFromBasis(CHICAGO_START_N,
     tangentToward(startPos, CHICAGO_START_N, bodies[b0.chainNext].center)));
   arrive(0);
+  introLocked = true;   // held until the messenger's letter dialogue finishes
   missionEl.classList.add('hidden');   // mission appears only after the letter is read
   camPitch = 0.08;
   camYaw = 0.5;
@@ -3266,13 +3307,14 @@ function startJourney(){
   setTimeout(() => {
     // only run the Chicago letter if she is actually still standing on Chicago
     // (a QA warp with 1-6 moves her on, and must NOT drag Chicago's intro along)
-    if (state !== 'walk' || curI !== 0 || bodies[0].missionDone) return;
+    if (state !== 'walk' || curI !== 0 || bodies[0].missionDone){ introLocked = false; return; }
     // messenger swoops down and LANDS, then reads the letter
     spawnChicagoMessenger(() => {
       startDialog(CHICAGO_LETTER_LINES, () => {
         bodies[0].missionDone = true;
         setMission(bodies[0].mission);
         dismissChicagoMessenger();
+        introLocked = false;
       }, { speaker:'🕊️ a breathless pigeon',
            npcPos: () => chicagoMessenger ? chicagoMessenger.pg.getWorldPosition(new THREE.Vector3()) : null });
     });
@@ -3507,6 +3549,35 @@ window.__world = {
     percyPos: percyWorldPos(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)),
     targetPos: h ? h.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)) : null,
     talking: !!plazaQuest.talkingPigeon }; },
+  landingDebug(){
+    if (!landing) return null;
+    const up = herUp(new THREE.Vector3());
+    const target = new THREE.Vector3().copy(her.position).addScaledVector(up, 1.3);
+    const expectedFwd = new THREE.Vector3().subVectors(target, camera.position).normalize();
+    const actualFwd = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+    return { phase: landing.phase, t: landing.t, her: her.position.toArray().map(v=>+v.toFixed(2)),
+      up: up.toArray().map(v=>+v.toFixed(3)),
+      orbitBasisA: landing.orbitBasisA ? landing.orbitBasisA.toArray().map(v=>+v.toFixed(3)) : null,
+      orbitBasisB: landing.orbitBasisB ? landing.orbitBasisB.toArray().map(v=>+v.toFixed(3)) : null,
+      camPos: camPos.toArray().map(v=>+v.toFixed(2)), camUp: camUp.toArray().map(v=>+v.toFixed(3)),
+      camActualPos: camera.position.toArray().map(v=>+v.toFixed(2)),
+      expectedFwd: expectedFwd.toArray().map(v=>+v.toFixed(3)),
+      actualFwd: actualFwd.toArray().map(v=>+v.toFixed(3)),
+      fwdDot: +expectedFwd.dot(actualFwd).toFixed(4),
+      br: bodies[landing.bi].r };
+  },
+  facingDebug(){   // numeric check: which local axis of the NPC, if any, actually points at Beanie?
+    const h = plazaQuest.talkingPigeon || (dialog && dialog.npcObj);
+    if (!h) return null;
+    const q = h.getWorldQuaternion(new THREE.Quaternion());
+    const toHerWorld = new THREE.Vector3().subVectors(her.position, h.getWorldPosition(new THREE.Vector3())).normalize();
+    const axisDot = (lx,ly,lz) => +new THREE.Vector3(lx,ly,lz).applyQuaternion(q).normalize().dot(toHerWorld).toFixed(3);
+    return {
+      toHerWorld: toHerWorld.toArray().map(v=>+v.toFixed(3)),
+      plusZ: axisDot(0,0,1), minusZ: axisDot(0,0,-1),
+      plusX: axisDot(1,0,0), minusX: axisDot(-1,0,0),
+      holderQuat: h.quaternion.toArray().map(v=>+v.toFixed(3)) };
+  },
   bbakInfo(){ return worldRefs.cucumber ? { quest:{...bbakQuest}, missionDone:bodies[2].missionDone,
     bbakPos: bbakPos().toArray().map(v=>+v.toFixed(2)),
     cukePos: worldRefs.cucumber.cuke.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)),
