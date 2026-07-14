@@ -60,6 +60,14 @@
   #bookpopKicker{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#ffd9a0;opacity:.9}
   #bookpopTitle{font-size:16px;font-weight:700;color:#fff;margin-top:2px;max-width:260px}
   #bookpopCount{font-size:12px;color:#bcd0f0;margin-top:3px}
+  /* ---------- food pocket: shows the single food item she's currently carrying ---------- */
+  #foodPocket{position:fixed;top:50%;right:18px;transform:translateY(-50%) translateX(14px);z-index:22;
+    display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 12px;border-radius:18px;
+    background:rgba(30,32,64,.55);backdrop-filter:blur(9px);border:1px solid rgba(255,255,255,.2);
+    opacity:0;pointer-events:none;transition:opacity .4s ease,transform .4s ease;max-width:96px;text-align:center}
+  #foodPocket.show{opacity:1;transform:translateY(-50%) translateX(0)}
+  #foodPocketIcon{font-size:34px;line-height:1}
+  #foodPocketLabel{font-size:11px;color:#dbe7ff;font-weight:600}
   #dots{position:fixed;top:70px;right:16px;z-index:20;display:flex;gap:8px;align-items:center}
   .dot{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.18);
     border:1px solid rgba(255,255,255,.3);transition:all .5s}
@@ -69,6 +77,11 @@
     color:#fff;font-size:17px;cursor:pointer}
   #hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:20;
     font-size:12.5px;color:#cfd8f0;white-space:nowrap}
+  #dragHint{position:fixed;top:46%;left:50%;transform:translateX(-50%) translateY(6px);z-index:18;
+    font-size:13.5px;font-weight:600;color:#fff;padding:9px 20px;border-radius:999px;white-space:nowrap;
+    background:rgba(30,32,64,.5);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22);
+    opacity:0;pointer-events:none;transition:opacity .8s ease,transform .8s ease}
+  #dragHint.show{opacity:1;transform:translateX(-50%) translateY(0)}
   #reticle{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:19;
     width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.4);
     pointer-events:none;transition:all .18s}
@@ -90,11 +103,21 @@
   /* ---------- dialogue ---------- */
   #dialog{position:fixed;bottom:44px;left:50%;transform:translateX(-50%);z-index:30;
     width:min(560px,90vw);background:rgba(28,26,54,.82);backdrop-filter:blur(12px);
-    border:1.5px solid rgba(255,255,255,.22);border-radius:20px;padding:18px 24px 14px}
+    border:1.5px solid rgba(255,255,255,.22);border-radius:20px;padding:18px 24px 18px}
   #dialogName{font-weight:700;color:#8fd8d0;font-size:14px;margin-bottom:6px}
   #dialogText{font-size:16px;line-height:1.55;min-height:44px;color:#f2f0ff}
-  #dialogNext{text-align:right;font-size:12px;color:#b9b4dd;margin-top:6px;
+  #dialogNext{text-align:right;font-size:12px;color:#b9b4dd;margin-top:18px;
     animation:pulseTxt 1.4s ease-in-out infinite}
+
+  /* ---------- planet-arrival title card (wide establishing orbit shot) ---------- */
+  #planetTitle{position:fixed;inset:0;z-index:26;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:16px;pointer-events:none;
+    opacity:0;transition:opacity 1.1s ease}
+  #planetTitle.show{opacity:1;pointer-events:auto;cursor:pointer}
+  #planetTitleName{font-size:clamp(30px,5.4vw,54px);font-weight:700;color:#fff;
+    text-shadow:0 0 30px rgba(0,0,0,.55),0 4px 18px rgba(0,0,0,.4);letter-spacing:.5px}
+  #planetTitleContinue{font-size:14px;font-weight:600;color:#ffe9c9;letter-spacing:1px;
+    animation:pulseTxt 1.6s ease-in-out infinite;text-shadow:0 0 14px rgba(0,0,0,.6)}
 
   /* ---------- iris wipe ---------- */
   #iris{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:45;
@@ -163,9 +186,11 @@
 <div id="guide" class="hidden"></div>
 <div id="bookpop"><div id="bookpopCover"><span id="bookpopSpine"></span></div>
   <div id="bookpopMeta"><div id="bookpopKicker">📖 collected</div><div id="bookpopTitle"></div><div id="bookpopCount"></div></div></div>
+<div id="foodPocket"><div id="foodPocketIcon"></div><div id="foodPocketLabel"></div></div>
 <div id="dots" class="hidden"></div>
 <button id="muteBtn" class="hidden">🔊</button>
 <div id="hint" class="chip hidden">↑ ↓ ← → walk · cursor drag / trackpad swipe to look · SPACE leap / talk</div>
+<div id="dragHint">🖱️ drag to look around</div>
 <div id="reticle" class="hidden"></div>
 <div id="prompt">✨ press SPACE to leap! ✨</div>
 <div id="toast"></div>
@@ -174,6 +199,11 @@
   <div id="dialogName">Percy 🕊️</div>
   <div id="dialogText"></div>
   <div id="dialogNext">press SPACE ▸</div>
+</div>
+
+<div id="planetTitle">
+  <div id="planetTitleName"></div>
+  <div id="planetTitleContinue">click to continue ▸</div>
 </div>
 
 <div id="iris"></div>
@@ -1374,7 +1404,7 @@ function buildCucumber(g, R){
   for (let i = 0; i < 70; i++){
     const holder = new THREE.Group();
     const f = makeFood(FOOD_TYPES[i % FOOD_TYPES.length]);
-    f.scale.setScalar(0.8 + Math.random()*0.7); f.rotation.y = Math.random()*6.28;
+    f.scale.setScalar((0.8 + Math.random()*0.7)*2); f.rotation.y = Math.random()*6.28;   // 2x bigger
     holder.add(f);
     const n = randDir();
     if (n.angleTo(bbakN) < 3/R){ i--; continue; }
@@ -1385,7 +1415,7 @@ function buildCucumber(g, R){
   const foods = [];
   for (let i = 0; i < 6; i++){
     const holder = new THREE.Group();
-    const f = makeFood(COLD[i]); f.scale.setScalar(1.25); holder.add(f);
+    const f = makeFood(COLD[i]); f.scale.setScalar(1.25*2); holder.add(f);   // 2x bigger
     const halo = new THREE.Mesh(new THREE.SphereGeometry(1.1, 12, 10),
       new THREE.MeshBasicMaterial({ color:0xbfe6ff, transparent:true, opacity:0.22, depthWrite:false }));
     halo.position.y = 0.5; holder.add(halo);
@@ -1486,16 +1516,22 @@ function buildPigeons(g, R, ctx){
   placeOn(g, fount, dirNear(plazaN, 0.18), R);
   animators.push((t) => { water.scale.setScalar(1 + 0.05*Math.sin(t*3)); water.rotation.y = t*0.4; });
 
-  // WAY too many pigeons — spread over the whole planet; each one pecks,
-  // takes little steps around the surface, or flaps in place.
+  // WAY too many pigeons — evenly covering the ENTIRE planet (not just
+  // clustered near the plaza/fountain), so it's packed with pigeons wherever
+  // you look; each one pecks, takes little steps around the surface, or
+  // flaps in place.
   const crowd = [];
   const TAU = Math.PI*2;
-  for (let i = 0; i < 480; i++){
+  const PIGEON_COUNT = 850;
+  for (let i = 0; i < PIGEON_COUNT; i++){
     const pg = plushPigeon(PIGEON_VARIANTS[i % PIGEON_VARIANTS.length]);
     pg.scale.setScalar(0.8 + Math.random()*0.4);
     pg.rotation.y = Math.random()*TAU;
     const holder = new THREE.Group(); holder.add(pg);
-    const n = dirNear(plazaN, 0.2 + Math.random()*2.7);   // cover most of the sphere
+    // the first chunk clusters near the plaza/fountain for foreground density;
+    // everyone else gets a fully uniform direction so the far side and poles
+    // of the planet are just as packed as the plaza itself.
+    const n = i < 120 ? dirNear(plazaN, 0.15 + Math.random()*0.9) : randDir();
     placeOn(g, holder, n, R, 0.02);
     crowd.push(holder);
     const ph = Math.random()*7, roll = i % 10;
@@ -1895,25 +1931,61 @@ function pickupBook(gb){
 }
 
 /* ---------- World 3: bbak's "cool me down" quest ---------- */
-const bbakQuest = { phase:0, tries:0, need:3, holding:null, cukeRevealed:false };
+const bbakQuest = { phase:0, tries:0, need:4, holding:null, cukeRevealed:false };
 function bbakPos(out){ return worldRefs.cucumber.bbak.getWorldPosition(out || new THREE.Vector3()); }
 const BBAK_INTRO = [
   `Hnngh… oh, hi Rachel. *pant pant* It is SO hot out here… 🥵`,
   `This global-warming business is melting my brain. I need something COLD.`,
   `Fetch me a cold treat? Grab a glowy snack (press A) and bring it back to me.`,
 ];
-const BBAK_REJECT = [
-  [`…ice cream? It melted before you even got here. Blehh. Try again? 🫠`],
-  [`Too sweet, not cold enough — my fur's still sweating. One more, maybe?`],
-  [`Nnnope, that won't do either. *flops dramatically* …Okay. New plan.`,
-   `There's a special little cucumber growing nearby — cold, crisp, PERFECT.`,
-   `I marked it with a green sparkle. Go fetch THAT one for me! 🥒`],
+// A reaction PER FOOD TYPE — bbak actually comments on whatever she tossed him,
+// instead of a generic "nope, try again" regardless of what it was.
+const BBAK_FOOD_REACTIONS = {
+  icecream: [`*CATCH* …ice cream? It's already melting everywhere! Not cold enough, somehow. Try again? 🫠`],
+  cake:     [`*CATCH* Mmm, cake — but it's warm from sitting in the sun all day. Not what I need.`],
+  donut:    [`*CATCH* A donut? Sweet, but it's not cold in the slightest. Sorry, Rachel.`],
+  pizza:    [`*CATCH* Pizza smells incredible… but this is basically the OPPOSITE of cold!`],
+  burger:   [`*CATCH* A burger?! That's hot off the grill, not cold at ALL.`],
+  fries:    [`*CATCH* Fries are delicious and also very much not cold. 🍟`],
+};
+const BBAK_HINT = [
+  `*flops dramatically* Okay. New plan — let me give you a hint, Rachel.`,
+  `It's green, and it's long. When I was just a cub, I used to eat it instead of meat!`,
 ];
 const BBAK_NEEDCUKE = [`No no — the glowing green CUCUMBER I told you about. Go get it! 🥒`];
 const BBAK_SUCCESS = [
-  `Ahhh… *CRUNCH* …cold and crisp and perfect. You're the best, Rachel. 💙`,
+  `*CATCH* Ahhh… *CRUNCH* …cold and crisp and perfect. You're the best, Rachel. 💙`,
   `I feel cooler already. Now go on — aim at the next world and leap! 🤍`,
 ];
+// Toss whatever she's holding — a real 3D model of that exact food — through
+// the air into bbak's mouth, then run onDone once it lands.
+function tossFoodToBbak(foodName, onDone){
+  const up = herUp(new THREE.Vector3());
+  const model = foodName === 'cucumber' ? makeCucumber(0.9) : makeFood(foodName);
+  if (foodName === 'cucumber') model.rotation.z = Math.PI/2;
+  else model.scale.multiplyScalar(1.5);
+  const start = her.position.clone().addScaledVector(up, 1.05)
+    .addScaledVector(herFwd(new THREE.Vector3()), 0.35);
+  const end = bbakPos(new THREE.Vector3()).addScaledVector(up, 0.55);
+  model.position.copy(start);
+  scene.add(model);
+  let t = 0; const dur = 0.55;
+  function step(_, dt){
+    t += dt/dur;
+    const k = Math.min(1, t);
+    model.position.lerpVectors(start, end, k).addScaledVector(up, Math.sin(Math.PI*k)*1.1);
+    model.rotation.x += dt*9; model.rotation.y += dt*7;
+    if (k >= 1){
+      scene.remove(model);
+      animators.splice(animators.indexOf(step), 1);
+      for (let i = 0; i < 6; i++)
+        spawnEphemeral(new THREE.Mesh(sparkGeo, sparkMat), end,
+          randDir().multiplyScalar(1.6), 0.5, 3);
+      onDone();
+    }
+  }
+  animators.push(step);
+}
 function nearestFood(){
   if (!worldRefs.cucumber) return null;
   let best=null, bd=Infinity;
@@ -1946,17 +2018,32 @@ function refreshBbakGuide(){
   b.guideFn = () => { const f = nearestFood(); return f ? f.holder.getWorldPosition(new THREE.Vector3()) : bbakPos(); };
 }
 bodies[2].guideNear = 3.6;
+// ---- food pocket HUD: shows the single item she's currently carrying ----
+const FOOD_ICONS = { icecream:'🍨', cake:'🍰', donut:'🍩', pizza:'🍕', burger:'🍔', fries:'🍟', cucumber:'🥒' };
+const foodPocketEl = document.getElementById('foodPocket');
+const foodPocketIconEl = document.getElementById('foodPocketIcon');
+const foodPocketLabelEl = document.getElementById('foodPocketLabel');
+function refreshFoodPocket(){
+  const h = bbakQuest.holding;
+  if (!h){ foodPocketEl.classList.remove('show'); return; }
+  foodPocketIconEl.textContent = FOOD_ICONS[h] || '🍽️';
+  foodPocketLabelEl.textContent = h;
+  foodPocketEl.classList.add('show');
+}
 function pickupFood(f){
   if (!f || f.taken) return;
+  if (bbakQuest.holding){ showToast(`already holding ${bbakQuest.holding}`, 'bring it to bbak first!'); return; }   // one at a time
   f.taken = true; f.holder.visible = false;
   bbakQuest.holding = f.name;
   playChime();
   showToast(`🍨 picked up ${f.name}`, 'bring it to bbak!');
   refreshBbakGuide();
+  refreshFoodPocket();
 }
 function pickupCuke(){
   const cuke = worldRefs.cucumber.cuke;
   if (!cuke.visible) return;
+  if (bbakQuest.holding){ showToast(`already holding ${bbakQuest.holding}`, 'bring it to bbak first!'); return; }   // one at a time
   cuke.visible = false;
   bbakQuest.holding = 'cucumber';
   playChime();
@@ -1965,6 +2052,7 @@ function pickupCuke(){
       randDir().multiplyScalar(2).addScaledVector(herUp(V()), 2), 0.7, 4);
   showToast('🥒 got the special cucumber!', 'bring it to bbak!');
   refreshBbakGuide();
+  refreshFoodPocket();
 }
 function talkBbak(){
   const npc = { npcPos: () => bbakPos(), speaker:'🐻‍❄️ bbak', npcObj: worldRefs.cucumber.bbak };
@@ -1972,22 +2060,27 @@ function talkBbak(){
   if (bbakQuest.phase >= 2) return;
   const h = bbakQuest.holding;
   if (!h){ startDialog([`Bring me something cold, please… anything! 🥵`], null, npc); return; }
-  if (h === 'cucumber'){
-    startDialog(BBAK_SUCCESS, () => {
-      bbakQuest.phase = 2; bodies[2].missionDone = true;
-      setMission('<b>MISSION:</b> aim at the next world and <b>leap</b>!');
-      refreshBbakGuide();
-    }, npc);
-    bbakQuest.holding = null; return;
-  }
-  if (bbakQuest.cukeRevealed){ startDialog(BBAK_NEEDCUKE, null, npc); bbakQuest.holding = null; return; }
-  const idx = Math.min(bbakQuest.tries, BBAK_REJECT.length - 1);
-  startDialog(BBAK_REJECT[idx], () => {
+  // she hands it over — clear the pocket right away, then toss the exact food
+  // she was holding through the air into bbak's mouth before he reacts to it.
+  bbakQuest.holding = null; refreshFoodPocket();
+  tossFoodToBbak(h, () => {
+    if (h === 'cucumber'){
+      startDialog(BBAK_SUCCESS, () => {
+        bbakQuest.phase = 2; bodies[2].missionDone = true;
+        setMission('<b>MISSION:</b> aim at the next world and <b>leap</b>!');
+        refreshBbakGuide();
+      }, npc);
+      return;
+    }
+    if (bbakQuest.cukeRevealed){ startDialog(BBAK_NEEDCUKE, null, npc); return; }
     bbakQuest.tries++;
-    if (bbakQuest.tries >= bbakQuest.need){ bbakQuest.cukeRevealed = true; worldRefs.cucumber.cuke.visible = true; }
-    refreshBbakGuide();
-  }, npc);
-  bbakQuest.holding = null;
+    let lines = (BBAK_FOOD_REACTIONS[h] || [`Hmm, ${h}? Not what I need, sorry, Rachel.`]).slice();
+    if (bbakQuest.tries >= bbakQuest.need){
+      bbakQuest.cukeRevealed = true; worldRefs.cucumber.cuke.visible = true;
+      lines = lines.concat(BBAK_HINT);
+    }
+    startDialog(lines, () => { refreshBbakGuide(); }, npc);
+  });
 }
 refreshBbakGuide();
 
@@ -2162,7 +2255,7 @@ her.userData = {
 };
 scene.add(her);
 let herMixer = null, herWalkAction = null, herRunAction = null, herIdleAction = null, herUsingFallback = false;
-let herJumpLaunchAction = null, herJumpSoarAction = null, herJumpLandAction = null;
+let herJumpLaunchAction = null, herJumpSoarAction = null, herJumpLandAction = null, herLandFallGetUpAction = null;
 loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
   her.add(gltf.scene);
   gltf.scene.position.y = HER_MODEL_LIFT;   // lift so her feet rest ON the surface (idle root sinks otherwise)
@@ -2173,6 +2266,17 @@ loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
   const launchClip = gltf.animations.find((a) => a.name === 'JumpLaunch');
   const soarClip = gltf.animations.find((a) => a.name === 'JumpSoar');
   const landClip = gltf.animations.find((a) => a.name === 'JumpLand');
+  const landFallGetUpClip = gltf.animations.find((a) => a.name === 'LandFallGetUp');
+  // The planet-arrival cutscene (fall on her face, hold, push up to standing) —
+  // extracted from winter-beanie-jump.blend. Plays once per arrival, then
+  // crossfades into Idle; see updateLandingAnim().
+  if (landFallGetUpClip){
+    herLandFallGetUpAction = herMixer.clipAction(landFallGetUpClip);
+    herLandFallGetUpAction.setLoop(THREE.LoopOnce);
+    herLandFallGetUpAction.clampWhenFinished = true;
+    herLandFallGetUpAction.play();
+    herLandFallGetUpAction.setEffectiveWeight(0);
+  }
   // All actions play continuously; only their relative weight changes, so the
   // mixer always has a well-defined blended pose (an unweighted "no action"
   // state exports as the raw T-pose-ish edit-bone rest, not the relaxed stance).
@@ -2218,7 +2322,8 @@ loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
 function animBeanieSkinned(dt){
   if (!herMixer) return;
   herMixer.update(dt);
-  if (state === 'fly') return;   // updateJumpAnim() drives Launch/Soar/Land weights directly
+  if (state === 'fly') return;      // updateJumpAnim() drives Launch/Soar/Land weights directly
+  if (state === 'landing') return;  // updateLandingAnim() drives the fall/get-up crossfade directly
   if (herJumpLaunchAction) herJumpLaunchAction.setEffectiveWeight(0);
   if (herJumpSoarAction) herJumpSoarAction.setEffectiveWeight(0);
   if (herJumpLandAction) herJumpLandAction.setEffectiveWeight(0);
@@ -2256,6 +2361,25 @@ function updateJumpAnim(e){        // e: 0..1 flight progress — crossfade the 
   herJumpLaunchAction.setEffectiveWeight(launchW);
   herJumpSoarAction.setEffectiveWeight(soarW);
   herJumpLandAction.setEffectiveWeight(landW);
+}
+function landingClipDuration(){
+  return herLandFallGetUpAction ? herLandFallGetUpAction.getClip().duration : 2.5;
+}
+// Crossfade: whatever landing pose she arrived in -> the fall/impact/get-up
+// performance (played once) -> back to Idle, all driven by landing.t.
+function updateLandingAnim(){
+  if (herJumpLaunchAction) herJumpLaunchAction.setEffectiveWeight(0);
+  if (herJumpSoarAction) herJumpSoarAction.setEffectiveWeight(0);
+  if (herWalkAction) herWalkAction.setEffectiveWeight(0);
+  if (herRunAction) herRunAction.setEffectiveWeight(0);
+  if (!herLandFallGetUpAction){ if (herIdleAction) herIdleAction.setEffectiveWeight(1); return; }
+  const dur = landingClipDuration();
+  const fadeIn  = Math.min(1, landing.t/0.2);
+  const fadeOut = Math.min(1, Math.max(0, (landing.t - (dur - 0.35))/0.35));
+  const w = fadeIn*(1 - fadeOut);
+  herLandFallGetUpAction.setEffectiveWeight(w);
+  if (herJumpLandAction) herJumpLandAction.setEffectiveWeight(1 - fadeIn);
+  if (herIdleAction) herIdleAction.setEffectiveWeight(fadeOut);
 }
 
 /* ---------- movement / state ---------- */
@@ -2318,30 +2442,43 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
   camera.up.copy(camUp);
   camera.lookAt(cC.copy(pos).addScaledVector(up, 1.5));
 }
-/* Conversation camera: a FIXED over-the-shoulder shot — same framing as the
-   walking view but ~2x closer. The camera sits just behind Beanie's shoulder
-   and looks past her toward whoever she's talking to, no matter which way she
-   was facing when the chat started. Beanie turns to face the NPC (rotation
-   only — her sphere position is unchanged); the camera then holds still.
-   Nearby props are hidden while talking so nothing covers her. */
-let TALK_CAM_SIDE = 1;
+/* Conversation camera: a fixed two-shot. Beanie stands screen-LEFT, turned
+   DIAGONALLY toward the NPC (a 3/4 glance, not a full profile, so her face
+   still reads); the NPC stands screen-right and turns to face Beanie head-on.
+   Nearby props are hidden while talking so nothing covers either of them. */
+let TALK_CAM_SIDE = -1;
+const TALK_DIAG_ANGLE = Math.PI/180 * 38;   // Beanie's turn is partial, not a full face-to-face
 function updateTalkCam(dt){
   const npc = (dialog && dialog.npcPos) ? dialog.npcPos() : null;
   if (!npc){ followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 3.3); return; }
   const up = herUp(new THREE.Vector3());
   const toNpc = tangentToward(her.position, up, npc);   // along-surface dir Beanie -> NPC
-  orientation.copy(quatFromBasis(up, toNpc));            // Beanie faces the NPC
+  // Beanie turns only PART-way toward the NPC (a diagonal glance), biased toward
+  // the camera's side so her face stays readable instead of going profile.
+  const diagQ = new THREE.Quaternion().setFromAxisAngle(up, TALK_DIAG_ANGLE*TALK_CAM_SIDE);
+  const herFacing = toNpc.clone().applyQuaternion(diagQ);
+  orientation.copy(quatFromBasis(up, herFacing));
   updatePose();
+  // The NPC (if it's a real Object3D, not just a position) turns to face Beanie directly.
+  if (dialog.npcObj && dialog.npcObj.isObject3D){
+    const npcPos3 = dialog.npcObj.getWorldPosition(new THREE.Vector3());
+    const toHer = tangentToward(npcPos3, up, her.position);
+    dialog.npcObj.quaternion.copy(quatFromBasis(up, toHer));
+  }
   const side = new THREE.Vector3().crossVectors(up, toNpc).normalize().multiplyScalar(TALK_CAM_SIDE);
-  const goal = new THREE.Vector3().copy(her.position)
-    .addScaledVector(toNpc, -2.8)    // behind her back (close ≈ 2x zoom vs the walk cam)
-    .addScaledVector(up,     1.35)   // roughly head height — level, not looking down
-    .addScaledVector(side,   0.5);   // slight shoulder offset
-  const look = new THREE.Vector3().copy(her.position)
-    .addScaledVector(up,    1.05)
-    .addScaledVector(toNpc,  1.6)    // aim past her, onto the NPC
-    .addScaledVector(side,   0.15);
-  camPos.lerp(goal, 1 - Math.exp(-6*dt));   // smooth push-in, then holds fixed
+  const mid  = new THREE.Vector3().addVectors(her.position, npc).multiplyScalar(0.5);
+  // floor the effective gap well above realistic close-talk distances so the
+  // two-shot still composes cleanly (both in frame) even when she walked up
+  // right next to the NPC before pressing space
+  const gap  = Math.max(6.0, her.position.distanceTo(npc));
+  const goal = new THREE.Vector3().copy(mid)
+    .addScaledVector(side, gap*0.62 + 2.6)     // pull to one side so both are in frame
+    .addScaledVector(up,   gap*0.24 + 1.65)
+    .addScaledVector(toNpc, -gap*0.22 - 0.6);  // pull back a touch for headroom
+  const look = new THREE.Vector3().copy(mid)
+    .addScaledVector(up,    0.95)
+    .addScaledVector(toNpc, gap*0.06);
+  camPos.lerp(goal, 1 - Math.exp(-6*dt));
   camUp.lerp(up, 1 - Math.exp(-5*dt)).normalize();
   camera.position.copy(camPos);
   camera.up.copy(camUp);
@@ -2514,6 +2651,7 @@ function jumpTo(body){
   if (herRunAction) herRunAction.setEffectiveWeight(0);
   if (herIdleAction) herIdleAction.setEffectiveWeight(0);
   promptEl.classList.remove('show');
+  dragHintEl.classList.remove('show'); idleTime = 0;
   playChime();
 }
 function updateFlight(dt){
@@ -2543,9 +2681,63 @@ function updateFlight(dt){
   followCam(dt, her.position, up, fwd, 13);
   if (f.t >= 1){
     orientation.copy(f.qEnd);
-    arrive(f.to);
+    if (herUsingFallback) arrive(f.to); else startLandingSequence(f.to);
     flight = null;
   }
+}
+/* ---------- planet-arrival cutscene: face-plant + get-up, then a slow wide
+   orbit with the planet's title, gated by a click to continue ---------- */
+let landing = null;   // { bi, phase:'fallgetup'|'orbit', t, orbitBasisA, orbitBasisB }
+const LAND_ORBIT_DURATION = 15;   // seconds for a full slow 360
+function startLandingSequence(bi){
+  curI = bi;
+  updatePose();
+  state = 'landing';
+  camYaw = 0;
+  if (herLandFallGetUpAction) herLandFallGetUpAction.reset().play();
+  landing = { bi, phase:'fallgetup', t:0 };
+}
+function updateLanding(dt){
+  landing.t += dt;
+  updateLandingAnim();
+  const up = herUp(tmpV);
+  if (landing.phase === 'fallgetup'){
+    followCam(dt, her.position, up, herFwd(tmpV2), 11);
+    if (landing.t >= landingClipDuration() + 0.5){
+      landing.phase = 'orbit'; landing.t = 0;
+      landing.orbitBasisA = arbitraryPerp(up);
+      landing.orbitBasisB = new THREE.Vector3().crossVectors(up, landing.orbitBasisA).normalize();
+      const b = bodies[landing.bi];
+      planetTitleNameEl.textContent = `${b.emoji} ${b.name}`;
+      planetTitleEl.classList.add('show');
+    }
+  } else if (landing.phase === 'orbit'){
+    const k = Math.min(1, landing.t/2.4);           // ease from the close-up into the wide shot
+    // scale the establishing distance with the planet's own radius (a fixed
+    // distance reads fine on tiny Chicago but hugs the ground on Book Stacks
+    // or the Garden), so she reads clearly as standing atop a small world.
+    const br = bodies[landing.bi].r;
+    const farDist = Math.max(18, Math.min(70, br*2.2));
+    const farHeight = Math.max(7, Math.min(30, br*0.95));
+    const dist = 9 + (farDist - 9)*k;
+    const height = 3.5 + (farHeight - 3.5)*k;
+    const angle = landing.t*(Math.PI*2/LAND_ORBIT_DURATION);
+    const dir = tmpV3.copy(landing.orbitBasisA).multiplyScalar(Math.cos(angle))
+      .addScaledVector(landing.orbitBasisB, Math.sin(angle));
+    const orbitPos = tmpV2.copy(her.position).addScaledVector(up, height).addScaledVector(dir, dist);
+    camPos.copy(orbitPos);
+    camUp.copy(up);
+    camera.position.copy(camPos);
+    camera.up.copy(camUp);
+    camera.lookAt(tmpV.copy(her.position).addScaledVector(up, 1.3));
+  }
+}
+function finalizeLanding(){
+  if (!landing || landing.phase !== 'orbit') return;   // ignore clicks during the fall/get-up beat
+  planetTitleEl.classList.remove('show');
+  const bi = landing.bi;
+  landing = null;
+  arrive(bi);
 }
 function arrive(bi){
   curI = bi;
@@ -2585,11 +2777,12 @@ function startDialog(lines, onDone, opts={}){
   state = 'talk';
   promptEl.classList.remove('show');
   guideEl.classList.remove('show');
+  dragHintEl.classList.remove('show'); idleTime = 0;
   targetRing.visible = false;
   reticleEl.classList.add('hidden');
   dialogEl.classList.remove('hidden');
   dialogNameEl.textContent = opts.speaker || 'Percy 🕊️';
-  dialog = { lines, idx:0, onDone, coo: opts.coo !== false, npcPos: opts.npcPos || null };
+  dialog = { lines, idx:0, onDone, coo: opts.coo !== false, npcPos: opts.npcPos || null, npcObj: opts.npcObj || null };
   hideNearbyObstacles(opts.npcObj || null);   // clear props so nothing covers Beanie
   showDialogLine();
 }
@@ -2795,6 +2988,7 @@ addEventListener('keydown', (e) => {
   if (e.key === ' ' || e.key === 'Enter'){
     if (state === 'intro') startJourney();
     else if (state === 'talk') advanceDialog();
+    else if (state === 'landing') finalizeLanding();
     else if (state === 'walk'){
       if (chippyNear) talkChippy();
       else if (bbakNear) talkBbak();
@@ -2814,7 +3008,7 @@ addEventListener('keydown', (e) => {
   }
   // QA shortcut: 1-6 instantly warps to that world AND skips every mission /
   // gate (including Chicago's letter) so you can free-roam and leap onward.
-  if ((state === 'walk' || state === 'talk' || state === 'intro')
+  if ((state === 'walk' || state === 'talk' || state === 'intro' || state === 'landing')
       && e.key >= '1' && e.key <= String(WORLD_DEFS.length)){
     qaWarp(Number(e.key) - 1);
   }
@@ -2823,11 +3017,21 @@ function qaWarp(i){
   if (state === 'intro') startJourney();                // reveal HUD / start audio first
   if (dialog){ clearInterval(dialogTyping); dialogEl.classList.add('hidden'); dialog = null; restoreObstacles(); }
   if (chicagoMessenger) dismissChicagoMessenger();
+  if (landing){ planetTitleEl.classList.remove('show'); landing = null; }
   bodies.forEach((b) => { b.missionDone = true; });     // QA: skip every mission/gate
   state = 'walk';
   window.__world.goto(i);
 }
 addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+// Nudge the player toward the free-look controls if she just stands still for
+// a while — fades in, and goes away the moment she moves or starts dragging.
+let idleTime = 0;
+function updateIdleHint(dt, moving){
+  if (moving || dragging){ idleTime = 0; dragHintEl.classList.remove('show'); return; }
+  idleTime += dt;
+  if (idleTime > 3.5) dragHintEl.classList.add('show');
+}
 
 function updateWalk(dt){
   const b = bodies[curI];
@@ -2835,6 +3039,7 @@ function updateWalk(dt){
   const iz = (keys['ArrowUp'] ? 1 : 0) - (keys['ArrowDown'] ? 1 : 0);
   const u = her.userData;
   u.moving = !!(ix || iz);
+  updateIdleHint(dt, u.moving);
   u.movingBackward = iz < 0;
   u.running = u.moving && !!(keys['Shift'] || keys['ShiftLeft'] || keys['ShiftRight']);
   const moveSpeed = WALK_SPEED * (u.running ? 1.5 : 1);   // hold Shift to run (1.5x)
@@ -2935,9 +3140,12 @@ const missionEl = document.getElementById('mission');
 const guideEl = document.getElementById('guide');
 const dotsEl = document.getElementById('dots');
 const hintEl = document.getElementById('hint');
+const dragHintEl = document.getElementById('dragHint');
 const promptEl = document.getElementById('prompt');
 const toastEl = document.getElementById('toast');
 const planetNameEl = document.getElementById('planetName');
+const planetTitleEl = document.getElementById('planetTitle');
+const planetTitleNameEl = document.getElementById('planetTitleName');
 const muteBtn = document.getElementById('muteBtn');
 const reticleEl = document.getElementById('reticle');
 const dialogEl = document.getElementById('dialog');
@@ -3029,7 +3237,10 @@ function dismissChicagoMessenger(){
   playCoo();
 }
 
-addEventListener('click', () => { if (state === 'intro') startJourney(); });
+addEventListener('click', () => {
+  if (state === 'intro') startJourney();
+  else if (state === 'landing') finalizeLanding();
+});
 function startJourney(){
   if (state !== 'intro') return;
   introEl.classList.add('fade');
@@ -3162,6 +3373,7 @@ function step(dt){
   }
   else if (state === 'walk')     updateWalk(dt);
   else if (state === 'fly')      updateFlight(dt);
+  else if (state === 'landing')  updateLanding(dt);
   else if (state === 'talk')     updateTalkCam(dt);
   else if (state === 'percyfly') updatePercyFlight(dt, t);
   else if (state === 'finale')   updateFinale(dt, t);
@@ -3230,7 +3442,28 @@ window.__world = {
   couchCharWorldPos(who){          // who: 'bred' | 'percy' | 'chippyPlush'
     return worldRefs.garden ? worldRefs.garden[who].getWorldPosition(new THREE.Vector3()).toArray() : null;
   },
-  camDebug(){ return { camYaw, camPitch, camDist, moving: her.userData.moving, locked: cameraLookLocked() }; },
+  camDebug(){ return { camYaw, camPitch, camDist, moving: her.userData.moving, locked: cameraLookLocked(), dragging, idleTime, dragHintShowing: dragHintEl.classList.contains('show') }; },
+  talkDebug(){
+    const npc = dialog && dialog.npcPos ? dialog.npcPos() : null;
+    let extra = {};
+    if (npc){
+      const up = herUp(new THREE.Vector3());
+      const toNpc = tangentToward(her.position, up, npc);
+      const side = new THREE.Vector3().crossVectors(up, toNpc).normalize().multiplyScalar(TALK_CAM_SIDE);
+      const mid = new THREE.Vector3().addVectors(her.position, npc).multiplyScalar(0.5);
+      const gap = Math.max(6.0, her.position.distanceTo(npc));
+      const goal = new THREE.Vector3().copy(mid)
+        .addScaledVector(side, gap*0.62 + 2.6)
+        .addScaledVector(up,   gap*0.24 + 1.65)
+        .addScaledVector(toNpc, -gap*0.22 - 0.6);
+      extra = { up: up.toArray(), toNpc: toNpc.toArray(), side: side.toArray(), mid: mid.toArray(), gapUsed: gap, goal: goal.toArray(), goalDistFromMid: goal.distanceTo(mid) };
+    }
+    const proj = (p) => { const v = new THREE.Vector3(...p).project(camera); return [+v.x.toFixed(3), +v.y.toFixed(3), +v.z.toFixed(3)]; };
+    return { npc: npc ? npc.toArray() : null, her: her.position.toArray(),
+      gap: npc ? her.position.distanceTo(npc) : null, camPos: camPos.toArray(),
+      herScreen: proj(her.position.toArray()), npcScreen: npc ? proj(npc.toArray()) : null,
+      fov: camera.fov, ...extra };
+  },
   colliderDebug(){
     const b = bodies[curI];
     return { count: (b.colliders||[]).length,
