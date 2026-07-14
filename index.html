@@ -835,21 +835,27 @@ function plushPigeon(colors={}, o={}){
     const ch = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), mat(C.chest, { roughness:0.95 }));
     ch.scale.set(1.1, 0.9, 0.8); ch.position.set(0, 0.24, 0.22); g.add(ch);
   }
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 14, 12), mat(C.head, { roughness:0.95 }));
+  // Head group: everything that should peck/bob TOGETHER (head, eyes, beak,
+  // ring) lives under one group instead of as loose siblings of `g` — the
+  // peck animator only ever moved the bare head sphere, so the eyes/beak
+  // stayed floating in place while the head dipped away from them.
+  const head = new THREE.Group();
   head.position.set(0, 0.58, 0.16); g.add(head);
+  const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.19, 14, 12), mat(C.head, { roughness:0.95 }));
+  head.add(headMesh);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.05, 8, 16), mat(C.ring, { roughness:0.95 }));
-  ring.position.set(0, 0.46, 0.12); ring.rotation.x = Math.PI/2 - 0.25; g.add(ring);
+  ring.position.set(0, -0.12, -0.04); ring.rotation.x = Math.PI/2 - 0.25; head.add(ring);
   const beak = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.12, 8), mat(0x6a6a72));
-  beak.rotation.x = Math.PI/2; beak.position.set(0, 0.58, 0.36); g.add(beak);
+  beak.rotation.x = Math.PI/2; beak.position.set(0, 0, 0.20); head.add(beak);
   const beakTip = new THREE.Mesh(new THREE.SphereGeometry(0.024, 6, 6), mat(0xf2f2ee));
-  beakTip.position.set(0, 0.6, 0.34); g.add(beakTip);
+  beakTip.position.set(0, 0.02, 0.18); head.add(beakTip);
   // big cute eyes (with a white glint) that read clearly from a distance
   for (const ex of [-0.088, 0.088]){
     const e = new THREE.Mesh(new THREE.SphereGeometry(0.052, 12, 10), mat(0x181410, { roughness:0.25 }));
-    e.position.set(ex, 0.63, 0.30); g.add(e);
+    e.position.set(ex, 0.05, 0.14); head.add(e);
     const glint = new THREE.Mesh(new THREE.SphereGeometry(0.017, 6, 6),
       new THREE.MeshBasicMaterial({ color:0xffffff }));
-    glint.position.set(ex + (ex > 0 ? 0.016 : -0.016), 0.657, 0.338); g.add(glint);
+    glint.position.set(ex + (ex > 0 ? 0.016 : -0.016), 0.077, 0.178); head.add(glint);
   }
   const wings = [];
   for (const s of [-1, 1]){
@@ -1075,19 +1081,41 @@ function makeFood(type){
   }
   return g;
 }
-function orbiter(group, obj, radius, speed, tiltX, tiltZ, bobAmp=0, bobSpeed=1){
+function orbiter(group, obj, radius, speed, tiltX, tiltZ, bobAmp=0, bobSpeed=1, faceTravel=false){
   const pivot = new THREE.Group();
   pivot.rotation.x = tiltX; pivot.rotation.z = tiltZ;
   group.add(pivot);
   obj.position.set(radius, 0, 0);
   pivot.add(obj);
   const phase = Math.random()*7;
+  // faceTravel: orient the object toward its actual world-space direction
+  // of motion each frame, measured by position-diffing rather than derived
+  // from rotation.y alone — once tiltX/tiltZ tip the orbital plane (as
+  // every caller here does, randomly), a single fixed local rotation can't
+  // stay aligned with the travel direction (Euler composition isn't a
+  // simple offset once more than one axis is spinning), so a static
+  // "face -Z" rotation only looks right by coincidence at some angles and
+  // sideways/backward at others.
+  let prevWorld = faceTravel ? obj.getWorldPosition(new THREE.Vector3()) : null;
   animators.push((t, dt) => {
     pivot.rotation.y += speed*dt;
     if (bobAmp) obj.position.y = bobAmp*Math.sin(t*bobSpeed + phase);
+    if (faceTravel){
+      const worldPos = obj.getWorldPosition(tmpVOrbit);
+      const dir = tmpVOrbit2.subVectors(worldPos, prevWorld);
+      if (dir.lengthSq() > 1e-10){
+        const pivotWorldQuat = pivot.getWorldQuaternion(tmpQOrbit);
+        const worldUp = tmpVOrbit3.set(0,1,0).applyQuaternion(pivotWorldQuat);
+        const desiredWorldQuat = quatFromBasis(worldUp, dir.normalize());
+        obj.quaternion.copy(pivotWorldQuat.invert().multiply(desiredWorldQuat));
+      }
+      prevWorld.copy(worldPos);
+    }
   });
   return pivot;
 }
+const tmpVOrbit = new THREE.Vector3(), tmpVOrbit2 = new THREE.Vector3(), tmpVOrbit3 = new THREE.Vector3(),
+      tmpQOrbit = new THREE.Quaternion();
 // a "school": several creatures clustered on one orbiting pivot, wiggling like fish
 function school(group, makeOne, count, radius, speed, spread, scale){
   const pivot = new THREE.Group();
@@ -1570,15 +1598,17 @@ function buildPigeons(g, R, ctx){
     }
   }
   // some genuinely flying overhead
+  const flying = [];
   for (let i = 0; i < 18; i++){
     const pg = plushPigeon(PIGEON_VARIANTS[(i+1) % PIGEON_VARIANTS.length]);
-    pg.scale.setScalar(0.75); pg.rotation.y = Math.PI;
+    pg.scale.setScalar(0.75);   // facing is handled by orbiter's faceTravel now
     const ph = Math.random()*7;
     animators.push((t) => {
       for (let w = 0; w < 2; w++)
         pg.userData.wings[w].rotation.z = (w===0?1:-1)*Math.sin(t*11 + ph)*0.9;
     });
-    orbiter(g, pg, R + 2 + (i%12)*0.5, 0.28 + (i%7)*0.06, Math.random()*3.1, Math.random()*3.1, 0.3, 1.4);
+    orbiter(g, pg, R + 2 + (i%12)*0.5, 0.28 + (i%7)*0.06, Math.random()*3.1, Math.random()*3.1, 0.3, 1.4, true);
+    flying.push(pg);
   }
   // PERCY — real 3D model (game-assets/percy/percy.glb), the grand one Beanie
   // talks to and eventually rides.
@@ -1598,7 +1628,7 @@ function buildPigeons(g, R, ctx){
     percy.position.y = Math.abs(Math.sin(t*2.2))*0.05;             // proud little hops
     percy.rotation.y = Math.sin(t*0.7)*0.3;
   });
-  return { percyHolder, percyN, plazaN, crowd };
+  return { percyHolder, percyN, plazaN, crowd, flying };
 }
 
 function buildGarden(g, R, ctx){
@@ -2097,19 +2127,27 @@ refreshBbakGuide();
 
 /* ---------- World 4: Pigeon Plaza — find Percy's long-lost friend ---------- */
 const PLAZA_DECOYS = [
-  { name:'vanessa', glb:'vanessa', speaker:'👑 Vanessa', scale:1.0, rotY:0, bounce:false, lines:[
+  { name:'vanessa', glb:'vanessa', speaker:'👑 Vanessa', scale:1.5, rotY:0, bounce:false, lines:[
     `Ahem. I am Vanessa, the Victoria Crowned Pigeon — the largest pigeon in all the world. 👑`,
     `Do admire the crest, won't you? It fans out like a royal crown.`,
     `Percy's dear old friend? *sniff* That is not me. I don't do "old friends". Move along.` ] },
-  { name:'nibbles', glb:'nibbles', speaker:'🌈 Nibbles', scale:1.0, rotY:0, bounce:true, lines:[
+  { name:'nibbles', glb:'nibbles', speaker:'🌈 Nibbles', scale:1.5, rotY:0, bounce:true, lines:[
     `Hihi! Nibbles here — a Nicobar Pigeon. 🌈`,
     `These metallic rainbow feathers? I'm the dodo's closest living cousin, you know!`,
     `Am I Percy's lost friend? Nope, not me — but you're close in spirit! 💫` ] },
-  { name:'alfred', glb:'alfred', speaker:'🫒 Alfred', scale:1.0, rotY:0, bounce:true, lines:[
+  { name:'alfred', glb:'alfred', speaker:'🫒 Alfred', scale:1.5, rotY:0, bounce:true, lines:[
     `…hello. Down here. Alfred, African Green Pigeon. 🫒`,
     `Wait — a parrot? No, no, NO. I am not a parrot in disguise. I'm a PIGEON, thank you.`,
     `My green feathers hide me so well most folk hear me before they see me.`,
     `Percy's friend? Afraid not, dear. Onward!` ] },
+  // Sam has no sculpted model yet, so he's built from the same procedural
+  // plushPigeon() used for the background crowd (see spawnStoryPigeon's
+  // cfg.procedural branch) instead of loading a game-assets/pigeons glb.
+  { name:'sam', procedural:true, colors:{ body:0xb8794a, head:0xa8683a, ring:0x241a14, chest:0xe8d4b0 },
+    speaker:'🌾 Sam', scale:1.0, bounce:true, lines:[
+    `G'day! Sam here — a Spinifex Pigeon, all the way from the outback. 🌾`,
+    `The little crest and the black mask? Built for hot, dry, spiky country.`,
+    `Percy's long-lost friend? Nah, not me, mate — but good luck out there!` ] },
   { name:'sunny', glb:'sunny', speaker:'🎨 Sunny', scale:1.0, rotY:0, bounce:true, lines:[
     `Hey hey! Sunny the Superb Fruit Dove! 🎨`,
     `Folks say I look hand-painted. I don't disagree, honestly.`,
@@ -2161,9 +2199,17 @@ function spawnStoryPigeon(cfg){
   const inner = new THREE.Group(); holder.add(inner);
   const n = dirNear(worldRefs.pigeon.plazaN, 0.7 + Math.random()*1.5);
   placeOn(g, holder, n, R, 0.02);
-  loadModel(`./game-assets/pigeons/${cfg.glb}.glb`).then((m) => {
-    m.rotation.y = cfg.rotY || 0; m.scale.setScalar(cfg.scale || 1); inner.add(m);
-  }).catch((e) => console.error('pigeon load failed', cfg.glb, e));
+  if (cfg.procedural){
+    // no sculpted glb for this one yet — build the same plushPigeon() used
+    // for the background crowd, just distinctly colored and full-size.
+    const m = plushPigeon(cfg.colors || {});
+    m.scale.setScalar(cfg.scale || 1);
+    inner.add(m);
+  } else {
+    loadModel(`./game-assets/pigeons/${cfg.glb}.glb`).then((m) => {
+      m.rotation.y = cfg.rotY || 0; m.scale.setScalar(cfg.scale || 1); inner.add(m);
+    }).catch((e) => console.error('pigeon load failed', cfg.glb, e));
+  }
   const ph = Math.random()*6;
   animators.push((t) => {
     // bounce only while this pigeon is the one talking (Vanessa never bounces)
@@ -2485,8 +2531,10 @@ function updateTalkCam(dt){
   const mid  = new THREE.Vector3().addVectors(her.position, npc).multiplyScalar(0.5);
   // floor the effective gap well above realistic close-talk distances so the
   // two-shot still composes cleanly (both in frame) even when she walked up
-  // right next to the NPC before pressing space
-  const gap  = Math.max(6.0, her.position.distanceTo(npc));
+  // right next to the NPC before pressing space — bumped a touch further
+  // (6.0->7.2) since small NPCs (the plaza pigeons) still read as cramped
+  // right at 6.0.
+  const gap  = Math.max(7.2, her.position.distanceTo(npc));
   const goal = new THREE.Vector3().copy(mid)
     .addScaledVector(side, gap*0.62 + 2.6)     // pull to one side so both are in frame
     .addScaledVector(up,   gap*0.24 + 1.65)
@@ -3493,7 +3541,7 @@ window.__world = {
       const toNpc = tangentToward(her.position, up, npc);
       const side = new THREE.Vector3().crossVectors(up, toNpc).normalize().multiplyScalar(TALK_CAM_SIDE);
       const mid = new THREE.Vector3().addVectors(her.position, npc).multiplyScalar(0.5);
-      const gap = Math.max(6.0, her.position.distanceTo(npc));
+      const gap = Math.max(7.2, her.position.distanceTo(npc));
       const goal = new THREE.Vector3().copy(mid)
         .addScaledVector(side, gap*0.62 + 2.6)
         .addScaledVector(up,   gap*0.24 + 1.65)
@@ -3549,6 +3597,27 @@ window.__world = {
     percyPos: percyWorldPos(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)),
     targetPos: h ? h.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)) : null,
     talking: !!plazaQuest.talkingPigeon }; },
+  flyingPigeonDebug(idx=0){
+    if (!worldRefs.pigeon || !worldRefs.pigeon.flying) return null;
+    const pg = worldRefs.pigeon.flying[idx];
+    const p1 = pg.getWorldPosition(new THREE.Vector3());
+    step(1/30);
+    const p2 = pg.getWorldPosition(new THREE.Vector3());
+    const travel = new THREE.Vector3().subVectors(p2, p1);
+    if (travel.lengthSq() < 1e-10) return { travelLen: 0 };
+    travel.normalize();
+    const faceWorld = new THREE.Vector3(0,0,1).applyQuaternion(pg.getWorldQuaternion(new THREE.Quaternion())).normalize();
+    return { travel: travel.toArray().map(v=>+v.toFixed(3)),
+      faceWorld: faceWorld.toArray().map(v=>+v.toFixed(3)),
+      dot: +travel.dot(faceWorld).toFixed(4) };   // 1 = facing travel direction, 0 = sideways, -1 = backward
+  },
+  locatorDebug(){
+    const proj = (p) => new THREE.Vector3(...p).project(camera);
+    const s = proj(locator.position.toArray());
+    return { visible: locator.visible, pos: locator.position.toArray().map(v=>+v.toFixed(2)),
+      screen: [+s.x.toFixed(3), +s.y.toFixed(3), +s.z.toFixed(3)],
+      guideFnSet: !!bodies[curI].guideFn, missionDone: bodies[curI].missionDone };
+  },
   landingDebug(){
     if (!landing) return null;
     const up = herUp(new THREE.Vector3());
