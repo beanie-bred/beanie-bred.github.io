@@ -1,4 +1,76 @@
 # ROADMAP
+- [x] Ring made wider + flatter (2026-07-14 follow-up): solid mystery-ring
+      torus tube radius 6.6→9.5 with scale.y=0.3 (flattens the round tube
+      into a wide flat band instead of a chunky donut); revealed cucumber
+      ring band 9.6/7.2→14/10.5 (wider) with thick 4.4/3.2→2.2/1.6 (flatter).
+      Verified both the solid pre-reveal ring and the post-reveal cucumber
+      band read as a wide, flat, halo-like arc from in-game camera angles;
+      full reveal-cutscene re-run, zero console errors.
+- [x] Big polish batch (2026-07-14), full details in STORYLINE.md:
+      - Cucumber ring 4x thicker / 3x wider band, now a REAL reveal mechanic:
+        world starts as "🌱 Emerald Meadow" showing only a solid green ring
+        (individual cucumbers + ground cucumbers all hidden); after bbak's
+        4th-rejection hint, a scripted ~7s cutscene (new 'cukeReveal' state)
+        pulls the camera back, winds the solid ring's spin to a stop, hard-
+        swaps to the real cucumber ring + ground cucumbers with a sparkle
+        burst, then renames to "🥒 Cucumber Meadow" and plays its title card.
+      - Mission banner moved from top to bottom (was coinciding with the
+        guide/interaction chips); auto-hides during dialogue too now (the
+        box can grow tall enough to reach it otherwise).
+      - ensureTalkDistance(): any dialogue with an npcPos now nudges Beanie
+        backward along the sphere surface first if she was standing closer
+        than 4 units, so the two-shot camera never frames her literally
+        overlapping the NPC regardless of how close SPACE was pressed.
+      - Planet titles: bumped clamp to fill more width (64-240px), text-
+        shadow cut way down to a subtle dark glow (was a big warm blur),
+        removed the gold rule lines above/below entirely.
+      - Book Stacks renamed to **Main Stacks** (lore: the library Bred and
+        Beanie used to study in).
+      - Chicago: CHICAGO_START_N now literally IS the tower-adjacent seat
+        position (was an unrelated arbitraryPerp direction) — one constant
+        drives the intro sit pose, the gameplay start position, AND the
+        post-letter title cutscene, so all three share the same "tower
+        right beside her" vantage with zero pop on transition. Intro's idle
+        camera rewritten from a fixed world-space XZ dolly to the same
+        local-tangent-plane orbit the arrival cutscenes use. Lowered the
+        landing-orbit distance/height floor (18/7 → 10/4) so a tiny world
+        like Chicago keeps a close, tower-dominant frame instead of pulling
+        back so far the landmark loses prominence (only Chicago is small
+        enough to hit this floor — verified other worlds' radii are all
+        well above it, so their cutscenes are unaffected).
+      - New STORYLINE.md: the authoritative current narrative doc across
+        every world (GAME_BIBLE.md's old "Story flow" section flagged stale
+        and pointed at it instead of silently contradicting it).
+      Full regression (Chicago letter+cutscene → Main Stacks → Cucumber
+      reveal cutscene → Pigeon Plaza → zero console errors throughout) all
+      independently verified.
+- [x] Planet-title cinematic overhaul (2026-07-14): dropped the emoji from the
+      big title (plain world name only), forced single-line with
+      white-space:nowrap + a JS shrink-to-fit pass (fitPlanetTitleOneLine —
+      measures scrollWidth, steps font-size down until it fits, since
+      different per-world fonts have very different average glyph widths),
+      and replaced the warm peach text-shadow with a pure dark glow
+      (rgba(0,0,0,...) only) so the white letters read as naturally
+      prominent against the navy sky instead of glowing amber. Added one
+      distinct Google Font per world via showPlanetTitle(b)/WORLD_FONT_CLASS:
+      Chicago=Oswald (condensed sans), Book Stacks=Playfair Display (serif),
+      Cucumber Meadow=Baloo 2 (rounded/cute), Pigeon Plaza=Bungee (blocky
+      playful), Garden=Cormorant Garamond (delicate serif). Each font's own
+      letter-spacing survives the reveal animation via a --tls CSS custom
+      property (previously the keyframe's hardcoded final letter-spacing
+      clobbered any per-font override). Also gave the Garden its own title
+      moment via a new non-blocking flashPlanetTitleAuto() (shows + auto-
+      fades after 3.2s, no click-to-continue gate, since the Percy-flight+
+      iris entrance shouldn't pause on a click). Verified all 5 fonts/text
+      render correctly via real jump-landings + the Percy/Doodles quest,
+      zero console errors.
+- [x] Chicago now gets the same orbit+title cutscene every other world gets,
+      just timed to fire AFTER the messenger's letter dialogue finishes
+      (startChicagoTitleCutscene(), reuses the existing landing/orbit/
+      click-to-continue machinery with phase:'orbit' — skips the fall/get-up
+      beat since she's already standing normally). Verified: letter dialogue
+      -> "CHICAGO" title (Oswald, dark glow, one line) -> click to continue
+      -> normal mission/gameplay, zero console errors.
 - [x] HUD polish (2026-07-14): #planetTitle cinematic card (big "BOOK STACKS"-
       style reveal) was vertically centered, so on small planets it sat right
       on top of Beanie standing there — moved to justify-content:flex-start +

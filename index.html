@@ -4,6 +4,9 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Beanie's Little Universe 💫</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=Playfair+Display:wght@700;800&family=Baloo+2:wght@600;700&family=Bungee&family=Cormorant+Garamond:wght@700&display=swap" rel="stylesheet">
 <style>
   :root{ --gold:#ffd166; --pink:#f2a0b4; --ink:#3a3050; }
   *{margin:0;padding:0;box-sizing:border-box}
@@ -37,11 +40,12 @@
     border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:9px 18px;font-size:14px}
   #hud{position:fixed;top:16px;left:16px;z-index:20;display:flex;gap:10px;align-items:center}
   #planetName{font-weight:600;color:#ffe9c9}
-  #mission{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:20;max-width:72vw;
+  #mission{position:fixed;bottom:118px;left:50%;transform:translateX(-50%);z-index:20;max-width:72vw;
     text-align:center;font-size:13.5px;line-height:1.45;padding:10px 22px;border-radius:16px;
     background:rgba(30,32,64,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,224,138,.35);
     color:#ffeccf;transition:opacity .6s}
   #mission b{color:var(--gold)}
+  #mission.mission-hide{opacity:0;pointer-events:none}
   #guide{position:fixed;top:122px;left:50%;transform:translateX(-50%) translateY(-6px);z-index:20;
     font-size:clamp(16px,2.6vw,24px);font-weight:700;padding:11px 24px;border-radius:24px;
     max-width:92vw;width:max-content;text-align:center;white-space:normal;
@@ -114,28 +118,32 @@
   #planetTitle{position:fixed;inset:0;z-index:26;display:flex;flex-direction:column;
     align-items:center;justify-content:flex-start;padding-top:14vh;gap:22px;pointer-events:none;
     opacity:0;transition:opacity 1.1s ease;
-    background:radial-gradient(ellipse at center,rgba(10,12,28,.32) 0%,rgba(10,12,28,.08) 55%,transparent 80%)}
+    background:radial-gradient(ellipse at center,rgba(10,12,28,.16) 0%,rgba(10,12,28,.05) 55%,transparent 80%)}
   #planetTitle.show{opacity:1;pointer-events:auto;cursor:pointer}
   /* big, "epic movie transition" title reveal: starts oversized/spread/blurred
-     and converges into place, bracketed by thin drawn-in gold rules */
-  #planetTitleName{font-size:clamp(56px,11vw,150px);font-weight:800;color:#fff;
-    text-transform:uppercase;letter-spacing:6px;
-    text-shadow:0 0 70px rgba(255,214,150,.55),0 0 140px rgba(255,190,110,.3),0 6px 34px rgba(0,0,0,.6);
+     and converges into place. Sized to fill most of the available width —
+     fitPlanetTitleOneLine() (JS) shrinks it back down only if a given font/
+     name combo would otherwise overflow or wrap. */
+  #planetTitleName{--tls:6px;font-size:clamp(64px,15vw,240px);font-weight:800;color:#fff;
+    text-transform:uppercase;letter-spacing:var(--tls);white-space:nowrap;
+    text-shadow:0 0 10px rgba(0,0,0,.5),0 3px 10px rgba(0,0,0,.35);
     opacity:0}
+  /* one distinct display font per world — set as a class alongside .play */
+  #planetTitleName.font-chicago{--tls:8px;font-family:'Oswald',sans-serif;font-weight:600}
+  #planetTitleName.font-books{--tls:4px;font-family:'Playfair Display',serif;font-weight:800}
+  #planetTitleName.font-cucumber{--tls:3px;font-family:'Baloo 2',cursive;font-weight:700}
+  #planetTitleName.font-pigeon{--tls:3px;font-family:'Bungee',cursive;font-weight:400}
+  #planetTitleName.font-garden{--tls:8px;font-family:'Cormorant Garamond',serif;font-weight:700}
   /* .play is toggled off/on in JS each time a new title shows (a plain CSS
      animation on the element itself only ever plays once — on first paint —
      so without a retriggerable class every planet after the first would
      just appear at its final resting state with no reveal at all) */
   #planetTitleName.play{animation:titleReveal 1.5s cubic-bezier(.16,1,.3,1) both}
-  #planetTitleName::before,#planetTitleName::after{content:'';display:block;
-    width:0;height:2px;margin:14px auto;background:linear-gradient(90deg,transparent,#ffd166,transparent)}
-  #planetTitleName.play::before,#planetTitleName.play::after{animation:titleRule 1.1s ease-out .35s both}
   @keyframes titleReveal{
     0%{opacity:0;transform:scale(1.7);letter-spacing:26px;filter:blur(10px)}
     65%{opacity:1;filter:blur(0)}
-    100%{opacity:1;transform:scale(1);letter-spacing:6px}
+    100%{opacity:1;transform:scale(1);letter-spacing:var(--tls,6px)}
   }
-  @keyframes titleRule{ from{width:0} to{width:140px} }
   #planetTitleContinue{font-size:14px;font-weight:600;color:#ffe9c9;letter-spacing:1px;
     animation:pulseTxt 1.6s ease-in-out infinite;text-shadow:0 0 14px rgba(0,0,0,.6)}
 
@@ -1420,11 +1428,31 @@ function grassField(g, R, count, color, skipN=null, skipAng=0){
 
 function buildCucumber(g, R){
   grassField(g, R, 11000, PALETTE.moss);
+  // ---- the mystery: a SOLID green ring circles the planet from the start —
+  // she has no idea yet that it (and the ground cucumbers) are cucumbers.
+  // The real cucumber-built ring exists the whole time too, just hidden,
+  // ready to be revealed by startCukeRevealCutscene() once bbak's final
+  // hint lands. Both share the same tilt so the swap reads as one object.
+  const RING_TILT_X = 1.15, RING_TILT_Z = 0.22;
+  const solidRing = new THREE.Group();
+  solidRing.rotation.x = RING_TILT_X; solidRing.rotation.z = RING_TILT_Z;
+  const solidMat = mat(PALETTE.moss, { roughness:0.65, emissive:PALETTE.moss, emissiveIntensity:0.1 });
+  const solidTorus = new THREE.Mesh(new THREE.TorusGeometry(R + 6.3, 9.5, 16, 96), solidMat);
+  solidTorus.scale.y = 0.3;   // flatten the tube into a wide, flat band instead of a chunky round tube
+  solidRing.add(solidTorus);
+  g.add(solidRing);
+  let solidSpinScale = 1;
+  animators.push((t, dt) => { solidRing.rotation.y += 0.22*dt*solidSpinScale; });
+
   // A big planetary RING of cucumbers circling the world, like Saturn's rings —
   // lots of them, tilted, tumbling as the whole band slowly orbits the planet.
+  // 4x thicker + 3x wider (radial band) than the original, per Justin — hidden
+  // until the reveal cutscene swaps it in for the solid ring above.
+  const cukeRingGroups = [];
   const buildRing = (count, ringR, tiltX, tiltZ, spin, band=1.4, thick=1.0) => {
     const ring = new THREE.Group();
     ring.rotation.x = tiltX; ring.rotation.z = tiltZ;
+    ring.visible = false;
     g.add(ring);
     const members = [];
     for (let i = 0; i < count; i++){
@@ -1446,16 +1474,21 @@ function buildCucumber(g, R){
         m.c.position.y = m.baseY + Math.sin(t*0.6 + m.ph)*0.18;  // soft bob within the band
       }
     });
+    cukeRingGroups.push(ring);
+    return ring;
   };
-  buildRing(180, R + 5.4, 1.15, 0.22,  0.16, 3.2, 1.1);   // main ring (2x count, 2x width)
-  buildRing(92,  R + 7.2, 1.15, 0.22,  0.11, 2.4, 0.8);   // outer thinner ring (2x count, 2x width)
-  // some cucumbers resting in the grass
+  buildRing(520, R + 5.4, RING_TILT_X, RING_TILT_Z,  0.16, 14, 2.2);   // main ring: even wider band, flatter
+  buildRing(280, R + 7.2, RING_TILT_X, RING_TILT_Z,  0.11, 10.5, 1.6); // outer thinner ring: even wider band, flatter
+  // some cucumbers resting in the grass — hidden until the reveal, same as the ring
+  const groundCucumberHolders = [];
   for (let i = 0; i < 90; i++){
     const holder = new THREE.Group();
     const c = makeCucumber(0.85);
     c.rotation.z = Math.PI/2; c.rotation.y = Math.random()*Math.PI;
     holder.add(c);
+    holder.visible = false;
     placeOn(g, holder, randDir(), R, 0.3);
+    groundCucumberHolders.push(holder);
   }
   // pastel wildflower dots
   for (let i = 0; i < 300; i++){
@@ -1519,7 +1552,9 @@ function buildCucumber(g, R){
   animators.push((t) => { if (!cuke.visible) return;
     cukeBeacon.rotation.y = t*1.8; cukeBeacon.position.y = 2.6 + 0.25*Math.sin(t*2);
     cukeHalo.material.opacity = 0.2 + 0.1*Math.sin(t*2.2); });
-  return { bbak, bbakN, foods, cuke, cukeN };
+  return { bbak, bbakN, foods, cuke, cukeN, solidRing,
+    setSolidSpinScale: (s) => { solidSpinScale = s; },
+    cukeRingGroups, groundCucumberHolders };
 }
 
 function buildSea(g, R){
@@ -1878,11 +1913,13 @@ const WORLD_DEFS = [
   { key:'chicago',  name:'Chicago',          emoji:'🏙️', tag:'small, gray, and a little lonely',
     mission:'<b>MISSION:</b> jump to the next world! Drag / swipe to aim your view at it, then press <b>SPACE</b> to leap up high and land there.',
     pos:[0,0,0], r:5.25,  col:0xe4e8f0, step:'stone' },
-  { key:'books',    name:'Book Stacks',      emoji:'📚', tag:'somebody should really tidy these',
+  { key:'books',    name:'Main Stacks',      emoji:'📚', tag:'the old library where you and Bred used to study',
     mission:'<b>MISSION:</b> find <b>Chippy</b>, then bring him <b>5 favourite books</b> (the glowy ones, press <b>A</b> to pick up).',
     pos:[130,20,-60], r:17.8125, col:PALETTE.lightBeige, step:'book' },
-  { key:'cucumber', name:'Cucumber Meadow',  emoji:'🥒', tag:'they school like fish out here',
+  { key:'cucumber', name:'Emerald Meadow',  emoji:'🌱', tag:'a mysterious green ring circles overhead…',
     mission:'<b>MISSION:</b> find <b>bbak</b> the polar bear, he is overheating. Bring him something <b>cold</b> to cool him down!',
+    // revealed after bbak's final hint — see startCukeRevealCutscene()
+    revealName:'Cucumber Meadow', revealEmoji:'🥒', revealTag:'they school like fish out here',
     pos:[300,-10,-190], r:22.5, col:PALETTE.moss, step:'grass' },
   { key:'pigeon',   name:'Pigeon Plaza',     emoji:'🕊️', tag:'way, WAY too many pigeons',
     mission:'<b>MISSION:</b> find <b>Percy</b>, he needs help finding a long-lost friend among all these pigeons.',
@@ -1918,7 +1955,7 @@ chain.forEach((bi, ci) => { bodies[bi].chainNext = ci < chain.length-1 ? chain[c
 // flip to done via their NPC flow. (Chicago = accept Bred's letter.)
 bodies.forEach(b => { b.missionDone = true; });
 bodies[0].missionDone = false;   // Chicago — gated by the pigeon's letter intro
-bodies[1].missionDone = false;   // Book Stacks — gated by Chippy's 5-books quest
+bodies[1].missionDone = false;   // Main Stacks — gated by Chippy's 5-books quest
 bodies[2].missionDone = false;   // Cucumber/Food — gated by bbak's cooling quest
 bodies[3].missionDone = false;   // Pigeon Plaza — the Percy/Doodles quest (Percy flight is the exit)
 
@@ -2166,14 +2203,77 @@ function talkBbak(){
     if (bbakQuest.cukeRevealed){ startDialog(BBAK_NEEDCUKE, null, npc); return; }
     bbakQuest.tries++;
     let lines = (BBAK_FOOD_REACTIONS[h] || [`Hmm, ${h}? Not what I need, sorry, Rachel.`]).slice();
-    if (bbakQuest.tries >= bbakQuest.need){
+    const justRevealed = bbakQuest.tries >= bbakQuest.need;
+    if (justRevealed){
       bbakQuest.cukeRevealed = true; worldRefs.cucumber.cuke.visible = true;
       lines = lines.concat(BBAK_HINT);
     }
-    startDialog(lines, () => { refreshBbakGuide(); }, npc);
+    startDialog(lines, () => {
+      refreshBbakGuide();
+      if (justRevealed) startCukeRevealCutscene();
+    }, npc);
   });
 }
 refreshBbakGuide();
+
+/* ---------- the ring's secret: solid green ring -> revealed as cucumbers ----------
+   A scripted ~7s beat: the mystery ring visibly slows to a stop while the real
+   cucumber-built ring (and the ground cucumbers) fade in underneath it, then
+   the world's true name is revealed via the same title-card system every
+   other world uses. Triggered once, right after bbak's "long and green" hint. */
+let cukeReveal = null;
+function startCukeRevealCutscene(){
+  state = 'cukeReveal';
+  guideEl.classList.remove('show'); promptEl.classList.remove('show');
+  cukeReveal = { t:0, dur:7.0, basisA:null, basisB:null };
+  const up = herUp(new THREE.Vector3());
+  cukeReveal.basisA = arbitraryPerp(up);
+  cukeReveal.basisB = new THREE.Vector3().crossVectors(up, cukeReveal.basisA).normalize();
+}
+function updateCukeReveal(dt, t){
+  const cr = cukeReveal, wr = worldRefs.cucumber, b = bodies[2];
+  cr.t += dt;
+  const k = Math.min(1, cr.t / cr.dur);
+  // camera: pull back to a wide, slowly-orbiting establishing shot of the ring
+  const up = herUp(tmpV);
+  const ease = k*k*(3 - 2*k);
+  const dist = 14 + 26*ease, height = 4 + 10*ease;
+  const angle = cr.t*0.35;
+  const dir = tmpV3.copy(cr.basisA).multiplyScalar(Math.cos(angle)).addScaledVector(cr.basisB, Math.sin(angle));
+  camPos.copy(her.position).addScaledVector(up, height).addScaledVector(dir, dist);
+  camUp.copy(up);
+  camera.position.copy(camPos);
+  camera.up.copy(camUp);
+  camera.lookAt(tmpV2.copy(b.center));
+  // the solid ring's spin winds down to a stop by the halfway point…
+  wr.setSolidSpinScale(Math.max(0, 1 - k*2.2));
+  // …while the real cucumber ring + ground cucumbers fade in as a hard swap
+  // right at the midpoint, with a burst of sparkles to sell the "reveal".
+  if (k > 0.5 && !cr.swapped){
+    cr.swapped = true;
+    wr.solidRing.visible = false;
+    for (const ring of wr.cukeRingGroups) ring.visible = true;
+    for (const h of wr.groundCucumberHolders) h.visible = true;
+    for (let i = 0; i < 24; i++)
+      spawnEphemeral(new THREE.Mesh(sparkGeo, sparkMat), b.center.clone().addScaledVector(up, b.r + 6),
+        randDir().multiplyScalar(6 + Math.random()*6), 1.2 + Math.random(), 4);
+    playChime();
+  }
+  if (k >= 1) finishCukeReveal();
+}
+function finishCukeReveal(){
+  cukeReveal = null;
+  const b = bodies[2];
+  b.name = b.revealName; b.emoji = b.revealEmoji; b.tag = b.revealTag;
+  planetNameEl.textContent = `${b.emoji} ${b.name}`;
+  state = 'landing';
+  camYaw = 0;
+  const up = herUp(new THREE.Vector3());
+  const orbitBasisA = arbitraryPerp(up);
+  const orbitBasisB = new THREE.Vector3().crossVectors(up, orbitBasisA).normalize();
+  landing = { bi:2, phase:'orbit', t:0, orbitBasisA, orbitBasisB };
+  showPlanetTitle(b);
+}
 
 /* ---------- World 4: Pigeon Plaza — find Percy's long-lost friend ---------- */
 const PLAZA_DECOYS = [
@@ -2547,15 +2647,18 @@ function updatePose(){
   her.position.copy(b.center).addScaledVector(herUp(tmpV), b.r);
   her.quaternion.copy(orientation);
 }
-// title pose: sitting against the tower on chicago
-const CHICAGO_TARGET_DIR = V().subVectors(bodies[bodies[0].chainNext].center, bodies[0].center).normalize();
-const CHICAGO_START_N = arbitraryPerp(CHICAGO_TARGET_DIR);
+// title pose: sitting right beside the tower on Chicago — she spawns close
+// enough that the tower reads as a dominant nearby landmark, close enough to
+// its collider footprint (~15.3° for r=5.25) to feel adjacent without
+// clipping into it. Reused as-is for the intro idle camera, the actual
+// gameplay start position, AND the post-letter title cutscene, so all three
+// share the exact same "building right next to her" vantage.
+const CHICAGO_START_N = V().set(0.48, 0.86, 0.18).normalize();
 {
   const b0 = bodies[0];
-  const seatN = V().set(0.48, 0.86, 0.18).normalize();
-  const seatPos = V().copy(b0.center).addScaledVector(seatN, b0.r);
-  orientation.copy(quatFromBasis(seatN,
-    tangentToward(seatPos, seatN, V().copy(b0.center).addScaledVector(V().set(0.1,1,0).normalize(), b0.r*2))));
+  const seatPos = V().copy(b0.center).addScaledVector(CHICAGO_START_N, b0.r);
+  orientation.copy(quatFromBasis(CHICAGO_START_N,
+    tangentToward(seatPos, CHICAGO_START_N, V().copy(b0.center).addScaledVector(V().set(0.1,1,0).normalize(), b0.r*2))));
   updatePose();
   her.userData.sit(true);
 }
@@ -2880,14 +2983,7 @@ function updateLanding(dt){
       landing.phase = 'orbit'; landing.t = 0;
       landing.orbitBasisA = arbitraryPerp(up);
       landing.orbitBasisB = new THREE.Vector3().crossVectors(up, landing.orbitBasisA).normalize();
-      const b = bodies[landing.bi];
-      planetTitleNameEl.textContent = `${b.emoji} ${b.name}`;
-      planetTitleEl.classList.add('show');
-      // force the reveal animation to restart every time (see .play's CSS
-      // comment) — remove, force a reflow, then re-add.
-      planetTitleNameEl.classList.remove('play');
-      void planetTitleNameEl.offsetWidth;
-      planetTitleNameEl.classList.add('play');
+      showPlanetTitle(bodies[landing.bi]);
     }
   } else if (landing.phase === 'orbit'){
     const k = Math.min(1, landing.t/2.4);           // ease from the close-up into the wide shot
@@ -2895,8 +2991,11 @@ function updateLanding(dt){
     // distance reads fine on tiny Chicago but hugs the ground on Book Stacks
     // or the Garden), so she reads clearly as standing atop a small world.
     const br = bodies[landing.bi].r;
-    const farDist = Math.max(18, Math.min(70, br*2.2));
-    const farHeight = Math.max(7, Math.min(30, br*0.95));
+    // floor lowered from 18/7 so a tiny world like Chicago keeps a close,
+    // "landmark right next to her" framing instead of pulling back so far
+    // the nearby tower loses its dominance in frame.
+    const farDist = Math.max(10, Math.min(70, br*2.2));
+    const farHeight = Math.max(4, Math.min(30, br*0.95));
     const dist = 9 + (farDist - 9)*k;
     const height = 3.5 + (farHeight - 3.5)*k;
     // Let her nudge the view during the cutscene instead of it being 100%
@@ -2963,10 +3062,32 @@ const PERCY_LINES = [
   'Hop on my back and hold tight! 🕊️',
 ];
 let dialog = null, dialogTyping = null;   // dialog = { lines, idx, onDone, coo }
+const MIN_TALK_DIST = 4.0;
+// However close she was standing when SPACE was pressed, nudge her backward
+// along the sphere surface (away from the NPC) so the two-shot camera never
+// frames them literally overlapping.
+function ensureTalkDistance(npcPos, minDist=MIN_TALK_DIST){
+  if (!npcPos) return;
+  const b = bodies[curI]; if (!b) return;
+  const up = herUp(new THREE.Vector3());
+  const toNpc = new THREE.Vector3().subVectors(npcPos, her.position);
+  toNpc.addScaledVector(up, -toNpc.dot(up));   // flatten onto her local tangent plane
+  const dist = toNpc.length();
+  if (dist >= minDist || dist < 1e-4) return;
+  const dirAway = toNpc.normalize().multiplyScalar(-1);
+  const deficit = minDist - dist;
+  const axis = new THREE.Vector3().crossVectors(up, dirAway).normalize();
+  if (axis.lengthSq() < 1e-6) return;   // degenerate (dirAway parallel to up) — leave her be
+  orientation.premultiply(new THREE.Quaternion().setFromAxisAngle(axis, deficit / b.r));
+  orientation.normalize();
+  updatePose();
+}
 function startDialog(lines, onDone, opts={}){
   state = 'talk';
+  ensureTalkDistance(opts.npcPos ? opts.npcPos() : null);
   promptEl.classList.remove('show');
   guideEl.classList.remove('show');
+  missionEl.classList.add('mission-hide');   // the dialogue box can grow tall enough to reach the bottom-anchored mission chip
   hintEl.classList.add('hidden'); idleTime = 0;
   targetRing.visible = false;
   reticleEl.classList.add('hidden');
@@ -3002,6 +3123,7 @@ function advanceDialog(){
   dialog.idx++;
   if (dialog.idx < dialog.lines.length){ showDialogLine(); return; }
   dialogEl.classList.add('hidden');
+  missionEl.classList.remove('mission-hide');
   const cb = dialog.onDone;
   dialog = null;
   state = 'walk';
@@ -3107,6 +3229,18 @@ function arriveGarden(){
   arrive(GARDEN_I);
   followCam(1, her.position, herUp(tmpV), herFwd(tmpV2), 9, true);
   setTimeout(() => irisEl.classList.remove('closed'), 250);
+  setTimeout(() => flashPlanetTitleAuto(g), 550);
+}
+// A non-blocking version of showPlanetTitle for arrivals that don't use the
+// click-gated landing/orbit sequence (Garden's Percy-flight + iris entrance).
+function flashPlanetTitleAuto(b, ms=3200){
+  showPlanetTitle(b);
+  planetTitleEl.style.pointerEvents = 'none';
+  clearTimeout(flashPlanetTitleAuto._t);
+  flashPlanetTitleAuto._t = setTimeout(() => {
+    planetTitleEl.classList.remove('show');
+    planetTitleEl.style.pointerEvents = '';
+  }, ms);
 }
 
 /* ---------- finale ---------- */
@@ -3376,6 +3510,34 @@ const dialogNameEl = document.getElementById('dialogName');
 const irisEl = document.getElementById('iris');
 const cardOverlay = document.getElementById('cardOverlay');
 
+// one distinct display font per world (see the .font-* rules in <style>),
+// and a shrink-to-fit pass so a long name never wraps to a second line.
+const WORLD_FONT_CLASS = { chicago:'font-chicago', books:'font-books',
+  cucumber:'font-cucumber', pigeon:'font-pigeon', garden:'font-garden' };
+function showPlanetTitle(b){
+  planetTitleNameEl.textContent = b.name;   // no emoji in the big cinematic title
+  planetTitleNameEl.className = WORLD_FONT_CLASS[b.key] || '';
+  planetTitleEl.classList.add('show');
+  // force the reveal animation to restart every time (see .play's CSS
+  // comment) — the class reset above already dropped 'play'; reflow, re-add.
+  void planetTitleNameEl.offsetWidth;
+  planetTitleNameEl.classList.add('play');
+  fitPlanetTitleOneLine();
+}
+function fitPlanetTitleOneLine(){
+  const el = planetTitleNameEl;
+  el.style.fontSize = '';
+  requestAnimationFrame(() => {
+    const maxW = innerWidth*0.92;
+    let guard = 0;
+    while (el.scrollWidth > maxW && guard++ < 40){
+      const cur = parseFloat(getComputedStyle(el).fontSize);
+      if (cur <= 28) break;
+      el.style.fontSize = (cur - 4) + 'px';
+    }
+  });
+}
+
 for (let i = 0; i < WORLD_DEFS.length; i++){
   const d = document.createElement('div');
   d.className = 'dot'; dotsEl.appendChild(d);
@@ -3505,10 +3667,21 @@ function startJourney(){
         setMission(bodies[0].mission);
         dismissChicagoMessenger();
         introLocked = false;
+        startChicagoTitleCutscene();   // the same orbit+title reveal every other world gets, just delayed until after the letter
       }, { speaker:'🕊️ a breathless pigeon',
            npcPos: () => chicagoMessenger ? chicagoMessenger.pg.getWorldPosition(new THREE.Vector3()) : null });
     });
   }, 950);
+}
+function startChicagoTitleCutscene(){
+  const up = herUp(new THREE.Vector3());
+  state = 'landing';
+  camYaw = 0;
+  guideEl.classList.remove('show');
+  const orbitBasisA = arbitraryPerp(up);
+  const orbitBasisB = new THREE.Vector3().crossVectors(up, orbitBasisA).normalize();
+  landing = { bi:0, phase:'orbit', t:0, orbitBasisA, orbitBasisB };
+  showPlanetTitle(bodies[0]);
 }
 
 /* ---------- envelope & card ---------- */
@@ -3590,18 +3763,22 @@ function step(dt){
   updateLocator(t);
 
   if (state === 'intro'){
-    const a = t*0.075;
-    const introFocus = cC.copy(her.position).add(tmpV.set(0,3.0,0));
-    camera.position.set(introFocus.x + Math.sin(a)*14.5,
-      introFocus.y + 4.2 + Math.sin(t*0.3)*0.3,
-      introFocus.z + Math.cos(a)*14.5);
-    camera.up.set(0,1,0);
-    camera.lookAt(introFocus);
-    const introUp = tmpV2.subVectors(her.position, bodies[0].center).normalize();
-    her.quaternion.copy(quatFromBasis(introUp,
-      tangentToward(her.position, introUp, camera.position)));
-    camPos.copy(camera.position);
-    camUp.copy(camera.up);
+    // Same close, local tangent-plane orbit the Chicago title cutscene uses
+    // (see updateLanding's 'orbit' phase / startChicagoTitleCutscene) — she
+    // spawns right beside the tower (CHICAGO_START_N), so orbiting tightly
+    // around her makes the tower sweep through frame like it's spinning
+    // around her, instead of the old flat world-space dolly.
+    const up = tmpV2.subVectors(her.position, bodies[0].center).normalize();
+    const basisA = arbitraryPerp(up);
+    const basisB = tmpV3.crossVectors(up, basisA).normalize();
+    const angle = t*(Math.PI*2/LAND_ORBIT_DURATION);
+    const dir = tmpV.copy(basisA).multiplyScalar(Math.cos(angle)).addScaledVector(basisB, Math.sin(angle));
+    camPos.copy(her.position).addScaledVector(up, 3.2).addScaledVector(dir, 9);
+    camUp.copy(up);
+    camera.position.copy(camPos);
+    camera.up.copy(camUp);
+    camera.lookAt(cC.copy(her.position).addScaledVector(up, 1.3));
+    her.quaternion.copy(quatFromBasis(up, tangentToward(her.position, up, camera.position)));
   }
   else if (state === 'walk')     updateWalk(dt);
   else if (state === 'fly')      updateFlight(dt);
@@ -3609,6 +3786,7 @@ function step(dt){
   else if (state === 'talk')     updateTalkCam(dt);
   else if (state === 'percyfly') updatePercyFlight(dt, t);
   else if (state === 'finale')   updateFinale(dt, t);
+  else if (state === 'cukeReveal') updateCukeReveal(dt, t);
 }
 let debugFreeze = false;      // when true, the loop stops stepping/rendering so a
                                // one-off debug camera shot (framePoint/lookAt) survives
@@ -3798,6 +3976,13 @@ window.__world = {
     cukeVisible: worldRefs.cucumber.cuke.visible,
     foods: worldRefs.cucumber.foods.map(f => ({ taken:f.taken, name:f.name,
       pos: f.holder.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)) })) } : null; },
+  camPosDebug(){ return { pos: camera.position.toArray().map(v=>+v.toFixed(2)), simT: +simT.toFixed(2) }; },
+  ringDebug(){ const wr = worldRefs.cucumber; if (!wr) return null;
+    const b = bodies[2];
+    return { solidVisible: wr.solidRing.visible, cukeRingVisible: wr.cukeRingGroups.map(r=>r.visible),
+      groundCukeVisible: wr.groundCucumberHolders[0].visible, bodyName: b.name, bodyEmoji: b.emoji,
+      bodyR: b.r }; },
+  triggerCukeReveal(){ startCukeRevealCutscene(); },
   jumpChain(){ const n = bodies[curI].chainNext; if (n != null) jumpTo(bodies[n]); },
   get chainNext(){ return bodies[curI].chainNext; },
   pump(seconds){                    // advance the simulation manually (testing when tab is hidden)
