@@ -1518,22 +1518,24 @@ function buildCucumber(g, R){
   // hint lands. Both share the same tilt so the swap reads as one object.
   const RING_TILT_X = 1.15, RING_TILT_Z = 0.22;
   // Saturn-style: a real, unmistakable gap between the planet's surface and
-  // the ring's inner edge — the previous version's base radius was never
-  // pushed out far enough to compensate for its tube/band size, so the ring
-  // actually sank into the planet's own surface. Both bands' inner edge now
-  // sits at R+13.5 (planet radius 22.5 → a 13.5-unit gap), well clear at
-  // every point around the orbit. Dark, saturated forest green (not
-  // PALETTE.moss, which is a pale sage that blended straight into the grass).
+  // the ring's inner edge. The first pass used a fat TorusGeometry tube —
+  // even flattened, a round tube bulges toward the viewer at a steep tilt,
+  // so from some camera angles its near surface visually dipped back into
+  // the planet despite the centerline sitting clear. Rebuilt as a true flat
+  // disc (RingGeometry, zero bulge at any angle) with a MUCH bigger gap:
+  // inner edge R*4 (planet radius 22.5 → inner edge 90, a 67.5-unit gap,
+  // ~5x the previous attempt's) so it can never read as touching. Dark,
+  // saturated forest green (not PALETTE.moss, which is a pale sage that
+  // blended straight into the grass).
   const RING_DARK_GREEN = 0x1f4d29;
+  const RING_INNER = R * 4;              // 90 — big, unmistakable gap from the planet
+  const RING_OUTER = RING_INNER + 44;    // 134 — spans the same footprint as the two cucumber bands below
   const solidRing = new THREE.Group();
   solidRing.rotation.x = RING_TILT_X; solidRing.rotation.z = RING_TILT_Z;
-  const solidMat = mat(RING_DARK_GREEN, { roughness:0.6, emissive:RING_DARK_GREEN, emissiveIntensity:0.12 });
-  // base radius 46.5, tube 12.5 → inner edge 34 / outer edge 59, spanning the
-  // same footprint as the two real cucumber bands below so the reveal swap
-  // reads as one continuous object, not a resize.
-  const solidTorus = new THREE.Mesh(new THREE.TorusGeometry(46.5, 12.5, 16, 96), solidMat);
-  solidTorus.scale.y = 0.22;   // flat, low-profile band instead of a chunky round tube
-  solidRing.add(solidTorus);
+  const solidMat = mat(RING_DARK_GREEN, { roughness:0.6, emissive:RING_DARK_GREEN, emissiveIntensity:0.12,
+    side:THREE.DoubleSide });
+  const solidDisc = new THREE.Mesh(new THREE.RingGeometry(RING_INNER, RING_OUTER, 96, 1), solidMat);
+  solidRing.add(solidDisc);
   g.add(solidRing);
   let solidSpinScale = 1;
   animators.push((t, dt) => { solidRing.rotation.y += 0.22*dt*solidSpinScale; });
@@ -1592,8 +1594,12 @@ function buildCucumber(g, R){
     if (cucumberGeo) build(); else pendingRingBuilds.push(build);
     return holder;
   };
-  buildRing(2600, 42, RING_TILT_X, RING_TILT_Z,  0.16, 16, 2.2);   // main ring: inner 34 / outer 50
-  buildRing(1400, 54, RING_TILT_X, RING_TILT_Z,  0.11, 10, 1.6);   // outer ring: inner 49 / outer 59
+  // centers/bands chosen to match the solid disc's footprint (inner 90 /
+  // outer 134) with a small Cassini-style gap between the two bands; flatter
+  // "thick" (vertical scatter) than the first pass so it reads as a disc,
+  // not a puffy band.
+  buildRing(2600, 102, RING_TILT_X, RING_TILT_Z, 0.16, 24, 1.0);   // main ring: inner 90 / outer 114
+  buildRing(1400, 126, RING_TILT_X, RING_TILT_Z, 0.11, 16, 0.7);   // outer ring: inner 118 / outer 134
   // some cucumbers resting in the grass — hidden until the reveal, same as the ring
   const groundCucumberHolders = [];
   for (let i = 0; i < 90; i++){

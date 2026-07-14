@@ -1,4 +1,19 @@
 # ROADMAP
+- [x] Cucumber ring follow-up fix (2026-07-15, same-day): the previous pass's
+      ring still visually merged with the planet in real screenshots — a fat
+      TorusGeometry tube bulges toward the viewer at a steep tilt even when
+      flattened, so its near surface could dip back into the planet from
+      some angles despite the centerline sitting clear. Rebuilt the solid
+      pre-reveal ring as a true flat disc (`THREE.RingGeometry`, zero bulge
+      at any viewing angle, double-sided material) and pushed the gap out
+      much further: inner edge now R*4 (90 units on a r22.5 planet, a
+      67.5-unit gap — ~5x the previous attempt's ~11.5). The two real
+      cucumber-ring bands were moved out to match (inner 90/118, outer
+      114/134) with flatter vertical scatter (thick 2.2/1.6 → 1.0/0.7) so
+      they read as a disc too, not a puffy band. Verified from multiple
+      camera distances/angles pre- and post-reveal — the ring now reads as
+      an unmistakably separate, thin, dark green disc with a huge visible
+      gap, zero console errors.
 - [x] 4am polish batch (2026-07-15): Chicago cutscene fix, bigger titles,
       journal/sticker system, Saturn-style cucumber ring rework.
       - **Chicago tower clipping fixed**: the arrival/title orbit camera
