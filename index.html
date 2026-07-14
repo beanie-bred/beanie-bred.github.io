@@ -151,7 +151,7 @@
 
   /* ---------- planet-arrival title card (wide establishing orbit shot) ---------- */
   #planetTitle{position:fixed;inset:0;z-index:26;display:flex;flex-direction:column;
-    align-items:center;justify-content:flex-start;padding-top:11vh;gap:8px;pointer-events:none;
+    align-items:center;justify-content:flex-start;padding-top:6vh;gap:4px;pointer-events:none;
     opacity:0;transition:opacity 1.1s ease;
     background:radial-gradient(ellipse at center,rgba(10,12,28,.16) 0%,rgba(10,12,28,.05) 55%,transparent 80%)}
   #planetTitle.show{opacity:1;pointer-events:auto;cursor:pointer}
@@ -162,7 +162,7 @@
      wrap, and padding-top is kept low enough that she's always fully visible
      below it (verified against Chicago's tight orbit, the closest framing
      any world's arrival title ever gets). */
-  #planetTitleName{--tls:6px;font-size:clamp(80px,24vw,260px);font-weight:800;color:#fff;
+  #planetTitleName{--tls:6px;font-size:clamp(100px,30vw,340px);font-weight:800;color:#fff;
     text-transform:uppercase;letter-spacing:var(--tls);white-space:nowrap;
     text-shadow:0 0 10px rgba(0,0,0,.5),0 3px 10px rgba(0,0,0,.35);
     opacity:0}
@@ -1516,25 +1516,34 @@ function buildCucumber(g, R){
   // The real cucumber-built ring exists the whole time too, just hidden,
   // ready to be revealed by startCukeRevealCutscene() once bbak's final
   // hint lands. Both share the same tilt so the swap reads as one object.
-  const RING_TILT_X = 1.15, RING_TILT_Z = 0.22;
-  // Saturn-style: a real, unmistakable gap between the planet's surface and
-  // the ring's inner edge. The first pass used a fat TorusGeometry tube —
-  // even flattened, a round tube bulges toward the viewer at a steep tilt,
-  // so from some camera angles its near surface visually dipped back into
-  // the planet despite the centerline sitting clear. Rebuilt as a true flat
-  // disc (RingGeometry, zero bulge at any angle) with a MUCH bigger gap:
-  // inner edge R*4 (planet radius 22.5 → inner edge 90, a 67.5-unit gap,
-  // ~5x the previous attempt's) so it can never read as touching. Dark,
-  // saturated forest green (not PALETTE.moss, which is a pale sage that
-  // blended straight into the grass).
+  // A steep tilt (the previous 1.15 rad / 66°) puts the ring almost edge-on
+  // to the establishing-shot camera for much of its orbit — even a true flat
+  // disc, viewed nearly edge-on with the camera sitting close to the ring's
+  // own plane, can visually graze the planet's silhouette purely from
+  // perspective, no matter how big the real 3D gap is. A shallower tilt
+  // reads clearly as a disc from far more of the orbit.
+  const RING_TILT_X = 0.45, RING_TILT_Z = 0.22;
+  // IMPORTANT: sizing this by an arbitrary multiple of R (tried R*4, then
+  // R+R*0.56) kept "still merging" because it never accounted for how far
+  // the establishing-shot orbit camera itself travels (see updateLanding's
+  // 'orbit' phase: farDist = min(70, R*2.2), farHeight = min(30, R*0.95)) —
+  // at R=45 that's a camera up to ~76 units from HER, i.e. up to ~121 from
+  // the planet's center, which sat right inside the ring's old 70–118
+  // radius. The camera was flying THROUGH the ring's own footprint. The
+  // ring's inner edge must clear the camera's absolute max reach, not just
+  // the planet's own radius, with real margin on top.
   const RING_DARK_GREEN = 0x1f4d29;
-  const RING_INNER = R * 4;              // 90 — big, unmistakable gap from the planet
-  const RING_OUTER = RING_INNER + 44;    // 134 — spans the same footprint as the two cucumber bands below
+  const landCamFarDist = Math.min(70, R*2.2), landCamFarHeight = Math.min(30, R*0.95);
+  const landCamMaxReach = Math.sqrt(landCamFarDist**2 + landCamFarHeight**2);   // ~76 at R=45
+  const RING_INNER = R + landCamMaxReach + 60;      // ~181 at R=45 — clear of every camera position, with margin
+  const BAND_MAIN = 40, BAND_DIV = 8, BAND_OUTER = 20;
+  const mainInnerR = RING_INNER, mainOuterR = mainInnerR + BAND_MAIN;
+  const outerInnerR = mainOuterR + BAND_DIV, outerOuterR = outerInnerR + BAND_OUTER;
   const solidRing = new THREE.Group();
   solidRing.rotation.x = RING_TILT_X; solidRing.rotation.z = RING_TILT_Z;
   const solidMat = mat(RING_DARK_GREEN, { roughness:0.6, emissive:RING_DARK_GREEN, emissiveIntensity:0.12,
     side:THREE.DoubleSide });
-  const solidDisc = new THREE.Mesh(new THREE.RingGeometry(RING_INNER, RING_OUTER, 96, 1), solidMat);
+  const solidDisc = new THREE.Mesh(new THREE.RingGeometry(mainInnerR, outerOuterR, 96, 1), solidMat);
   solidRing.add(solidDisc);
   g.add(solidRing);
   let solidSpinScale = 1;
@@ -1594,12 +1603,11 @@ function buildCucumber(g, R){
     if (cucumberGeo) build(); else pendingRingBuilds.push(build);
     return holder;
   };
-  // centers/bands chosen to match the solid disc's footprint (inner 90 /
-  // outer 134) with a small Cassini-style gap between the two bands; flatter
-  // "thick" (vertical scatter) than the first pass so it reads as a disc,
-  // not a puffy band.
-  buildRing(2600, 102, RING_TILT_X, RING_TILT_Z, 0.16, 24, 1.0);   // main ring: inner 90 / outer 114
-  buildRing(1400, 126, RING_TILT_X, RING_TILT_Z, 0.11, 16, 0.7);   // outer ring: inner 118 / outer 134
+  // centers/bands match the solid disc's footprint exactly, with a small
+  // Cassini-style gap between the two bands; flat "thick" (vertical
+  // scatter) so it reads as a disc, not a puffy band.
+  buildRing(2600, (mainInnerR+mainOuterR)/2, RING_TILT_X, RING_TILT_Z, 0.16, BAND_MAIN, 1.0);
+  buildRing(1400, (outerInnerR+outerOuterR)/2, RING_TILT_X, RING_TILT_Z, 0.11, BAND_OUTER, 0.7);
   // some cucumbers resting in the grass — hidden until the reveal, same as the ring
   const groundCucumberHolders = [];
   for (let i = 0; i < 90; i++){
@@ -2041,7 +2049,7 @@ const WORLD_DEFS = [
     mission:'<b>MISSION:</b> find <b>bbak</b> the polar bear, he is overheating. Bring him something <b>cold</b> to cool him down!',
     // revealed after bbak's final hint — see startCukeRevealCutscene()
     revealName:'Cucumber Meadow', revealEmoji:'🥒', revealTag:'they school like fish out here',
-    pos:[300,-10,-190], r:22.5, col:PALETTE.moss, step:'grass' },
+    pos:[300,-10,-190], r:45, col:PALETTE.moss, step:'grass' },
   { key:'pigeon',   name:'Pigeon Plaza',     emoji:'🕊️', tag:'way, WAY too many pigeons',
     mission:'<b>MISSION:</b> find <b>Percy</b>, he needs help finding a long-lost friend among all these pigeons.',
     pos:[170,20,-400], r:30, col:PALETTE.mutedLavender, step:'stone' },
@@ -3166,6 +3174,7 @@ function arrive(bi){
   camYaw = 0;
   camPitch = 0.3;
   updatePose();
+  hudEl.classList.remove('hidden');   // re-reveal after showPlanetTitle() hid it for the title card
   const b = bodies[bi];
   planetNameEl.textContent = `${b.emoji} ${b.name}`;
   // no arrival toast here — the big planetTitle card already announces the
@@ -3372,6 +3381,11 @@ function flashPlanetTitleAuto(b, ms=3200){
   flashPlanetTitleAuto._t = setTimeout(() => {
     planetTitleEl.classList.remove('show');
     planetTitleEl.style.pointerEvents = '';
+    // this path calls arrive() BEFORE the title (unlike the click-gated
+    // cutscene, which calls it after) so showPlanetTitle()'s hud/mission
+    // hide would otherwise never get undone once the flash fades.
+    hudEl.classList.remove('hidden');
+    if (b.mission) setMission(b.mission);
   }, ms);
 }
 
@@ -3658,6 +3672,12 @@ function showPlanetTitle(b){
   planetTitleNameEl.textContent = b.name;   // no emoji in the big cinematic title
   planetTitleNameEl.className = WORLD_FONT_CLASS[b.key] || '';
   planetTitleEl.classList.add('show');
+  // The old planet-name chip and mission banner still show the PREVIOUS
+  // world's stale info for as long as the title card is up (arrive(), which
+  // refreshes them both, doesn't run until she clicks past it) — hide both
+  // for the duration so nothing outdated is visible under the big title.
+  hudEl.classList.add('hidden');
+  missionEl.classList.add('hidden');
   // Size BEFORE the reveal animation starts playing. fitPlanetTitleOneLine()
   // measures scrollWidth on the next frame — if the .play class (and its
   // titleReveal keyframe, which opens at a huge letter-spacing:26px) is

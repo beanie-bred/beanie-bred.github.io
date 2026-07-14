@@ -1,4 +1,41 @@
 # ROADMAP
+- [x] Second cucumber ring fix + title/HUD polish (2026-07-15, same-day):
+      user screenshots from the live site showed the ring STILL merging with
+      the planet even after the previous fix, plus stale HUD info showing
+      under the title card. Root causes and fixes:
+      - **Real root cause of the "still merging" ring**: sizing it by an
+        arbitrary multiple of the planet radius R (tried R+13.5, then R*4)
+        never accounted for how far the establishing-shot orbit camera
+        itself travels. `updateLanding`'s 'orbit' phase pulls the camera out
+        to `min(70, R*2.2)` distance / `min(30, R*0.95)` height from BEANIE
+        — at R=45 that's a camera up to ~76 units from her, i.e. up to ~121
+        from the planet's center, which sat *inside* the ring's own radius.
+        The camera was literally flying through the ring's footprint, not
+        past it. Fixed by deriving the ring's inner radius from the same
+        camera-distance formula the landing code uses, plus a 60-unit safety
+        margin on top, so the ring's inner edge (now ~181 at R=45) is
+        guaranteed to clear every possible camera position for that world.
+        Also reduced the ring's tilt from 1.15 rad (66°) to 0.45 rad (26°) —
+        a steep tilt put the disc nearly edge-on to the camera for much of
+        the orbit, which reads as "touching" even with a real 3D gap.
+        Verified by driving the actual jump→landing→orbit sequence (not a
+        custom debug camera shot, which is what let the previous "fix" pass
+        review while still being broken in real gameplay) and sampling
+        multiple points across the real 15s orbit, pre- and post-reveal.
+      - **Emerald/Cucumber Meadow doubled in size** (r 22.5 → 45), per
+        request.
+      - **Stale HUD during title cards fixed**: the old planet-name chip and
+        the bottom mission banner used to keep showing the *previous*
+        world's info for the entire time a title card was up (they only
+        refresh in `arrive()`, which doesn't run until she clicks past the
+        title) — e.g. Pigeon Plaza's title card was showing Cucumber
+        Meadow's leftover "find bbak" mission text underneath it. Both now
+        hide the moment `showPlanetTitle()` fires and reappear (with fresh,
+        correct content) once the title is dismissed — handled for both the
+        click-gated cutscene and the Garden's non-blocking auto-flash
+        variant.
+      - **Titles bigger again**: clamp raised from 80–260px/24vw to
+        100–340px/30vw, padding-top dropped 11vh→6vh, gap 8px→4px.
 - [x] Cucumber ring follow-up fix (2026-07-15, same-day): the previous pass's
       ring still visually merged with the planet in real screenshots — a fat
       TorusGeometry tube bulges toward the viewer at a steep tilt even when
