@@ -2615,9 +2615,10 @@ function updatePercyFlight(dt, t){
   const pf = percyFly;
   pf.t += dt;
   const holder = pf.holder;
-  // wings flap the whole time
-  for (let w = 0; w < 2; w++)
-    pf.percy.userData.wings[w].rotation.z = (w===0?1:-1)*Math.sin(t*10)*0.95;
+  // wings flap the whole time (only the plush fallback has wing groups)
+  if (pf.percy.userData.wings)
+    for (let w = 0; w < 2; w++)
+      pf.percy.userData.wings[w].rotation.z = (w===0?1:-1)*Math.sin(t*10)*0.95;
   if (pf.t < 1.6){                                     // percy grows!
     const k = pf.t/1.6, s = k*k*(3-2*k);
     holder.scale.setScalar(1 + s*3.6);
@@ -2761,11 +2762,21 @@ addEventListener('keydown', (e) => {
       else pickupBook(pickTarget);
     }
   }
-  // QA shortcut: 1-6 instantly warps to that world (skips aim-and-leap).
-  if (state === 'walk' && e.key >= '1' && e.key <= String(WORLD_DEFS.length)){
-    window.__world.goto(Number(e.key) - 1);
+  // QA shortcut: 1-6 instantly warps to that world AND skips every mission /
+  // gate (including Chicago's letter) so you can free-roam and leap onward.
+  if ((state === 'walk' || state === 'talk' || state === 'intro')
+      && e.key >= '1' && e.key <= String(WORLD_DEFS.length)){
+    qaWarp(Number(e.key) - 1);
   }
 });
+function qaWarp(i){
+  if (state === 'intro') startJourney();                // reveal HUD / start audio first
+  if (dialog){ clearInterval(dialogTyping); dialogEl.classList.add('hidden'); dialog = null; restoreObstacles(); }
+  if (chicagoMessenger) dismissChicagoMessenger();
+  bodies.forEach((b) => { b.missionDone = true; });     // QA: skip every mission/gate
+  state = 'walk';
+  window.__world.goto(i);
+}
 addEventListener('keyup', (e) => { keys[e.key] = false; });
 
 function updateWalk(dt){
@@ -2958,7 +2969,7 @@ function spawnChicagoMessenger(onLanded){
 }
 function dismissChicagoMessenger(){
   if (!chicagoMessenger) return;
-  const pg = chicagoMessenger.pg, up = chicagoMessenger.up;
+  const pg = chicagoMessenger.pg, up = chicagoMessenger.groundN;
   const holder = new THREE.Group(); holder.position.copy(pg.position);
   scene.add(holder); scene.remove(pg); pg.position.set(0,0,0); holder.add(pg);
   percyScatter.push({ obj: holder, life: 3.2,

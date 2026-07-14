@@ -166,6 +166,13 @@
             family" → lead him back → reunion → flock rings Percy → Percy grows
             + Beanie rides → Garden. Pigeons bounce while talking except Vanessa.
             Verified full flow, zero console errors (2026-07-13).
+      - [x] Pigeon Plaza polish (2026-07-14): crowd 290→480 spread over the
+            whole sphere, each pecking / walking around the surface / hopping+
+            flapping, + 40 truly flying; Percy is now the real model
+            (game-assets/percy/percy.glb) instead of the plush; Percy-flight
+            wing-flap guarded for the rig-less real model.
+      - [x] QA: number keys 1-6 now skip EVERY mission/gate (incl. Chicago's
+            letter) and can be pressed from the title/dialog too (qaWarp()).
       - [ ] TODO distinct run-clip retarget (Mixamo→BeanieRig); title beanie-sit
       - [ ] TODO Garden finale: bred+percy+chippy+bbak wave + walk-toward + KISS
             cutscene → hearts → card
