@@ -42,12 +42,17 @@
     background:rgba(30,32,64,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,224,138,.35);
     color:#ffeccf;transition:opacity .6s}
   #mission b{color:var(--gold)}
-  #guide{position:fixed;top:74px;left:50%;transform:translateX(-50%) translateY(-6px);z-index:20;
+  #guide{position:fixed;top:118px;left:50%;transform:translateX(-50%) translateY(-6px);z-index:20;
     font-size:12.5px;font-weight:600;padding:7px 16px;border-radius:999px;white-space:nowrap;
     background:rgba(30,32,64,.55);backdrop-filter:blur(8px);border:1px solid rgba(150,200,255,.4);
     color:#dbe7ff;opacity:0;transition:opacity .4s,transform .4s;pointer-events:none}
   #guide.show{opacity:1;transform:translateX(-50%) translateY(0)}
   #guide .near{color:#a8f0c0}
+  /* screen-space compass fallback: the 3D glowing beacon can be hidden behind
+     a big planet's own curvature when the target is far away, so this always
+     shows which way to turn regardless of 3D line-of-sight. */
+  #guideArrow{display:inline-block;margin-right:6px;color:#ffd166;
+    transition:transform .25s ease;transform-origin:50% 55%}
   #bookpop{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-14px) scale(.96);
     z-index:24;display:flex;gap:14px;align-items:center;padding:12px 20px 12px 14px;border-radius:16px;
     background:rgba(30,32,64,.72);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.22);
@@ -183,7 +188,7 @@
 
 <div id="hud" class="hidden"><div class="chip" id="planetName">…</div></div>
 <div id="mission" class="hidden"></div>
-<div id="guide" class="hidden"></div>
+<div id="guide" class="hidden"><span id="guideArrow">▲</span><span id="guideLabel"></span></div>
 <div id="bookpop"><div id="bookpopCover"><span id="bookpopSpine"></span></div>
   <div id="bookpopMeta"><div id="bookpopKicker">📖 collected</div><div id="bookpopTitle"></div><div id="bookpopCount"></div></div></div>
 <div id="foodPocket"><div id="foodPocketIcon"></div><div id="foodPocketLabel"></div></div>
@@ -1614,7 +1619,13 @@ function buildPigeons(g, R, ctx){
   // talks to and eventually rides.
   const percy = new THREE.Group();
   loadModel('./game-assets/percy/percy.glb').then((m) => {
-    m.scale.setScalar(1.7); m.rotation.y = Math.PI; percy.add(m);
+    // no extra rotation here — percy.glb's native forward already matches
+    // the game's +Z convention (same as vanessa/nibbles/alfred/sam). The
+    // old rotation.y=Math.PI fought the holder's face-Beanie quaternion
+    // during conversations (and would have done the same to the flight
+    // sequence's own quatFromBasis-driven facing), turning him fully
+    // backward instead of toward her.
+    m.scale.setScalar(1.7); percy.add(m);
   }).catch((err) => {
     console.error('Percy model failed, using plush fallback', err);
     const fb = plushPigeon({}, { stripes:true }); fb.scale.setScalar(1.25); percy.add(fb);
@@ -1626,7 +1637,10 @@ function buildPigeons(g, R, ctx){
   animators.push((t) => {
     if (percyHolder.userData.flying) return;
     percy.position.y = Math.abs(Math.sin(t*2.2))*0.05;             // proud little hops
-    percy.rotation.y = Math.sin(t*0.7)*0.3;
+    // pause the idle head-sway while actually talking to him — it doesn't
+    // fight the facing (that's the holder's job), but it looked odd to have
+    // him wobble mid-conversation instead of holding still toward her.
+    if (!(dialog && dialog.npcObj === percyHolder)) percy.rotation.y = Math.sin(t*0.7)*0.3;
   });
   return { percyHolder, percyN, plazaN, crowd, flying };
 }
@@ -2594,13 +2608,15 @@ scene.add(targetRing);
 /* ---------- world-space "locator" marker floating over the current NPC/goal ---------- */
 const locator = new THREE.Group();
 {
-  const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.1, 5),
+  // sized up ~40% from the original so it still reads clearly now that it
+  // hovers much higher above big-planet targets (see beaconHeight below)
+  const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.77, 1.54, 5),
     mat(0xffd166, { emissive:0xffb43e, emissiveIntensity:2.2, roughness:0.3 }));
   arrow.rotation.x = Math.PI;   // point down at the target
-  arrow.position.y = 1.1; locator.add(arrow);
-  const ballo = new THREE.Mesh(new THREE.SphereGeometry(0.9, 12, 10),
+  arrow.position.y = 1.54; locator.add(arrow);
+  const ballo = new THREE.Mesh(new THREE.SphereGeometry(1.26, 12, 10),
     new THREE.MeshBasicMaterial({ color:0xffd9a0, transparent:true, opacity:0.16, depthWrite:false }));
-  ballo.position.y = 1.1; locator.add(ballo);
+  ballo.position.y = 1.54; locator.add(ballo);
   locator.userData = { arrow, ballo };
 }
 locator.visible = false;
@@ -2614,7 +2630,13 @@ function updateLocator(t){
   if (!tp){ locator.visible = false; return; }
   const n = new THREE.Vector3().subVectors(tp, b.center).normalize();
   const bob = 0.35*Math.sin(t*2.2);
-  locator.position.copy(tp).addScaledVector(n, 2.6 + bob);
+  // Hover height scales with the planet's own radius — a fixed low hover
+  // (2.6) reads fine on tiny Chicago but gets hidden behind the curve of
+  // the horizon on a big world like Pigeon Plaza (r=30) whenever the
+  // target isn't already close, since the marker needs to clear the
+  // sphere's own bulge to stay in line-of-sight from farther away.
+  const beaconHeight = Math.max(4, Math.min(12, b.r*0.35));
+  locator.position.copy(tp).addScaledVector(n, beaconHeight + bob);
   locator.quaternion.copy(quatFromBasis(n, tangentToward(locator.position, n, camera.position)));
   locator.userData.arrow.rotation.y = t*2;
   locator.visible = true;
@@ -3157,14 +3179,33 @@ function updateWalk(dt){
       spawnDust(b.step, her.position, herUp(V()), herFwd(V()));
     }
   }
-  // distance-to-NPC guide — shown while the current world's mission isn't done
+  // distance-to-NPC guide — shown while the current world's mission isn't done.
+  // The arrow rotates to point at the target's bearing relative to her own
+  // facing, so it works as a always-on compass even when the 3D glowing
+  // beacon itself is hidden behind the curve of a big planet's horizon.
   const bg = bodies[curI];
   if (!bg.missionDone && bg.guideFn){
     const npc = bg.guideFn(tmpV3);
     const d = her.position.distanceTo(npc);
-    guideEl.innerHTML = d < (bg.guideNear || 4)
+    const near = d < (bg.guideNear || 4);
+    guideLabelEl.innerHTML = near
       ? `<span class="near">${bg.guideLabel} — right here! press SPACE</span>`
       : `${bg.guideLabel} — ${Math.round(d)} steps away`;
+    if (near){
+      guideArrowEl.style.opacity = 0;
+    } else {
+      const gUp = herUp(V()), gFwd = herFwd(V());
+      const gToward = tangentToward(her.position, gUp, npc);
+      const bearing = Math.atan2(V().crossVectors(gFwd, gToward).dot(gUp), gFwd.dot(gToward));
+      guideArrowEl.style.opacity = 1;
+      // negated: `bearing` follows the same signed-turn convention as
+      // walkToward's steering (positive = rotate toward-target via
+      // setFromAxisAngle(up, +ang), which is a LEFTWARD turn as seen from
+      // outside the planet looking down at her) but CSS rotate() spins the
+      // 2D icon clockwise for positive values, so a bare `rotate(bearing)`
+      // would point the arrow right when the target is actually to her left.
+      guideArrowEl.style.transform = `rotate(${-bearing}rad)`;
+    }
     guideEl.classList.add('show');
   } else {
     guideEl.classList.remove('show');
@@ -3221,6 +3262,8 @@ const introEl = document.getElementById('intro');
 const hudEl = document.getElementById('hud');
 const missionEl = document.getElementById('mission');
 const guideEl = document.getElementById('guide');
+const guideArrowEl = document.getElementById('guideArrow');
+const guideLabelEl = document.getElementById('guideLabel');
 const dotsEl = document.getElementById('dots');
 const hintEl = document.getElementById('hint');
 const dragHintEl = document.getElementById('dragHint');
@@ -3334,6 +3377,13 @@ function startJourney(){
   // reveals it only after she's genuinely idle for a few seconds.
   muteBtn.classList.remove('hidden');
   reticleEl.classList.remove('hidden');
+  // #guide was missing from this reveal list entirely — its own show/hide
+  // is driven by the 'show' class (opacity transition), but the base
+  // 'hidden' utility class is `display:none !important`, which no amount
+  // of 'show' can override. Every distance-to-NPC guide text in the game
+  // (find bbak, find Percy, find Chippy, etc.) has been invisible this
+  // whole time as a result.
+  guideEl.classList.remove('hidden');
   her.userData.sit(false);
   ensureAudio();
   playMelody(MELODY_CUTE);
