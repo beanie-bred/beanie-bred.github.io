@@ -2140,11 +2140,7 @@ const PLAZA_DECOYS = [
     `Wait — a parrot? No, no, NO. I am not a parrot in disguise. I'm a PIGEON, thank you.`,
     `My green feathers hide me so well most folk hear me before they see me.`,
     `Percy's friend? Afraid not, dear. Onward!` ] },
-  // Sam has no sculpted model yet, so he's built from the same procedural
-  // plushPigeon() used for the background crowd (see spawnStoryPigeon's
-  // cfg.procedural branch) instead of loading a game-assets/pigeons glb.
-  { name:'sam', procedural:true, colors:{ body:0xb8794a, head:0xa8683a, ring:0x241a14, chest:0xe8d4b0 },
-    speaker:'🌾 Sam', scale:1.0, bounce:true, lines:[
+  { name:'sam', glb:'sam', speaker:'🌾 Sam', scale:1.0, rotY:0, bounce:true, lines:[
     `G'day! Sam here — a Spinifex Pigeon, all the way from the outback. 🌾`,
     `The little crest and the black mask? Built for hot, dry, spiky country.`,
     `Percy's long-lost friend? Nah, not me, mate — but good luck out there!` ] },
