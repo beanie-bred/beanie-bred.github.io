@@ -43,7 +43,8 @@
     color:#ffeccf;transition:opacity .6s}
   #mission b{color:var(--gold)}
   #guide{position:fixed;top:122px;left:50%;transform:translateX(-50%) translateY(-6px);z-index:20;
-    font-size:clamp(18px,2.6vw,24px);font-weight:700;padding:11px 24px;border-radius:999px;white-space:nowrap;
+    font-size:clamp(16px,2.6vw,24px);font-weight:700;padding:11px 24px;border-radius:24px;
+    max-width:92vw;width:max-content;text-align:center;white-space:normal;
     background:rgba(30,32,64,.55);backdrop-filter:blur(8px);border:1px solid rgba(150,200,255,.4);
     color:#dbe7ff;opacity:0;transition:opacity .4s,transform .4s;pointer-events:none}
   #guide.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -120,10 +121,15 @@
   #planetTitleName{font-size:clamp(56px,11vw,150px);font-weight:800;color:#fff;
     text-transform:uppercase;letter-spacing:6px;
     text-shadow:0 0 70px rgba(255,214,150,.55),0 0 140px rgba(255,190,110,.3),0 6px 34px rgba(0,0,0,.6);
-    animation:titleReveal 1.5s cubic-bezier(.16,1,.3,1) both}
+    opacity:0}
+  /* .play is toggled off/on in JS each time a new title shows (a plain CSS
+     animation on the element itself only ever plays once — on first paint —
+     so without a retriggerable class every planet after the first would
+     just appear at its final resting state with no reveal at all) */
+  #planetTitleName.play{animation:titleReveal 1.5s cubic-bezier(.16,1,.3,1) both}
   #planetTitleName::before,#planetTitleName::after{content:'';display:block;
-    width:0;height:2px;margin:14px auto;background:linear-gradient(90deg,transparent,#ffd166,transparent);
-    animation:titleRule 1.1s ease-out .35s both}
+    width:0;height:2px;margin:14px auto;background:linear-gradient(90deg,transparent,#ffd166,transparent)}
+  #planetTitleName.play::before,#planetTitleName.play::after{animation:titleRule 1.1s ease-out .35s both}
   @keyframes titleReveal{
     0%{opacity:0;transform:scale(1.7);letter-spacing:26px;filter:blur(10px)}
     65%{opacity:1;filter:blur(0)}
@@ -191,7 +197,7 @@
 <div id="intro">
   <img id="introLogo" src="./logo.png" alt="Beanie & Bred"/>
   <div class="sub">a tiny journey across the worlds you love</div>
-  <div id="pressSpace">— press SPACE to start —</div>
+  <div id="pressSpace">press SPACE to start</div>
   <div class="controls">arrow keys walk · drag with your cursor / two-finger swipe to look around</div>
 </div>
 
@@ -278,7 +284,7 @@ const CONFIG = {
   herNick:  'Beanie',
   yourName: 'Bred',
   cardMessage:
-`You made it — through the gray little city, the wobbly book towers,
+`You made it, through the gray little city, the wobbly book towers,
 the flying cucumbers, the whales, and roughly four hundred pigeons.
 
 Every world in this little universe is something you love.
@@ -292,7 +298,7 @@ Happy birthday, my Beanie. 🤍`,
 
 document.title = `${CONFIG.herNick}'s Little Universe 💫`;
 document.getElementById('cardTitle').textContent = `Happy Birthday, ${CONFIG.herName} ❤️`;
-document.getElementById('cardSig').textContent = `— ${CONFIG.yourName}`;
+document.getElementById('cardSig').textContent = `${CONFIG.yourName}`;
 
 /* ---------- renderer / scene ---------- */
 let renderer;
@@ -1873,13 +1879,13 @@ const WORLD_DEFS = [
     mission:'<b>MISSION:</b> jump to the next world! Drag / swipe to aim your view at it, then press <b>SPACE</b> to leap up high and land there.',
     pos:[0,0,0], r:5.25,  col:0xe4e8f0, step:'stone' },
   { key:'books',    name:'Book Stacks',      emoji:'📚', tag:'somebody should really tidy these',
-    mission:'<b>MISSION:</b> find <b>Chippy</b>, then bring him <b>5 favourite books</b> (the glowy ones — press <b>A</b> to pick up).',
+    mission:'<b>MISSION:</b> find <b>Chippy</b>, then bring him <b>5 favourite books</b> (the glowy ones, press <b>A</b> to pick up).',
     pos:[130,20,-60], r:17.8125, col:PALETTE.lightBeige, step:'book' },
   { key:'cucumber', name:'Cucumber Meadow',  emoji:'🥒', tag:'they school like fish out here',
-    mission:'<b>MISSION:</b> find <b>bbak</b> the polar bear — he is overheating. Bring him something <b>cold</b> to cool him down!',
+    mission:'<b>MISSION:</b> find <b>bbak</b> the polar bear, he is overheating. Bring him something <b>cold</b> to cool him down!',
     pos:[300,-10,-190], r:22.5, col:PALETTE.moss, step:'grass' },
   { key:'pigeon',   name:'Pigeon Plaza',     emoji:'🕊️', tag:'way, WAY too many pigeons',
-    mission:'<b>MISSION:</b> find <b>Percy</b> — he needs help finding a long-lost friend among all these pigeons.',
+    mission:'<b>MISSION:</b> find <b>Percy</b>, he needs help finding a long-lost friend among all these pigeons.',
     pos:[170,20,-400], r:30, col:PALETTE.mutedLavender, step:'stone' },
   { key:'garden',   name:'The Garden',       emoji:'💐', tag:'happy birthday, Beanie 🤍',
     mission:'<b>MISSION:</b> wander the garden… someone set up a big white couch for you. 🤍',
@@ -1938,7 +1944,7 @@ const booksQuest = { phase:0, got:0, need:5 };   // 0=find Chippy, 1=collecting,
 function chippyPos(out){ return worldRefs.books.chippy.getWorldPosition(out || new THREE.Vector3()); }
 const CHIPPY_ASK_LINES = [
   `Oh! Hello Rachel. *yaaawn* …I was just about to make some tea. 🍵`,
-  `Say — while the kettle boils, would you fetch me something to read?`,
+  `Say, while the kettle boils, would you fetch me something to read?`,
   `Bring me 5 of your favourite books from around here. The glowy ones! ✨`,
   `Press A to pick each one up, then come back to me. Off you pop!`,
 ];
@@ -1948,7 +1954,7 @@ const CHIPPY_NEED_MORE = [
 const CHIPPY_DONE_LINES = [
   `Ooh! Now THESE are good picks. *happy squeak* 🐿️`,
   `Perfect reading for a slow afternoon. Thank you, Rachel!`,
-  `Now — the way onward. Aim past the tallest stack and leap. Go find him! 🤍`,
+  `Now, the way onward. Aim past the tallest stack and leap. Go find him! 🤍`,
 ];
 bodies[1].guideNear = 3.6;
 function nearestUncollected(){
@@ -1969,7 +1975,7 @@ function refreshBooksGuide(){
     bodies[1].guideLabel = '📚 take the books back to Chippy!';
     bodies[1].guideFn = () => chippyPos();
   } else if (collecting){
-    bodies[1].guideLabel = `✨ glowing book (${booksQuest.got}/${booksQuest.need}) — press A to collect`;
+    bodies[1].guideLabel = `✨ glowing book (${booksQuest.got}/${booksQuest.need}), press A to collect`;
     bodies[1].guideFn = () => { const gb = nearestUncollected(); return gb ? gb.holder.getWorldPosition(new THREE.Vector3()) : chippyPos(); };
   } else {
     bodies[1].guideLabel = '🐿️ find Chippy (he is resting on a book pile)';
@@ -2027,20 +2033,20 @@ const BBAK_INTRO = [
 // instead of a generic "nope, try again" regardless of what it was.
 const BBAK_FOOD_REACTIONS = {
   icecream: [`*CATCH* …ice cream? It's already melting everywhere! Not cold enough, somehow. Try again? 🫠`],
-  cake:     [`*CATCH* Mmm, cake — but it's warm from sitting in the sun all day. Not what I need.`],
+  cake:     [`*CATCH* Mmm, cake, but it's warm from sitting in the sun all day. Not what I need.`],
   donut:    [`*CATCH* A donut? Sweet, but it's not cold in the slightest. Sorry, Rachel.`],
   pizza:    [`*CATCH* Pizza smells incredible… but this is basically the OPPOSITE of cold!`],
   burger:   [`*CATCH* A burger?! That's hot off the grill, not cold at ALL.`],
   fries:    [`*CATCH* Fries are delicious and also very much not cold. 🍟`],
 };
 const BBAK_HINT = [
-  `*flops dramatically* Okay. New plan — let me give you a hint, Rachel.`,
+  `*flops dramatically* Okay. New plan, let me give you a hint, Rachel.`,
   `It's green, and it's long. When I was just a cub, I used to eat it instead of meat!`,
 ];
-const BBAK_NEEDCUKE = [`No no — the glowing green CUCUMBER I told you about. Go get it! 🥒`];
+const BBAK_NEEDCUKE = [`No no, the glowing green CUCUMBER I told you about. Go get it! 🥒`];
 const BBAK_SUCCESS = [
   `*CATCH* Ahhh… *CRUNCH* …cold and crisp and perfect. You're the best, Rachel. 💙`,
-  `I feel cooler already. Now go on — aim at the next world and leap! 🤍`,
+  `I feel cooler already. Now go on, aim at the next world and leap! 🤍`,
 ];
 // Toss whatever she's holding — a real 3D model of that exact food — through
 // the air into bbak's mouth, then run onDone once it lands.
@@ -2095,7 +2101,7 @@ function refreshBbakGuide(){
   if (bbakQuest.holding){ b.guideLabel = '🐻‍❄️ take it back to bbak'; b.guideFn = () => bbakPos(); return; }
   if (bbakQuest.phase === 0){ b.guideLabel = '🐻‍❄️ find bbak (lounging in the grass)'; b.guideFn = () => bbakPos(); return; }
   if (bbakQuest.cukeRevealed){
-    b.guideLabel = '🥒 fetch the glowing cucumber — press A';
+    b.guideLabel = '🥒 fetch the glowing cucumber, press A';
     b.guideFn = () => worldRefs.cucumber.cuke.getWorldPosition(new THREE.Vector3());
     return;
   }
@@ -2172,26 +2178,26 @@ refreshBbakGuide();
 /* ---------- World 4: Pigeon Plaza — find Percy's long-lost friend ---------- */
 const PLAZA_DECOYS = [
   { name:'vanessa', glb:'vanessa', speaker:'👑 Vanessa', scale:1.5, rotY:0, bounce:false, lines:[
-    `Ahem. I am Vanessa, the Victoria Crowned Pigeon — the largest pigeon in all the world. 👑`,
+    `Ahem. I am Vanessa, the Victoria Crowned Pigeon, the largest pigeon in all the world. 👑`,
     `Do admire the crest, won't you? It fans out like a royal crown.`,
     `Percy's dear old friend? *sniff* That is not me. I don't do "old friends". Move along.` ] },
   { name:'nibbles', glb:'nibbles', speaker:'🌈 Nibbles', scale:1.5, rotY:0, bounce:true, lines:[
-    `Hihi! Nibbles here — a Nicobar Pigeon. 🌈`,
+    `Hihi! Nibbles here, a Nicobar Pigeon. 🌈`,
     `These metallic rainbow feathers? I'm the dodo's closest living cousin, you know!`,
-    `Am I Percy's lost friend? Nope, not me — but you're close in spirit! 💫` ] },
+    `Am I Percy's lost friend? Nope, not me, but you're close in spirit! 💫` ] },
   { name:'alfred', glb:'alfred', speaker:'🫒 Alfred', scale:1.5, rotY:0, bounce:true, lines:[
     `…hello. Down here. Alfred, African Green Pigeon. 🫒`,
-    `Wait — a parrot? No, no, NO. I am not a parrot in disguise. I'm a PIGEON, thank you.`,
+    `Wait, a parrot? No, no, NO. I am not a parrot in disguise. I'm a PIGEON, thank you.`,
     `My green feathers hide me so well most folk hear me before they see me.`,
     `Percy's friend? Afraid not, dear. Onward!` ] },
   { name:'sam', glb:'sam', speaker:'🌾 Sam', scale:1.0, rotY:0, bounce:true, lines:[
-    `G'day! Sam here — a Spinifex Pigeon, all the way from the outback. 🌾`,
+    `G'day! Sam here, a Spinifex Pigeon, all the way from the outback. 🌾`,
     `The little crest and the black mask? Built for hot, dry, spiky country.`,
-    `Percy's long-lost friend? Nah, not me, mate — but good luck out there!` ] },
+    `Percy's long-lost friend? Nah, not me, mate, but good luck out there!` ] },
   { name:'sunny', glb:'sunny', speaker:'🎨 Sunny', scale:1.0, rotY:0, bounce:true, lines:[
     `Hey hey! Sunny the Superb Fruit Dove! 🎨`,
     `Folks say I look hand-painted. I don't disagree, honestly.`,
-    `Percy's missing friend? Ha — not me, but good luck!` ] },
+    `Percy's missing friend? Ha, not me, but good luck!` ] },
   { name:'otto', glb:'otto', speaker:'🍊 Otto', scale:1.0, rotY:0, bounce:true, lines:[
     `Bula! Otto, the Orange Dove, all the way from Fiji. 🍊`,
     `I glow like a little ember in the forest, if I do say so myself.`,
@@ -2199,32 +2205,32 @@ const PLAZA_DECOYS = [
   { name:'mochi', glb:'mochi', speaker:'🌈 Mochi', scale:1.0, rotY:0, bounce:true, lines:[
     `Hi! I'm Mochi, a Many-colored Fruit Dove. 🌈`,
     `Every one of us is a different little rainbow. I'm one of a kind!`,
-    `Am I who Percy misses? Aw, no — but you'll find them. 🩷` ] },
+    `Am I who Percy misses? Aw, no, but you'll find them. 🩷` ] },
   { name:'buckle', glb:'buckle', speaker:'❤️ Buckle', scale:1.0, rotY:0, bounce:true, lines:[
-    `Oh — hello. Buckle, a Bleeding-heart Dove. ❤️`,
+    `Oh, hello. Buckle, a Bleeding-heart Dove. ❤️`,
     `See the crimson patch on my chest? Looks just like a tiny heart.`,
     `Percy's friend? …no, not me either. That's everyone, isn't it? Maybe ask Percy again.` ] },
 ];
 const DOODLES_CFG = { name:'doodles', glb:'doodles', speaker:'🦤 Doodles', scale:1.15, rotY:0, bounce:true, lines:[
   `Oh! …hello there. I'm Doodles. A dodo. 🦤`,
-  `Everyone thinks we were clumsy — we weren't. We just never needed to fly. No predators. It was peaceful.`,
+  `Everyone thinks we were clumsy. We weren't. We just never needed to fly. No predators. It was peaceful.`,
   `…but it does get lonely now. I miss my family so much.`,
-  `You'll… be my family? Really? *sniffle* …okay. Lead the way — take me to your friend.` ] };
+  `You'll… be my family? Really? *sniffle* …okay. Lead the way, take me to your friend.` ] };
 const PERCY_INTRO = [
-  `Coo! Rachel — you found me! 🕊️`,
+  `Coo! Rachel, you found me! 🕊️`,
   `Listen… long, long ago I had a dear, dear friend. We were inseparable.`,
   `I've looked all over this plaza and I just can't find him. Would you help me look?`,
-  `Go say hello to the pigeons around here — maybe one of them is him!` ];
-const PERCY_NUDGE_SEARCH = [ `Keep saying hello to the pigeons — one of them might be my friend!` ];
+  `Go say hello to the pigeons around here, maybe one of them is him!` ];
+const PERCY_NUDGE_SEARCH = [ `Keep saying hello to the pigeons, one of them might be my friend!` ];
 const PERCY_GIVEUP = [
   `No luck? Hmm… let me think harder.`,
   `The last time I saw him… goodness, it was AGES ago. Around 1690, maybe?`,
-  `…and his name — it started with a "D". Does that help, Rachel?` ];
+  `…and his name, it started with a "D". Does that help, Rachel?` ];
 const PERCY_NUDGE_DOODLES = [ `A name starting with "D"… from way back in 1690… go find him, Rachel! I'll wait here.` ];
 const PERCY_REUNION = [
-  `…Doodles? DOODLES! Oh — it's really you! 🥹`,
+  `…Doodles? DOODLES! Oh, it's really you! 🥹`,
   `I thought I'd lost you forever, old friend.`,
-  `Rachel — you brought my family back to me. I could never thank you enough. 🤍`,
+  `Rachel, you brought my family back to me. I could never thank you enough. 🤍`,
   `Now: hop on my back and hold tight. I know EXACTLY where Bred is!` ];
 
 const plazaQuest = { phase:'intro', step:0, decoyHolders:[], active:null, doodles:null, talkingPigeon:null };
@@ -2353,8 +2359,10 @@ her.userData = {
 scene.add(her);
 let herMixer = null, herWalkAction = null, herRunAction = null, herIdleAction = null, herUsingFallback = false;
 let herJumpLaunchAction = null, herJumpSoarAction = null, herJumpLandAction = null, herLandFallGetUpAction = null;
+let herWinterGroup = null;
 loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
   her.add(gltf.scene);
+  herWinterGroup = gltf.scene;
   gltf.scene.position.y = HER_MODEL_LIFT;   // lift so her feet rest ON the surface (idle root sinks otherwise)
   herMixer = new THREE.AnimationMixer(gltf.scene);
   const walkClip = gltf.animations.find((a) => a.name === 'Walk');
@@ -2416,9 +2424,46 @@ loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
   Object.assign(her.userData, fallback.userData);   // keep the same object identity
   herUsingFallback = true;
 });
+// She wears a summer version of herself in the Garden (the finale world) —
+// a second skinned model + mixer loaded in parallel, hidden/idle until
+// curI reaches GARDEN_I. Only Idle/Walk exist for her there (no jump clips
+// needed — nothing launches her onward again from the very last world).
+let herSummerGroup = null, herSummerMixer = null, herSummerIdleAction = null, herSummerWalkAction = null;
+loadModelFull('./game-assets/beanie/beanie_summer.glb').then((gltf) => {
+  her.add(gltf.scene);
+  herSummerGroup = gltf.scene;
+  herSummerGroup.visible = false;
+  gltf.scene.position.y = HER_MODEL_LIFT;
+  herSummerMixer = new THREE.AnimationMixer(gltf.scene);
+  const idleClip = gltf.animations.find((a) => a.name === 'Idle');
+  const walkClip = gltf.animations.find((a) => a.name === 'Walk');
+  if (idleClip){
+    herSummerIdleAction = herSummerMixer.clipAction(idleClip);
+    herSummerIdleAction.setLoop(THREE.LoopRepeat);
+    herSummerIdleAction.play();
+    herSummerIdleAction.setEffectiveWeight(1);
+  }
+  if (walkClip){
+    herSummerWalkAction = herSummerMixer.clipAction(walkClip);
+    herSummerWalkAction.setLoop(THREE.LoopRepeat);
+    herSummerWalkAction.play();
+    herSummerWalkAction.setEffectiveWeight(0);
+  }
+}).catch((err) => {
+  // if this fails to load, animBeanieSkinned() just keeps showing the
+  // winter model everywhere, including the Garden — a quiet, safe fallback.
+  console.error('Summer beanie model failed to load', err);
+});
 function animBeanieSkinned(dt){
-  if (!herMixer) return;
-  herMixer.update(dt);
+  // Which model is visible/animated: summer once she's in the Garden AND
+  // that model actually loaded, winter everywhere else (and as the
+  // fallback if summer never loaded).
+  const showSummer = curI === GARDEN_I && herSummerGroup;
+  if (herWinterGroup) herWinterGroup.visible = !showSummer;
+  if (herSummerGroup) herSummerGroup.visible = showSummer;
+  const mixer = showSummer ? herSummerMixer : herMixer;
+  if (!mixer) return;
+  mixer.update(dt);
   if (state === 'fly') return;      // updateJumpAnim() drives Launch/Soar/Land weights directly
   if (state === 'landing') return;  // updateLandingAnim() drives the fall/get-up crossfade directly
   if (herJumpLaunchAction) herJumpLaunchAction.setEffectiveWeight(0);
@@ -2431,23 +2476,20 @@ function animBeanieSkinned(dt){
   const run = moving && u.running;
   if (moving) u.walkP += dt*(run ? 31.5 : 21);   // footstep cadence follows walk/run
   const walkTarget = moving ? 1 : 0;
-  // Walk clip when walking; Run clip when running (falls back to the walk clip
-  // sped up if the run clip isn't present in the glb).
-  if (herWalkAction){
-    const walkW = (moving && !run) ? 1 : 0;
-    const w = herWalkAction.getEffectiveWeight();
-    herWalkAction.setEffectiveWeight(w + (walkW - w) * Math.min(1, dt*8));
-    herWalkAction.timeScale = (u.movingBackward ? -1 : 1) * (herRunAction ? 1 : (run ? 1.5 : 1)) * 2;
+  const walkAction = showSummer ? herSummerWalkAction : herWalkAction;
+  const idleAction = showSummer ? herSummerIdleAction : herIdleAction;
+  // Always the walk clip, just sped up while running (Shift) — the separate
+  // Run clip's legs didn't actually cycle correctly, so holding Shift made
+  // her glide with static legs instead of visibly moving faster.
+  if (herRunAction) herRunAction.setEffectiveWeight(0);
+  if (walkAction){
+    const w = walkAction.getEffectiveWeight();
+    walkAction.setEffectiveWeight(w + (walkTarget - w) * Math.min(1, dt*8));
+    walkAction.timeScale = (u.movingBackward ? -1 : 1) * (run ? 1.5 : 1) * 2;
   }
-  if (herRunAction){
-    const runW = (moving && run) ? 1 : 0;
-    const w = herRunAction.getEffectiveWeight();
-    herRunAction.setEffectiveWeight(w + (runW - w) * Math.min(1, dt*8));
-    herRunAction.timeScale = (u.movingBackward ? -1 : 1) * 1.5;
-  }
-  if (herIdleAction){
-    const w = herIdleAction.getEffectiveWeight();
-    herIdleAction.setEffectiveWeight(w + ((1 - walkTarget) - w) * Math.min(1, dt*8));
+  if (idleAction){
+    const w = idleAction.getEffectiveWeight();
+    idleAction.setEffectiveWeight(w + ((1 - walkTarget) - w) * Math.min(1, dt*8));
   }
 }
 function updateJumpAnim(e){        // e: 0..1 flight progress — crossfade the leap pose
@@ -2820,6 +2862,11 @@ function startLandingSequence(bi){
   updatePose();
   state = 'landing';
   camYaw = 0;
+  // the walk-only guide chip (find X - N steps away) doesn't get refreshed
+  // during 'landing' (updateWalk isn't called), so without this it just sat
+  // frozen on screen, from the world she left, straight through the new
+  // planet's title reveal.
+  guideEl.classList.remove('show');
   if (herLandFallGetUpAction) herLandFallGetUpAction.reset().play();
   landing = { bi, phase:'fallgetup', t:0 };
 }
@@ -2836,6 +2883,11 @@ function updateLanding(dt){
       const b = bodies[landing.bi];
       planetTitleNameEl.textContent = `${b.emoji} ${b.name}`;
       planetTitleEl.classList.add('show');
+      // force the reveal animation to restart every time (see .play's CSS
+      // comment) — remove, force a reflow, then re-add.
+      planetTitleNameEl.classList.remove('play');
+      void planetTitleNameEl.offsetWidth;
+      planetTitleNameEl.classList.add('play');
     }
   } else if (landing.phase === 'orbit'){
     const k = Math.min(1, landing.t/2.4);           // ease from the close-up into the wide shot
@@ -2906,7 +2958,7 @@ function arrive(bi){
 let percyNear = false, percyFly = null, chippyNear = false, bbakNear = false, plazaNear = false, pickTarget = null;
 const PERCY_LINES = [
   `Coo! Rachel… you found me. I have been waiting ALL day!`,
-  'The other pigeons talk too much. *flap flap* Anyway —',
+  'The other pigeons talk too much. *flap flap* Anyway…',
   'There is one more world out there, and somebody set it up just for you.',
   'Hop on my back and hold tight! 🕊️',
 ];
@@ -3234,8 +3286,8 @@ function updateWalk(dt){
     const d = her.position.distanceTo(npc);
     const near = d < (bg.guideNear || 4);
     guideLabelEl.innerHTML = near
-      ? `<span class="near">${bg.guideLabel} — right here! press SPACE</span>`
-      : `${bg.guideLabel} — ${Math.round(d)} steps away`;
+      ? `<span class="near">${bg.guideLabel}, right here! press SPACE</span>`
+      : `${bg.guideLabel}, ${Math.round(d)} steps away`;
     if (near){
       guideArrowEl.style.opacity = 0;
     } else {
@@ -3285,7 +3337,7 @@ function updateWalk(dt){
     promptEl.classList.add('show');
   } else if (percyNear){
     promptEl.textContent = plazaQuest.phase === 'bring-doodles'
-      ? '🕊️ press SPACE — bring Doodles to Percy'
+      ? '🕊️ press SPACE, bring Doodles to Percy'
       : '🕊️ press SPACE to talk to Percy';
     promptEl.classList.add('show');
   } else if (pickTarget){
@@ -3358,11 +3410,11 @@ function showBookPop(color, title){
 
 /* ---------- Chicago intro: Bred's messenger pigeon + letter ---------- */
 const CHICAGO_LETTER_LINES = [
-  `Coo! Rachel? …Rachel! Oh good — I found you. *pant pant*`,
+  `Coo! Rachel? …Rachel! Oh good, I found you. *pant pant*`,
   `I flew a LONG way. I have something for you… a letter. 💌 It's from Bred.`,
   `He couldn't FaceTime today, so he wrote this instead:`,
-  `"Beanie — I built you a little universe. Every world is something you love. Leap across them all and follow them to the very end…"`,
-  `"…and I'll be waiting for you there. Come find me. 🤍 — Bred"`,
+  `"Beanie, I built you a little universe. Every world is something you love. Leap across them all and follow them to the very end…"`,
+  `"…and I'll be waiting for you there. Come find me. 🤍 Bred"`,
   `So don't stop, okay? Aim at the next little world and leap. Off you go!`,
 ];
 let chicagoMessenger = null;
@@ -3614,6 +3666,9 @@ window.__world = {
     });
     out.idleWeight = herIdleAction ? +herIdleAction.getEffectiveWeight().toFixed(3) : null;
     out.walkWeight = herWalkAction ? +herWalkAction.getEffectiveWeight().toFixed(3) : null;
+    out.summerIdleWeight = herSummerIdleAction ? +herSummerIdleAction.getEffectiveWeight().toFixed(3) : null;
+    out.summerWalkWeight = herSummerWalkAction ? +herSummerWalkAction.getEffectiveWeight().toFixed(3) : null;
+    out.showingSummer = !!(herSummerGroup && herSummerGroup.visible);
     return out;
   },
   couchWorldPos(){
@@ -3622,7 +3677,7 @@ window.__world = {
   couchCharWorldPos(who){          // who: 'bred' | 'percy' | 'chippyPlush'
     return worldRefs.garden ? worldRefs.garden[who].getWorldPosition(new THREE.Vector3()).toArray() : null;
   },
-  camDebug(){ return { camYaw, camPitch, camDist, moving: her.userData.moving, locked: cameraLookLocked(), dragging, idleTime, hintShowing: !hintEl.classList.contains('hidden') }; },
+  camDebug(){ return { camYaw, camPitch, camDist, moving: her.userData.moving, locked: cameraLookLocked(), dragging, idleTime, hintShowing: !hintEl.classList.contains('hidden'), state, introLocked, curI }; },
   talkDebug(){
     const npc = dialog && dialog.npcPos ? dialog.npcPos() : null;
     let extra = {};
