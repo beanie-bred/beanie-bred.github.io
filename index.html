@@ -85,6 +85,41 @@
   #muteBtn{position:fixed;top:16px;right:16px;z-index:20;width:40px;height:40px;border-radius:50%;
     border:1px solid rgba(255,255,255,.18);background:rgba(30,32,64,.5);backdrop-filter:blur(8px);
     color:#fff;font-size:17px;cursor:pointer}
+
+  /* ---------- journal / sticker collection ---------- */
+  #journalBtn{position:fixed;top:16px;right:64px;z-index:20;width:40px;height:40px;border-radius:50%;
+    border:1px solid rgba(255,255,255,.18);background:rgba(30,32,64,.5);backdrop-filter:blur(8px);
+    color:#fff;font-size:18px;cursor:pointer}
+  #journalPanel{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;
+    background:rgba(20,18,40,.55);backdrop-filter:blur(6px);opacity:0;pointer-events:none;
+    transition:opacity .3s ease}
+  #journalPanel.show{opacity:1;pointer-events:auto}
+  #journalCard{background:linear-gradient(#fffdf8,#fbf3ea);color:#43364f;border-radius:24px;
+    padding:30px 32px;max-width:520px;width:88vw;max-height:82vh;overflow-y:auto;text-align:center;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);transform:scale(.92) translateY(16px);
+    transition:transform .3s ease}
+  #journalPanel.show #journalCard{transform:scale(1) translateY(0)}
+  #journalTitle{font-size:22px;font-weight:700;color:#8a5a3a;margin-bottom:4px}
+  #journalCount{font-size:13px;color:#8a7a95;margin-bottom:18px}
+  #journalGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .journalSticker{aspect-ratio:1;border-radius:14px;background:rgba(120,100,140,.1);
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    border:2px dashed rgba(120,100,140,.25);font-size:22px;color:rgba(120,100,140,.4)}
+  .journalSticker.got{border:2px solid rgba(255,209,102,.7);background:#fff;
+    box-shadow:0 4px 14px rgba(0,0,0,.12)}
+  .journalSticker.got img{width:100%;height:100%;object-fit:cover}
+  #journalClose{margin-top:20px;border:none;cursor:pointer;padding:10px 24px;border-radius:999px;
+    font-size:13px;color:#fff;background:linear-gradient(135deg,#ff8fae,#e8547c)}
+  /* "met a new friend" toast — like #toast but with a sticker thumbnail */
+  #friendToast{position:fixed;top:76px;left:50%;transform:translateX(-50%) translateY(-8px);z-index:23;
+    display:flex;align-items:center;gap:12px;padding:10px 22px 10px 12px;border-radius:999px;
+    background:rgba(30,32,64,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,224,138,.5);
+    opacity:0;transition:opacity .5s,transform .5s;pointer-events:none}
+  #friendToast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #friendToastImg{width:40px;height:40px;border-radius:10px;object-fit:cover;
+    box-shadow:0 0 12px rgba(255,209,102,.6)}
+  #friendToastText{font-size:13px;color:#dbe7ff;text-align:left;line-height:1.3}
+  #friendToastText b{color:var(--gold);font-size:15px}
   #hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:20;
     font-size:12.5px;color:#cfd8f0;white-space:nowrap}
   #reticle{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:19;
@@ -116,15 +151,18 @@
 
   /* ---------- planet-arrival title card (wide establishing orbit shot) ---------- */
   #planetTitle{position:fixed;inset:0;z-index:26;display:flex;flex-direction:column;
-    align-items:center;justify-content:flex-start;padding-top:14vh;gap:22px;pointer-events:none;
+    align-items:center;justify-content:flex-start;padding-top:11vh;gap:8px;pointer-events:none;
     opacity:0;transition:opacity 1.1s ease;
     background:radial-gradient(ellipse at center,rgba(10,12,28,.16) 0%,rgba(10,12,28,.05) 55%,transparent 80%)}
   #planetTitle.show{opacity:1;pointer-events:auto;cursor:pointer}
   /* big, "epic movie transition" title reveal: starts oversized/spread/blurred
-     and converges into place. Sized to fill most of the available width —
-     fitPlanetTitleOneLine() (JS) shrinks it back down only if a given font/
-     name combo would otherwise overflow or wrap. */
-  #planetTitleName{--tls:6px;font-size:clamp(64px,15vw,240px);font-weight:800;color:#fff;
+     and converges into place. Sized to fill almost the entire top of the
+     screen with near-zero whitespace — fitPlanetTitleOneLine() (JS) shrinks
+     it back down only if a given font/name combo would otherwise overflow or
+     wrap, and padding-top is kept low enough that she's always fully visible
+     below it (verified against Chicago's tight orbit, the closest framing
+     any world's arrival title ever gets). */
+  #planetTitleName{--tls:6px;font-size:clamp(80px,24vw,260px);font-weight:800;color:#fff;
     text-transform:uppercase;letter-spacing:var(--tls);white-space:nowrap;
     text-shadow:0 0 10px rgba(0,0,0,.5),0 3px 10px rgba(0,0,0,.35);
     opacity:0}
@@ -217,6 +255,16 @@
 <div id="foodPocket"><div id="foodPocketIcon"></div><div id="foodPocketLabel"></div></div>
 <div id="dots" class="hidden"></div>
 <button id="muteBtn" class="hidden">🔊</button>
+<button id="journalBtn" class="hidden" title="Beanie's journal">📔</button>
+<div id="journalPanel" class="hidden">
+  <div id="journalCard">
+    <div id="journalTitle">📔 Beanie's Journal</div>
+    <div id="journalCount"></div>
+    <div id="journalGrid"></div>
+    <button id="journalClose">close ✕</button>
+  </div>
+</div>
+<div id="friendToast"><img id="friendToastImg"/><div id="friendToastText">met a new friend!<br><b id="friendToastName"></b></div></div>
 <div id="hint" class="chip hidden">↑ ↓ ← → walk · cursor drag / trackpad swipe to look · SPACE leap / talk</div>
 <div id="reticle" class="hidden"></div>
 <div id="prompt">✨ press SPACE to leap! ✨</div>
@@ -1046,15 +1094,41 @@ function fillCucumber(g, scale){
   c.scale.setScalar(scale);
   g.add(c);
 }
+// The planetary cucumber RING needs thousands of cucumbers to read as dense —
+// far too many to give each its own cloned Object3D/Mesh hierarchy (a real
+// draw-call/perf risk). Instead we pull one geometry+material out of the
+// loaded model once and drive every ring cucumber off a single
+// THREE.InstancedMesh per band. Falls back to a plain capsule if the model
+// never loads, so the ring is never silently empty.
+let cucumberGeo = null, cucumberMat = null;
+const pendingRingBuilds = [];
+function runPendingRingBuilds(){
+  for (const build of pendingRingBuilds) build();
+  pendingRingBuilds.length = 0;
+}
 loadModel('./game-assets/cucumber/cucumber.glb').then((model) => {
   cucumberModel = model;
+  // Bake each mesh's full transform chain (relative to the model root) into
+  // the geometry itself — the individually-cloned cucumbers elsewhere get
+  // this for free via the Group hierarchy, but a bare InstancedMesh using
+  // the raw geometry would otherwise drop any offset/rotation baked into the
+  // glTF's own node hierarchy and render every ring cucumber mis-oriented.
+  model.updateMatrixWorld(true);
+  model.traverse((o) => { if (o.isMesh && !cucumberGeo){
+    cucumberGeo = o.geometry.clone().applyMatrix4(o.matrixWorld);
+    cucumberMat = o.material;
+  } });
   for (const { group, scale } of pendingCucumbers) fillCucumber(group, scale);
   pendingCucumbers.length = 0;
+  runPendingRingBuilds();
 }).catch((err) => {
   console.error('Cucumber model failed to load, using procedural fallback', err);
   for (const { group, scale } of pendingCucumbers) group.add(makeCucumberProc(scale));
   pendingCucumbers.length = 0;
   cucumberModel = false; // mark failed so later calls fall back too
+  cucumberGeo = new THREE.CapsuleGeometry(0.3, 1.5, 6, 14);
+  cucumberMat = mat(0x3a7a3a, { roughness:0.7 });
+  runPendingRingBuilds();
 });
 function makeCucumber(scale=1){
   const g = new THREE.Group();
@@ -1219,9 +1293,18 @@ function buildChicago(g, R){
   });
   placeOn(g, tower, topN, R);
   addCollider(colliders, topN, 1.4, R);   // tower footprint (widest tier ~2.0 wide)
+  // Must match CHICAGO_START_N below (declared later in the file, so it can't
+  // be referenced directly here — buildChicago() runs before that const is
+  // initialized). Keeps the random skyline blocks from ever landing in her
+  // fixed spot and reading as her body merging into a building.
+  const beanieSpotN = V().set(0.48, 0.86, 0.18).normalize();
   // gray blocky skyline
   for (let i = 0; i < 9; i++){
-    const n = dirNear(topN, 0.5 + Math.random()*0.4);
+    let n;
+    for (let tries = 0; tries < 20; tries++){
+      n = dirNear(topN, 0.5 + Math.random()*0.4);
+      if (n.dot(beanieSpotN) < 0.8) break;   // ~37° clearance from her spot
+    }
     const w = 0.7 + Math.random()*0.8, hh = 1.1 + Math.random()*1.8;
     const b = new THREE.Group();
     const box = new THREE.Mesh(new THREE.BoxGeometry(w, hh, w),
@@ -1434,51 +1517,83 @@ function buildCucumber(g, R){
   // ready to be revealed by startCukeRevealCutscene() once bbak's final
   // hint lands. Both share the same tilt so the swap reads as one object.
   const RING_TILT_X = 1.15, RING_TILT_Z = 0.22;
+  // Saturn-style: a real, unmistakable gap between the planet's surface and
+  // the ring's inner edge — the previous version's base radius was never
+  // pushed out far enough to compensate for its tube/band size, so the ring
+  // actually sank into the planet's own surface. Both bands' inner edge now
+  // sits at R+13.5 (planet radius 22.5 → a 13.5-unit gap), well clear at
+  // every point around the orbit. Dark, saturated forest green (not
+  // PALETTE.moss, which is a pale sage that blended straight into the grass).
+  const RING_DARK_GREEN = 0x1f4d29;
   const solidRing = new THREE.Group();
   solidRing.rotation.x = RING_TILT_X; solidRing.rotation.z = RING_TILT_Z;
-  const solidMat = mat(PALETTE.moss, { roughness:0.65, emissive:PALETTE.moss, emissiveIntensity:0.1 });
-  const solidTorus = new THREE.Mesh(new THREE.TorusGeometry(R + 6.3, 9.5, 16, 96), solidMat);
-  solidTorus.scale.y = 0.3;   // flatten the tube into a wide, flat band instead of a chunky round tube
+  const solidMat = mat(RING_DARK_GREEN, { roughness:0.6, emissive:RING_DARK_GREEN, emissiveIntensity:0.12 });
+  // base radius 46.5, tube 12.5 → inner edge 34 / outer edge 59, spanning the
+  // same footprint as the two real cucumber bands below so the reveal swap
+  // reads as one continuous object, not a resize.
+  const solidTorus = new THREE.Mesh(new THREE.TorusGeometry(46.5, 12.5, 16, 96), solidMat);
+  solidTorus.scale.y = 0.22;   // flat, low-profile band instead of a chunky round tube
   solidRing.add(solidTorus);
   g.add(solidRing);
   let solidSpinScale = 1;
   animators.push((t, dt) => { solidRing.rotation.y += 0.22*dt*solidSpinScale; });
 
   // A big planetary RING of cucumbers circling the world, like Saturn's rings —
-  // lots of them, tilted, tumbling as the whole band slowly orbits the planet.
-  // 4x thicker + 3x wider (radial band) than the original, per Justin — hidden
+  // thousands of them, tilted, tumbling as the whole band slowly orbits the
+  // planet. ~5x denser than the previous pass (520/280 → 2600/1400) — driven
+  // through a single THREE.InstancedMesh per band (see cucumberGeo/
+  // runPendingRingBuilds above) rather than one cloned Object3D per cucumber,
+  // since that many individual draw calls would tank the frame rate. Hidden
   // until the reveal cutscene swaps it in for the solid ring above.
   const cukeRingGroups = [];
   const buildRing = (count, ringR, tiltX, tiltZ, spin, band=1.4, thick=1.0) => {
-    const ring = new THREE.Group();
-    ring.rotation.x = tiltX; ring.rotation.z = tiltZ;
-    ring.visible = false;
-    g.add(ring);
-    const members = [];
-    for (let i = 0; i < count; i++){
-      const a = (i / count) * Math.PI * 2 + Math.random()*0.04;
-      const c = makeCucumber(0.6 + Math.random()*0.5);
-      const rr = ringR + (Math.random()-0.5)*band;      // radial spread = ring width
-      const baseY = (Math.random()-0.5)*thick;           // ring thickness
-      c.position.set(Math.cos(a)*rr, baseY, Math.sin(a)*rr);
-      c.rotation.y = -a + Math.PI/2 + (Math.random()-0.5)*0.6;  // lie roughly along the ring
-      c.rotation.x = (Math.random()-0.5)*0.7;
-      c.rotation.z = (Math.random()-0.5)*0.7;
-      ring.add(c);
-      members.push({ c, baseY, spin:(Math.random()-0.5)*0.7, ph:Math.random()*7 });
-    }
-    animators.push((t, dt) => {
-      ring.rotation.y += spin*dt;                         // the whole ring orbits the planet
-      for (const m of members){
-        m.c.rotation.x += m.spin*dt*0.5;                  // gentle individual tumble
-        m.c.position.y = m.baseY + Math.sin(t*0.6 + m.ph)*0.18;  // soft bob within the band
+    const holder = new THREE.Group();
+    holder.rotation.x = tiltX; holder.rotation.z = tiltZ;
+    holder.visible = false;
+    g.add(holder);
+    cukeRingGroups.push(holder);
+    const build = () => {
+      const im = new THREE.InstancedMesh(cucumberGeo, cucumberMat, count);
+      im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      const members = [];
+      const dummy = new THREE.Object3D();
+      for (let i = 0; i < count; i++){
+        const a = (i / count) * Math.PI * 2 + Math.random()*0.04;
+        const rr = ringR + (Math.random()-0.5)*band;        // radial spread = ring width
+        const baseY = (Math.random()-0.5)*thick;             // ring thickness
+        const scale = 0.6 + Math.random()*0.5;
+        const rotY = -a + Math.PI/2 + (Math.random()-0.5)*0.6;   // lie roughly along the ring
+        const rotX = (Math.random()-0.5)*0.7;
+        const rotZ = (Math.random()-0.5)*0.7;
+        members.push({ a, rr, baseY, scale, rotX, rotY, rotZ, spin:(Math.random()-0.5)*0.7, ph:Math.random()*7 });
+        dummy.position.set(Math.cos(a)*rr, baseY, Math.sin(a)*rr);
+        dummy.rotation.set(rotX, rotY, rotZ);
+        dummy.scale.setScalar(scale);
+        dummy.updateMatrix();
+        im.setMatrixAt(i, dummy.matrix);
       }
-    });
-    cukeRingGroups.push(ring);
-    return ring;
+      holder.add(im);
+      animators.push((t, dt) => {
+        if (!holder.visible) return;
+        holder.rotation.y += spin*dt;                         // the whole ring orbits the planet
+        for (let i = 0; i < count; i++){
+          const m = members[i];
+          m.rotX += m.spin*dt*0.5;                            // gentle individual tumble
+          const y = m.baseY + Math.sin(t*0.6 + m.ph)*0.18;     // soft bob within the band
+          dummy.position.set(Math.cos(m.a)*m.rr, y, Math.sin(m.a)*m.rr);
+          dummy.rotation.set(m.rotX, m.rotY, m.rotZ);
+          dummy.scale.setScalar(m.scale);
+          dummy.updateMatrix();
+          im.setMatrixAt(i, dummy.matrix);
+        }
+        im.instanceMatrix.needsUpdate = true;
+      });
+    };
+    if (cucumberGeo) build(); else pendingRingBuilds.push(build);
+    return holder;
   };
-  buildRing(520, R + 5.4, RING_TILT_X, RING_TILT_Z,  0.16, 14, 2.2);   // main ring: even wider band, flatter
-  buildRing(280, R + 7.2, RING_TILT_X, RING_TILT_Z,  0.11, 10.5, 1.6); // outer thinner ring: even wider band, flatter
+  buildRing(2600, 42, RING_TILT_X, RING_TILT_Z,  0.16, 16, 2.2);   // main ring: inner 34 / outer 50
+  buildRing(1400, 54, RING_TILT_X, RING_TILT_Z,  0.11, 10, 1.6);   // outer ring: inner 49 / outer 59
   // some cucumbers resting in the grass — hidden until the reveal, same as the ring
   const groundCucumberHolders = [];
   for (let i = 0; i < 90; i++){
@@ -2023,6 +2138,7 @@ refreshBooksGuide();
 function talkChippy(){
   const npc = { npcPos: () => chippyPos(), speaker:'🐿️ Chippy', npcObj: worldRefs.books.chippy };
   if (booksQuest.phase === 0){
+    meetFriend('chippy');
     startDialog(CHIPPY_ASK_LINES, () => { booksQuest.phase = 1; refreshBooksGuide(); }, npc);
   } else if (booksQuest.phase === 1 && booksQuest.got < booksQuest.need){
     startDialog(CHIPPY_NEED_MORE, null, npc);
@@ -2184,7 +2300,7 @@ function pickupCuke(){
 }
 function talkBbak(){
   const npc = { npcPos: () => bbakPos(), speaker:'🐻‍❄️ bbak', npcObj: worldRefs.cucumber.bbak };
-  if (bbakQuest.phase === 0){ startDialog(BBAK_INTRO, () => { bbakQuest.phase = 1; refreshBbakGuide(); }, npc); return; }
+  if (bbakQuest.phase === 0){ meetFriend('bbak'); startDialog(BBAK_INTRO, () => { bbakQuest.phase = 1; refreshBbakGuide(); }, npc); return; }
   if (bbakQuest.phase >= 2) return;
   const h = bbakQuest.holding;
   if (!h){ startDialog([`Bring me something cold, please… anything! 🥵`], null, npc); return; }
@@ -2404,6 +2520,7 @@ function talkPercy(){
   const npc = { npcPos: () => percyWorldPos(new THREE.Vector3()), speaker:'Percy 🕊️',
     npcObj: worldRefs.pigeon.percyHolder };
   if (plazaQuest.phase === 'intro'){
+    meetFriend('percy');
     startDialog(PERCY_INTRO, () => { plazaQuest.step = 0; spawnNextDecoy(); }, npc); return;
   }
   if (plazaQuest.phase === 'searching'){ startDialog(PERCY_NUDGE_SEARCH, null, npc); return; }
@@ -2420,6 +2537,7 @@ function talkActivePigeon(){
   const h = plazaTargetHolder(); if (!h) return;
   const cfg = h.userData.cfg;
   plazaQuest.talkingPigeon = h;
+  meetFriend(cfg.name);   // every plaza decoy and Doodles are each only ever "active" once
   const npc = { npcPos: () => h.getWorldPosition(new THREE.Vector3()), speaker: cfg.speaker, npcObj: h };
   if (plazaQuest.phase === 'seek-doodles'){
     startDialog(cfg.lines, () => { plazaQuest.talkingPigeon = null; plazaQuest.phase = 'bring-doodles'; refreshPlazaGuide(); }, npc);
@@ -2994,10 +3112,18 @@ function updateLanding(dt){
     // floor lowered from 18/7 so a tiny world like Chicago keeps a close,
     // "landmark right next to her" framing instead of pulling back so far
     // the nearby tower loses its dominance in frame.
-    const farDist = Math.max(10, Math.min(70, br*2.2));
-    const farHeight = Math.max(4, Math.min(30, br*0.95));
-    const dist = 9 + (farDist - 9)*k;
-    const height = 3.5 + (farHeight - 3.5)*k;
+    const isChicago = landing.bi === 0;
+    // Chicago's tower reaches ~8.7 world units above her (tall tower on a
+    // tiny r5.25 planet) — a 9-unit orbit radius swings the camera straight
+    // through the tower at some angles. Push Chicago's whole orbit out
+    // further so it clears the tower's full height at every angle, while
+    // every other world keeps the original close start.
+    const startDist = isChicago ? 13 : 9;
+    const startHeight = isChicago ? 5.5 : 3.5;
+    const farDist = isChicago ? Math.max(15, Math.min(70, br*2.2)) : Math.max(10, Math.min(70, br*2.2));
+    const farHeight = isChicago ? Math.max(7, Math.min(30, br*0.95)) : Math.max(4, Math.min(30, br*0.95));
+    const dist = startDist + (farDist - startDist)*k;
+    const height = startHeight + (farHeight - startHeight)*k;
     // Let her nudge the view during the cutscene instead of it being 100%
     // scripted — dragging already updates camYaw regardless of game state,
     // this just also wires up the arrow keys since normal input isn't read
@@ -3503,6 +3629,14 @@ const planetNameEl = document.getElementById('planetName');
 const planetTitleEl = document.getElementById('planetTitle');
 const planetTitleNameEl = document.getElementById('planetTitleName');
 const muteBtn = document.getElementById('muteBtn');
+const journalBtn = document.getElementById('journalBtn');
+const journalPanelEl = document.getElementById('journalPanel');
+const journalGridEl = document.getElementById('journalGrid');
+const journalCountEl = document.getElementById('journalCount');
+const journalCloseEl = document.getElementById('journalClose');
+const friendToastEl = document.getElementById('friendToast');
+const friendToastImgEl = document.getElementById('friendToastImg');
+const friendToastNameEl = document.getElementById('friendToastName');
 const reticleEl = document.getElementById('reticle');
 const dialogEl = document.getElementById('dialog');
 const dialogTextEl = document.getElementById('dialogText');
@@ -3518,13 +3652,21 @@ function showPlanetTitle(b){
   planetTitleNameEl.textContent = b.name;   // no emoji in the big cinematic title
   planetTitleNameEl.className = WORLD_FONT_CLASS[b.key] || '';
   planetTitleEl.classList.add('show');
-  // force the reveal animation to restart every time (see .play's CSS
-  // comment) — the class reset above already dropped 'play'; reflow, re-add.
-  void planetTitleNameEl.offsetWidth;
-  planetTitleNameEl.classList.add('play');
-  fitPlanetTitleOneLine();
+  // Size BEFORE the reveal animation starts playing. fitPlanetTitleOneLine()
+  // measures scrollWidth on the next frame — if the .play class (and its
+  // titleReveal keyframe, which opens at a huge letter-spacing:26px) is
+  // already applied by then, that transient animated letter-spacing inflates
+  // scrollWidth and over-shrinks the font before it ever settles to its real
+  // resting letter-spacing. Finish sizing at rest first, then trigger the
+  // animation on the frame after.
+  fitPlanetTitleOneLine(() => {
+    // force the reveal animation to restart every time (see .play's CSS
+    // comment) — the class reset above already dropped 'play'; reflow, re-add.
+    void planetTitleNameEl.offsetWidth;
+    planetTitleNameEl.classList.add('play');
+  });
 }
-function fitPlanetTitleOneLine(){
+function fitPlanetTitleOneLine(onDone){
   const el = planetTitleNameEl;
   el.style.fontSize = '';
   requestAnimationFrame(() => {
@@ -3535,6 +3677,7 @@ function fitPlanetTitleOneLine(){
       if (cur <= 28) break;
       el.style.fontSize = (cur - 4) + 'px';
     }
+    if (onDone) onDone();
   });
 }
 
@@ -3577,6 +3720,7 @@ const CHICAGO_LETTER_LINES = [
   `He couldn't FaceTime today, so he wrote this instead:`,
   `"Beanie, I built you a little universe. Every world is something you love. Leap across them all and follow them to the very end…"`,
   `"…and I'll be waiting for you there. Come find me. 🤍 Bred"`,
+  `Oh — almost forgot! He also sent this tiny notebook. 📔 Somewhere to keep records of things, he said, for whatever you find along the way.`,
   `So don't stop, okay? Aim at the next little world and leap. Off you go!`,
 ];
 let chicagoMessenger = null;
@@ -3635,6 +3779,8 @@ function startJourney(){
   // reveals it only after she's genuinely idle for a few seconds.
   muteBtn.classList.remove('hidden');
   reticleEl.classList.remove('hidden');
+  // the journal button itself only appears once the messenger's letter
+  // hands her the notebook (see CHICAGO_LETTER_LINES/startChicagoTitleCutscene)
   // #guide was missing from this reveal list entirely — its own show/hide
   // is driven by the 'show' class (opacity transition), but the base
   // 'hidden' utility class is `display:none !important`, which no amount
@@ -3667,6 +3813,7 @@ function startJourney(){
         setMission(bodies[0].mission);
         dismissChicagoMessenger();
         introLocked = false;
+        journalBtn.classList.remove('hidden');   // the notebook the letter just gave her
         startChicagoTitleCutscene();   // the same orbit+title reveal every other world gets, just delayed until after the letter
       }, { speaker:'🕊️ a breathless pigeon',
            npcPos: () => chicagoMessenger ? chicagoMessenger.pg.getWorldPosition(new THREE.Vector3()) : null });
@@ -3731,6 +3878,57 @@ muteBtn.addEventListener('click', () => {
   if (audio) audio.master.gain.value = muted ? 0 : 0.55;
 });
 
+/* ---------- journal / sticker collection ----------
+   Rachel loves journaling and stationery — the pigeon gives Beanie a tiny
+   notebook alongside Bred's letter in Chicago, and every character she meets
+   for the first time earns a matching sticker inside it. */
+const STICKER_FILES = {
+  chippy:'chippy sticker.png', bbak:'bbak sticker.png', percy:'percy sticker.png',
+  vanessa:'victoria sticker.png', nibbles:'nibbles sticker.png', alfred:'alfred sticker.png',
+  sam:'sam sticker.png', sunny:'sunny sticker.png', otto:'otto sticker.png',
+  mochi:'mochi sticker.png', buckle:'buckle sticker.png', doodles:'doodles sticker.png',
+};
+const STICKER_LABELS = { chippy:'Chippy', bbak:'bbak', percy:'Percy', vanessa:'Vanessa',
+  nibbles:'Nibbles', alfred:'Alfred', sam:'Sam', sunny:'Sunny', otto:'Otto', mochi:'Mochi',
+  buckle:'Buckle', doodles:'Doodles' };
+const STICKER_ORDER = ['chippy','bbak','percy','vanessa','nibbles','alfred','sam','sunny','otto','mochi','buckle','doodles'];
+function stickerURL(file){ return './stickers/' + encodeURIComponent(file); }
+let metFriends = new Set();
+try { metFriends = new Set(JSON.parse(localStorage.getItem('beanieMetFriends') || '[]')); } catch(err){}
+function saveMetFriends(){ try { localStorage.setItem('beanieMetFriends', JSON.stringify([...metFriends])); } catch(err){} }
+function meetFriend(key){
+  if (!STICKER_FILES[key] || metFriends.has(key)) return;   // only the first meeting earns the sticker
+  metFriends.add(key);
+  saveMetFriends();
+  showFriendToast(key);
+  renderJournal();
+}
+function showFriendToast(key){
+  friendToastImgEl.src = stickerURL(STICKER_FILES[key]);
+  friendToastNameEl.textContent = STICKER_LABELS[key];
+  friendToastEl.classList.add('show');
+  clearTimeout(showFriendToast._t);
+  showFriendToast._t = setTimeout(() => friendToastEl.classList.remove('show'), 3600);
+}
+function renderJournal(){
+  journalGridEl.innerHTML = '';
+  for (const key of STICKER_ORDER){
+    const cell = document.createElement('div');
+    const got = metFriends.has(key);
+    cell.className = 'journalSticker' + (got ? ' got' : '');
+    if (got){
+      const img = document.createElement('img'); img.src = stickerURL(STICKER_FILES[key]);
+      img.alt = STICKER_LABELS[key]; cell.appendChild(img);
+    } else cell.textContent = '?';
+    journalGridEl.appendChild(cell);
+  }
+  journalCountEl.textContent = `${metFriends.size} / ${STICKER_ORDER.length} friends met`;
+}
+renderJournal();
+journalBtn.addEventListener('click', () => { renderJournal(); journalPanelEl.classList.remove('hidden'); journalPanelEl.classList.add('show'); });
+journalCloseEl.addEventListener('click', () => journalPanelEl.classList.remove('show'));
+journalPanelEl.addEventListener('click', (e) => { if (e.target === journalPanelEl) journalPanelEl.classList.remove('show'); });
+
 /* ---------- shooting stars ---------- */
 let shootT = 5;
 function maybeShoot(dt){
@@ -3773,7 +3971,10 @@ function step(dt){
     const basisB = tmpV3.crossVectors(up, basisA).normalize();
     const angle = t*(Math.PI*2/LAND_ORBIT_DURATION);
     const dir = tmpV.copy(basisA).multiplyScalar(Math.cos(angle)).addScaledVector(basisB, Math.sin(angle));
-    camPos.copy(her.position).addScaledVector(up, 3.2).addScaledVector(dir, 9);
+    // Pulled out from 3.2/9 to 5.5/13 — Chicago's tower reaches ~8.7 world
+    // units above her, and the old tighter orbit swung the camera straight
+    // through the tower's geometry at some angles.
+    camPos.copy(her.position).addScaledVector(up, 5.5).addScaledVector(dir, 13);
     camUp.copy(up);
     camera.position.copy(camPos);
     camera.up.copy(camUp);

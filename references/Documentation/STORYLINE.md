@@ -38,10 +38,25 @@ walking here, but **the leap onward is gated** until she reads Bred's letter:
   orbit-and-reveal every other world gets on arrival, just deliberately
   delayed until after the letter (since she didn't "arrive" via a jump this
   first time). Camera framing matches the title screen: close orbit, tower
-  dominant beside her (orbit floor lowered from the default 18/7 down to
-  10/4 specifically so a tiny world like Chicago doesn't pull back so far
-  the tower loses its dominance in frame).
+  dominant beside her (orbit floor raised to 13/5.5 — was 9/3.2 — since the
+  tighter radius used to swing the camera straight through the tower's own
+  geometry; skyline decorations near her spawn point also now keep a minimum
+  clearance from her so none of them ever stand directly in front of her).
+- Alongside the letter, the messenger also hands her **a tiny notebook** —
+  "somewhere to keep records of things" — which is the journal/sticker system
+  (see **Journal & stickers** below) becoming available from this point on.
 - Font: **Oswald** (condensed sans, city/skyline feel).
+
+## Journal & stickers
+Rachel loves journaling and stationery, so from the Chicago letter onward a
+📔 button sits in the HUD beside the mute button. The first time Beanie talks
+to each named character — Chippy, bbak, Percy, and every Pigeon Plaza pigeon
+(Vanessa, Nibbles, Alfred, Sam, Sunny, Otto, Mochi, Buckle, Doodles) — a "met a
+new friend!" toast shows that character's real sticker artwork (from the
+`stickers/` folder) and adds it to the journal; meeting them again never
+re-triggers it. The journal button opens a grid of every collected sticker
+(uncollected ones show as a `?` placeholder) with a running count. Progress
+persists across page reloads via localStorage.
 
 ## World 2 — Main Stacks
 *(renamed from "Book Stacks" — this is the old library where Bred and
@@ -53,16 +68,19 @@ Beanie used to study together, back when.)* Pastel book towers everywhere.
 
 ## World 3 — Cucumber Meadow (starts as "Emerald Meadow")
 The big reveal world. She has **no idea it's cucumbers** until bbak tells her.
-- **On arrival she only ever sees:** a solid pastel-green ring circling the
-  planet (a plain torus, no individual cucumbers visible), ordinary grass,
-  and a scattering of random full-size foods (burgers, cake, donuts, pizza,
-  fries, ice cream) plus a handful of glowing "cold treat" pickups. The
-  planet displays as **"🌱 Emerald Meadow"** — deliberately vague, tag: "a
-  mysterious green ring circles overhead…". No cucumbers are visible on the
-  ground at all yet (`groundCucumberHolders` all start `visible:false`, and
-  the real cucumber-built ring — `cukeRingGroups`, hidden — sits underneath
-  the solid one the whole time, 4x thicker / 3x wider band than the
-  original single-ring design, ready to swap in).
+- **On arrival she only ever sees:** a solid dark-green ring circling the
+  planet, Saturn-style — a wide, flat, low-profile band sitting with a large,
+  unmistakable gap between its inner edge and the planet's surface (never
+  close to touching), ordinary grass, and a scattering of random full-size
+  foods (burgers, cake, donuts, pizza, fries, ice cream) plus a handful of
+  glowing "cold treat" pickups. The planet displays as **"🌱 Emerald
+  Meadow"** — deliberately vague, tag: "a mysterious green ring circles
+  overhead…". No cucumbers are visible on the ground at all yet
+  (`groundCucumberHolders` all start `visible:false`, and the real
+  cucumber-built ring — `cukeRingGroups`, hidden — sits underneath the solid
+  one the whole time, same wide gap and ~5x cucumber density versus the
+  original design, ready to swap in; both bands render through a single
+  `THREE.InstancedMesh` each rather than one Object3D per cucumber).
 - Find **bbak** (sleeping polar bear, overheating). Bring him a cold treat —
   he rejects each one with a food-specific reaction line. After his 4th
   rejection, he gives the final hint: *"It's green, and it's long. When I
@@ -128,8 +146,21 @@ hearts, then the card, then the game ends. (See ROADMAP.md task #42.)
   above per-world), plain name only (no emoji — the emoji still appears in
   the small HUD corner chip), forced to a **single line** via a shrink-to-
   fit pass (measures actual rendered width, steps the font-size down only if
-  a given name/font combo would otherwise wrap), sized to fill most of the
-  available width, with a **subtle** dark glow behind the letters (no gold
-  rule lines above/below — removed).
+  a given name/font combo would otherwise wrap), sized to fill almost the
+  entire top of the screen with near-zero surrounding whitespace while
+  keeping Beanie's full body visible below, with a **subtle** dark glow
+  behind the letters (no gold rule lines above/below — removed). The sizing
+  pass runs and settles *before* the reveal animation starts playing — it
+  used to run one frame after, which could catch the reveal keyframe's
+  transient huge letter-spacing mid-transition and over-shrink the title.
+
+## Chicago's tower orbit — clearance note
+The title-screen idle orbit, the post-letter arrival cutscene, and every
+other world's landing all share one orbit camera. Its radius must stay large
+enough that the camera never swings through solid geometry standing near
+Beanie's fixed spot — Chicago's tower is the tightest case (it reaches ~8.7
+world units above her on a tiny r5.25 planet), so if that camera's radius
+setup is ever retuned again, re-verify against Chicago specifically by
+sampling several full orbit angles, not just the resting frame.
 - **QA**: number keys 1–5 instantly warp to that world and force-clear every
   mission gate (`qaWarp()`), usable from the title screen or mid-dialogue.

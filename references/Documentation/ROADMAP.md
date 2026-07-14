@@ -1,4 +1,80 @@
 # ROADMAP
+- [x] 4am polish batch (2026-07-15): Chicago cutscene fix, bigger titles,
+      journal/sticker system, Saturn-style cucumber ring rework.
+      - **Chicago tower clipping fixed**: the arrival/title orbit camera
+        (shared by the title-screen idle orbit, the post-letter cutscene, and
+        every other world's landing) orbited at a fixed 9-unit radius around
+        Beanie — but Chicago's tower reaches ~8.7 world units above her (a
+        tall tower on a tiny r5.25 planet), so the camera swung straight
+        through the tower's geometry at some angles. Chicago's orbit now
+        starts at 13/5.5 (dist/height) instead of 9/3.2, easing out further
+        from there, clearing the tower at every angle. Also found and fixed a
+        second contributor: the 9 random gray skyline blocks near the tower
+        could spawn directly in Beanie's fixed spot (their spread radius
+        overlapped hers), occasionally standing right in front of her and
+        reading as her body merging into a building — they now retry their
+        spawn direction until they're ≥~37° clear of her spot.
+      - **Planet-arrival titles much bigger**: font clamp raised from
+        64–240px to 80–260px (24vw base, was 15vw), padding-top dropped
+        14vh→11vh, gap 22px→8px — titles now fill almost the entire top of
+        the screen with tight whitespace while Beanie's full body stays
+        clearly visible below. Verified across Chicago/Oswald, Main
+        Stacks/Playfair, Cucumber Meadow/Baloo 2 (both stages), Pigeon
+        Plaza/Bungee, and Garden/Cormorant Garamond.
+      - **Real bug found + fixed**: fitPlanetTitleOneLine()'s shrink-to-fit
+        measured scrollWidth on the very next animation frame after adding
+        the `.play` reveal class — catching the titleReveal keyframe's
+        transient `letter-spacing:26px` (its 0% state) mid-transition, which
+        massively inflated the measured width and over-shrunk the font (seen
+        shrinking "Cucumber Meadow" all the way down to 36px instead of its
+        intended ~192px). This was likely the real cause behind titles
+        occasionally reading as missing/illegible. Fixed by sizing the title
+        to rest BEFORE adding the `.play` class, so the reveal animation only
+        ever starts once the font-size is already final.
+      - **Verified every world's arrival title fires correctly**, including
+        Main Stacks specifically (the one the previous session flagged as
+        maybe-missing) and both of Cucumber Meadow's stages (pre-reveal
+        "Emerald Meadow" and post-reveal "Cucumber Meadow").
+      - **New: journal + sticker collection system.** Rachel loves journaling
+        and stationery, so the messenger pigeon now also hands Beanie a tiny
+        notebook right after Bred's letter in Chicago ("somewhere to keep
+        records of things"), which reveals a new 📔 HUD button beside the
+        mute button. The very first time she talks to each named character
+        (Chippy, bbak, Percy, and every Pigeon Plaza pigeon — Vanessa,
+        Nibbles, Alfred, Sam, Sunny, Otto, Mochi, Buckle, Doodles) shows a
+        "met a new friend!" toast with that character's real sticker artwork
+        (from the new `stickers/` folder) and adds it to her journal; talking
+        again never re-triggers it. The journal button opens a simple grid
+        modal showing every collected sticker plus `?` placeholders for
+        characters not yet met, with a live "N / 12 friends met" count.
+        Progress persists across reloads via localStorage. Verified end-to-
+        end: talked to Chippy in a fresh session, got the toast + sticker,
+        confirmed it persisted after a page reload and shows correctly in the
+        journal grid.
+      - **Cucumber Meadow ring completely reworked** — the previous pass's
+        "wider + flatter" change (see the entry below) had increased the
+        solid ring's tube radius without moving its base radius outward to
+        compensate, so its inner edge actually sank below the planet's own
+        surface radius: it visually intersected the planet. Rebuilt from
+        scratch as a proper Saturn-style ring: dark saturated forest green
+        (`#1f4d29`, replacing the pale `PALETTE.moss` that blended into the
+        grass) for the solid pre-reveal ring; both the solid ring and the
+        real cucumber ring's two bands now have their inner edge at
+        R+13.5 — a large, obvious, unmistakable gap from the planet at every
+        point around the orbit, verified visually from multiple camera
+        distances/angles. Cucumber density raised ~5x (520/280 → 2600/1400
+        cucumbers across the two bands); since that many individual cloned
+        Object3D cucumbers would have been a real frame-rate risk, the ring
+        now drives each band off a single `THREE.InstancedMesh` built from
+        the loaded cucumber model's geometry (baked to world-space so per-
+        instance orientation still matches the individually-cloned ground
+        cucumbers elsewhere), cutting per-band draw calls from hundreds down
+        to one. Re-ran the full bbak quest + reveal cutscene end-to-end:
+        solid ring never touches the planet pre-reveal, the reveal swap still
+        works, the real cucumber ring never touches the planet post-reveal
+        either, and it reads as a dense, dark green, clearly Saturn-like band
+        from every angle tested.
+      - Zero console errors across every verification pass above.
 - [x] Ring made wider + flatter (2026-07-14 follow-up): solid mystery-ring
       torus tube radius 6.6→9.5 with scale.y=0.3 (flattens the round tube
       into a wide flat band instead of a chunky donut); revealed cucumber
