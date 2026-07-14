@@ -48,6 +48,18 @@
     color:#dbe7ff;opacity:0;transition:opacity .4s,transform .4s;pointer-events:none}
   #guide.show{opacity:1;transform:translateX(-50%) translateY(0)}
   #guide .near{color:#a8f0c0}
+  #bookpop{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-14px) scale(.96);
+    z-index:24;display:flex;gap:14px;align-items:center;padding:12px 20px 12px 14px;border-radius:16px;
+    background:rgba(30,32,64,.72);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.22);
+    box-shadow:0 10px 40px rgba(0,0,0,.35);opacity:0;pointer-events:none;
+    transition:opacity .35s ease,transform .35s ease}
+  #bookpop.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+  #bookpopCover{position:relative;width:46px;height:62px;border-radius:4px 7px 7px 4px;flex:0 0 auto;
+    box-shadow:0 4px 14px rgba(0,0,0,.4),inset 0 0 0 2px rgba(255,255,255,.25)}
+  #bookpopSpine{position:absolute;left:5px;top:0;bottom:0;width:3px;background:rgba(0,0,0,.18);border-radius:3px}
+  #bookpopKicker{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#ffd9a0;opacity:.9}
+  #bookpopTitle{font-size:16px;font-weight:700;color:#fff;margin-top:2px;max-width:260px}
+  #bookpopCount{font-size:12px;color:#bcd0f0;margin-top:3px}
   #dots{position:fixed;top:70px;right:16px;z-index:20;display:flex;gap:8px;align-items:center}
   .dot{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.18);
     border:1px solid rgba(255,255,255,.3);transition:all .5s}
@@ -149,6 +161,8 @@
 <div id="hud" class="hidden"><div class="chip" id="planetName">…</div></div>
 <div id="mission" class="hidden"></div>
 <div id="guide" class="hidden"></div>
+<div id="bookpop"><div id="bookpopCover"><span id="bookpopSpine"></span></div>
+  <div id="bookpopMeta"><div id="bookpopKicker">📖 collected</div><div id="bookpopTitle"></div><div id="bookpopCount"></div></div></div>
 <div id="dots" class="hidden"></div>
 <button id="muteBtn" class="hidden">🔊</button>
 <div id="hint" class="chip hidden">↑ ↓ ← → walk · cursor drag / trackpad swipe to look · SPACE leap / talk</div>
@@ -986,6 +1000,46 @@ function makeCucumber(scale=1){
   else pendingCucumbers.push({ group:g, scale });
   return g;
 }
+// cute stylized foods for the Food world
+const FOOD_TYPES = ['burger','icecream','cake','donut','pizza','fries','sushi'];
+function makeFood(type){
+  const g = new THREE.Group();
+  const M = (c, o={}) => mat(c, { roughness:0.8, ...o });
+  if (type === 'burger'){
+    const topBun = new THREE.Mesh(new THREE.SphereGeometry(0.34,14,10), M(0xe0a85c));
+    topBun.position.set(0,0.34,0); topBun.scale.y = 0.7; g.add(topBun);
+    const seedM = M(0xfff4dd); for (let i=0;i<6;i++){ const s=new THREE.Mesh(new THREE.SphereGeometry(0.02,5,4),seedM); const a=i*1.05; s.position.set(Math.cos(a)*0.18,0.5,Math.sin(a)*0.18); g.add(s); }
+    const patty=new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.34,0.14,16),M(0x6b3f28)); patty.position.y=0.2; g.add(patty);
+    const lett=new THREE.Mesh(new THREE.CylinderGeometry(0.37,0.37,0.05,16),M(0x8fc46a)); lett.position.y=0.28; g.add(lett);
+    const bot=new THREE.Mesh(new THREE.CylinderGeometry(0.33,0.3,0.14,16),M(0xe0a85c)); bot.position.y=0.07; g.add(bot);
+  } else if (type === 'icecream'){
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(0.22,0.6,12),M(0xe0b070)); cone.position.y=0.3; cone.rotation.x=Math.PI; g.add(cone);
+    for (const [y,c] of [[0.62,0xf6b8c8],[0.86,0xfff0d0],[1.06,0xc0a0e0]]){ const s=new THREE.Mesh(new THREE.SphereGeometry(0.24,14,10),M(c)); s.position.y=y; g.add(s); }
+    const cherry=new THREE.Mesh(new THREE.SphereGeometry(0.07,8,6),M(0xd84a4a)); cherry.position.y=1.28; g.add(cherry);
+  } else if (type === 'cake'){
+    const base=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,0.4,18),M(0xf6e0c0)); base.position.y=0.2; g.add(base);
+    const icing=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,0.12,18),M(0xf6b8c8)); icing.position.y=0.44; g.add(icing);
+    for (let i=0;i<7;i++){ const a=i/7*6.28; const b=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,5),M(0xd84a4a)); b.position.set(Math.cos(a)*0.3,0.52,Math.sin(a)*0.3); g.add(b); }
+    const candle=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.3,6),M(0xffffff)); candle.position.y=0.66; g.add(candle);
+    const flame=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,5),mat(0xffcf6a,{emissive:0xffa63e,emissiveIntensity:2})); flame.position.y=0.84; flame.scale.y=1.6; g.add(flame);
+  } else if (type === 'donut'){
+    const d=new THREE.Mesh(new THREE.TorusGeometry(0.26,0.13,10,18),M(0xd98a5a)); d.rotation.x=Math.PI/2; d.position.y=0.2; g.add(d);
+    const ic=new THREE.Mesh(new THREE.TorusGeometry(0.26,0.135,10,18),M(0xf6a0c0)); ic.rotation.x=Math.PI/2; ic.position.y=0.24; ic.scale.y=0.7; g.add(ic);
+    for (let i=0;i<10;i++){ const a=i*1.9; const s=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.03,0.08),M([0xfff0d0,0x9fd8d0,0xf6e0a8][i%3])); s.position.set(Math.cos(a)*0.26,0.3,Math.sin(a)*0.26); s.rotation.y=a; g.add(s); }
+  } else if (type === 'pizza'){
+    const sl=new THREE.Mesh(new THREE.CircleGeometry(0.5,16,0,1.1),M(0xf6d28a)); sl.rotation.x=-Math.PI/2; sl.position.y=0.05; g.add(sl);
+    const cr=new THREE.Mesh(new THREE.TorusGeometry(0.5,0.05,6,16,1.1),M(0xe0a85c)); cr.rotation.x=Math.PI/2; cr.position.y=0.05; g.add(cr);
+    for (let i=0;i<4;i++){ const p=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.03,10),M(0xd84a4a)); p.position.set(0.12+Math.random()*0.25,0.08,(Math.random()-0.5)*0.4); g.add(p); }
+  } else if (type === 'fries'){
+    const box=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.14,0.32,4),M(0xd84a4a)); box.position.y=0.16; box.rotation.y=Math.PI/4; g.add(box);
+    for (let i=0;i<7;i++){ const f=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.4,0.04),M(0xf6cf6a)); f.position.set((Math.random()-0.5)*0.2,0.4,(Math.random()-0.5)*0.2); f.rotation.z=(Math.random()-0.5)*0.4; g.add(f); }
+  } else { // sushi
+    const rice=new THREE.Mesh(new THREE.CapsuleGeometry(0.16,0.3,4,10),M(0xfbf6ee)); rice.rotation.z=Math.PI/2; rice.position.y=0.16; g.add(rice);
+    const fish=new THREE.Mesh(new THREE.BoxGeometry(0.44,0.1,0.28),M(0xf29a7a)); fish.position.y=0.3; g.add(fish);
+    const nori=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.34,0.32),M(0x2c3a2c)); nori.position.y=0.2; g.add(nori);
+  }
+  return g;
+}
 function orbiter(group, obj, radius, speed, tiltX, tiltZ, bobAmp=0, bobSpeed=1){
   const pivot = new THREE.Group();
   pivot.rotation.x = tiltX; pivot.rotation.z = tiltZ;
@@ -1159,7 +1213,9 @@ function buildBooks(g, R){
     const n = randDir();
     const s = 0.9 + Math.random()*0.5;
     placeOn(g, makeStack(2 + Math.floor(Math.random()*4), s), n, R);
-    addCollider(colliders, n, 0.9*s, R);
+    // Only a sparse subset block movement — colliding on all 700 would fence
+    // her in and make the book-collecting quest impossible to walk.
+    if (i % 22 === 0) addCollider(colliders, n, 0.9*s, R);
   }
   const grand = makeStack(6, 1.5, 0.25);          // the landmark tower of books
   const grandN = dirNear(chippyN, 0.25);
@@ -1194,7 +1250,45 @@ function buildBooks(g, R){
     animators.push((t) => { page.rotation.x = Math.sin(t*1.4 + i)*0.6; page.rotation.z = Math.sin(t + i)*0.4; });
     orbiter(g, page, R + 2 + i*0.5, 0.12 + i*0.04, Math.random()*2.5, Math.random()*2.5, 0.4, 1.3);
   }
-  return { chippy, colliders };
+  // ---- 5 special "gift" books for Chippy (glowing + floating; press A to collect) ----
+  const GIFT_COLORS = [0xf2a0b4, 0xa8c8f0, 0xb8e0c0, 0xf2d8a0, 0xd8b8e8];
+  const GIFT_TITLES = [
+    'Knits for Cold Cities', 'Pigeons: A Love Story', 'The Deep Blue: a Whale Tale',
+    'A Field Guide to Cucumbers', 'Percy the Brave',
+  ];
+  const giftBooks = [];
+  for (let i = 0; i < 5; i++){
+    const holder = new THREE.Group();
+    const bk = makeBook(2.4);   // big, obvious
+    bk.children[0].material = mat(GIFT_COLORS[i], { roughness:0.5, emissive:GIFT_COLORS[i], emissiveIntensity:0.75 });
+    bk.position.y = 1.4;        // lift the book up off the ground so it stands out
+    holder.add(bk);
+    // glowing halo around the book
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(1.5, 14, 12),
+      new THREE.MeshBasicMaterial({ color:GIFT_COLORS[i], transparent:true, opacity:0.2, depthWrite:false }));
+    halo.position.y = 1.4; holder.add(halo);
+    // a bright beacon that floats above and catches the bloom — a findable landmark
+    const beacon = new THREE.Mesh(new THREE.OctahedronGeometry(0.34),
+      mat(GIFT_COLORS[i], { emissive:GIFT_COLORS[i], emissiveIntensity:2.4, roughness:0.3 }));
+    beacon.position.y = 3.4; holder.add(beacon);
+    // thin light column joining them
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.0, 8),
+      new THREE.MeshBasicMaterial({ color:GIFT_COLORS[i], transparent:true, opacity:0.35, depthWrite:false }));
+    beam.position.y = 2.4; holder.add(beam);
+    // scattered around the planet, spread away from Chippy's stack
+    const n = dirNear(chippyN, 0.9 + (i/5)*1.7 + Math.random()*0.4);
+    placeOn(g, holder, n, R, 0.1);
+    const ph = i*1.3;
+    animators.push((t) => {
+      if (!holder.visible) return;
+      bk.rotation.y = t*0.9 + ph;
+      bk.position.y = 1.4 + 0.2*Math.sin(t*1.6 + ph);
+      beacon.rotation.y = t*1.6; beacon.position.y = 3.4 + 0.25*Math.sin(t*2 + ph);
+      halo.material.opacity = 0.16 + 0.09*Math.sin(t*2 + ph);
+    });
+    giftBooks.push({ holder, dir: n.clone(), taken:false, color: GIFT_COLORS[i], title: GIFT_TITLES[i] });
+  }
+  return { chippy, chippyN, giftBooks, colliders };
 }
 
 function grassField(g, R, count, color, skipN=null, skipAng=0){
@@ -1251,8 +1345,8 @@ function buildCucumber(g, R){
   };
   buildRing(90, R + 5.4, 1.15, 0.22,  0.16, 1.6, 1.1);   // main ring
   buildRing(46, R + 7.2, 1.15, 0.22,  0.11, 1.2, 0.8);   // outer thinner ring (same plane)
-  // some resting in the grass
-  for (let i = 0; i < 120; i++){
+  // some cucumbers resting in the grass
+  for (let i = 0; i < 90; i++){
     const holder = new THREE.Group();
     const c = makeCucumber(0.85);
     c.rotation.z = Math.PI/2; c.rotation.y = Math.random()*Math.PI;
@@ -1260,12 +1354,68 @@ function buildCucumber(g, R){
     placeOn(g, holder, randDir(), R, 0.3);
   }
   // pastel wildflower dots
-  for (let i = 0; i < 480; i++){
+  for (let i = 0; i < 300; i++){
     const f = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6),
       mat([0xf2c0d0, 0xf6e0a8, 0xc8d8f4][i%3], { roughness:0.8 }));
     const holder = new THREE.Group(); holder.add(f); f.position.y = 0.12;
     placeOn(g, holder, randDir(), R, 0.1);
   }
+  // bbak (sleeping polar-bear plush) lounging on the grass — the NPC
+  const bbakN = V().set(-0.25, 1, 0.35).normalize();
+  const bbak = new THREE.Group();
+  placeOn(g, bbak, bbakN, R, 0.1);
+  bbak.rotateY(1.2);
+  let bbakModel = null;
+  loadModel('./game-assets/bbak/bbak.glb').then((model) => {
+    model.scale.setScalar(2.2); bbakModel = model; bbak.add(model);
+  }).catch((err) => { console.error('bbak model failed', err); });
+  animators.push((t) => { if (bbakModel) bbakModel.scale.setScalar(2.2 + 0.04*Math.sin(t*1.3)); });   // slow breathing
+  // ---- lots of random foods scattered around (decor) ----
+  for (let i = 0; i < 70; i++){
+    const holder = new THREE.Group();
+    const f = makeFood(FOOD_TYPES[i % FOOD_TYPES.length]);
+    f.scale.setScalar(0.8 + Math.random()*0.7); f.rotation.y = Math.random()*6.28;
+    holder.add(f);
+    const n = randDir();
+    if (n.angleTo(bbakN) < 3/R){ i--; continue; }
+    placeOn(g, holder, n, R, 0.1);
+  }
+  // ---- pickable "cold treats" (glowing) she can bring to bbak ----
+  const COLD = ['icecream','cake','donut','pizza','burger','fries'];
+  const foods = [];
+  for (let i = 0; i < 6; i++){
+    const holder = new THREE.Group();
+    const f = makeFood(COLD[i]); f.scale.setScalar(1.25); holder.add(f);
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(1.1, 12, 10),
+      new THREE.MeshBasicMaterial({ color:0xbfe6ff, transparent:true, opacity:0.22, depthWrite:false }));
+    halo.position.y = 0.5; holder.add(halo);
+    const beacon = new THREE.Mesh(new THREE.OctahedronGeometry(0.28),
+      mat(0xbfe6ff, { emissive:0x9fd8f0, emissiveIntensity:2.2, roughness:0.3 }));
+    beacon.position.y = 2.4; holder.add(beacon);
+    const n = dirNear(bbakN, 0.7 + (i/6)*1.7 + Math.random()*0.3);
+    placeOn(g, holder, n, R, 0.1);
+    const ph = i*1.1;
+    animators.push((t) => { if (!holder.visible) return;
+      f.rotation.y = t*0.7 + ph; beacon.rotation.y = t*1.6; beacon.position.y = 2.4 + 0.2*Math.sin(t*2 + ph);
+      halo.material.opacity = 0.16 + 0.08*Math.sin(t*2 + ph); });
+    foods.push({ holder, taken:false, name: COLD[i] });
+  }
+  // ---- the special COLD cucumber (revealed only after bbak's hint) ----
+  const cukeN = dirNear(bbakN, 2.4);
+  const cuke = new THREE.Group();
+  const cukeMesh = makeCucumber(1.3); cukeMesh.rotation.z = Math.PI/2; cuke.add(cukeMesh);
+  const cukeHalo = new THREE.Mesh(new THREE.SphereGeometry(1.3, 12, 10),
+    new THREE.MeshBasicMaterial({ color:0x9fe0c0, transparent:true, opacity:0.28, depthWrite:false }));
+  cukeHalo.position.y = 0.4; cuke.add(cukeHalo);
+  const cukeBeacon = new THREE.Mesh(new THREE.OctahedronGeometry(0.34),
+    mat(0x9fe0c0, { emissive:0x7fd0a0, emissiveIntensity:2.6, roughness:0.3 }));
+  cukeBeacon.position.y = 2.6; cuke.add(cukeBeacon);
+  placeOn(g, cuke, cukeN, R, 0.4);
+  cuke.visible = false;   // appears when bbak gives the hint
+  animators.push((t) => { if (!cuke.visible) return;
+    cukeBeacon.rotation.y = t*1.8; cukeBeacon.position.y = 2.6 + 0.25*Math.sin(t*2);
+    cukeHalo.material.opacity = 0.2 + 0.1*Math.sin(t*2.2); });
+  return { bbak, bbakN, foods, cuke, cukeN };
 }
 
 function buildSea(g, R){
@@ -1336,38 +1486,66 @@ function buildPigeons(g, R, ctx){
   placeOn(g, fount, dirNear(plazaN, 0.18), R);
   animators.push((t) => { water.scale.setScalar(1 + 0.05*Math.sin(t*3)); water.rotation.y = t*0.4; });
 
-  // WAY too many pigeons — nearly all standing/pecking ON the ground
+  // WAY too many pigeons — spread over the whole planet; each one pecks,
+  // takes little steps around the surface, or flaps in place.
   const crowd = [];
-  for (let i = 0; i < 290; i++){
+  const TAU = Math.PI*2;
+  for (let i = 0; i < 480; i++){
     const pg = plushPigeon(PIGEON_VARIANTS[i % PIGEON_VARIANTS.length]);
-    pg.scale.setScalar(0.85 + Math.random()*0.35);
-    pg.rotation.y = Math.random()*Math.PI*2;
+    pg.scale.setScalar(0.8 + Math.random()*0.4);
+    pg.rotation.y = Math.random()*TAU;
     const holder = new THREE.Group(); holder.add(pg);
-    placeOn(g, holder, dirNear(plazaN, 0.28 + Math.random()*0.35), R, 0.02);
+    const n = dirNear(plazaN, 0.2 + Math.random()*2.7);   // cover most of the sphere
+    placeOn(g, holder, n, R, 0.02);
     crowd.push(holder);
-    const ph = Math.random()*7;
-    if (i % 3 === 0) animators.push((t) => {                      // peckers
-      pg.userData.head.position.y = 0.58 - Math.max(0, Math.sin(t*2.4 + ph))*0.18;
-    });
-    else animators.push((t) => {                                   // sitters shuffling
-      pg.rotation.y += Math.sin(t*0.5 + ph)*0.002;
-      pg.position.y = Math.abs(Math.sin(t*1.6 + ph))*0.015;
-    });
+    const ph = Math.random()*7, roll = i % 10;
+    if (roll < 4){                                         // peckers
+      animators.push((t) => {
+        if (percyHolder.userData.flying) return;
+        pg.userData.head.position.y = 0.58 - Math.max(0, Math.sin(t*2.6 + ph))*0.18;
+        pg.position.y = Math.abs(Math.sin(t*1.6 + ph))*0.015;
+      });
+    } else if (roll < 8){                                  // walkers — drift across the surface
+      const axis = randDir(), spd = (0.05 + Math.random()*0.12)*(Math.random() < 0.5 ? -1 : 1);
+      const cur = n.clone();
+      animators.push((t, dt) => {
+        if (percyHolder.userData.flying) return;
+        cur.applyAxisAngle(axis, spd*dt);
+        holder.position.copy(cur).multiplyScalar(R + 0.02);
+        orientToNormal(holder, cur);
+        pg.position.y = Math.abs(Math.sin(t*5 + ph))*0.05;     // little steps
+        pg.rotation.y += Math.sin(t*5 + ph)*0.01;              // waddle
+        if (pg.userData.head) pg.userData.head.position.y = 0.58 - Math.max(0, Math.sin(t*3 + ph))*0.1;
+      });
+    } else {                                               // flappers hopping in place
+      animators.push((t) => {
+        if (percyHolder.userData.flying) return;
+        pg.position.y = Math.abs(Math.sin(t*3 + ph))*0.12;      // hop
+        for (let w = 0; w < 2; w++)
+          pg.userData.wings[w].rotation.z = (w===0?1:-1)*Math.abs(Math.sin(t*8 + ph))*0.7;
+      });
+    }
   }
-  // just a few still circling overhead (most have landed, per request)
-  for (let i = 0; i < 10; i++){
+  // some genuinely flying overhead
+  for (let i = 0; i < 40; i++){
     const pg = plushPigeon(PIGEON_VARIANTS[(i+1) % PIGEON_VARIANTS.length]);
-    pg.scale.setScalar(0.8); pg.rotation.y = Math.PI;
+    pg.scale.setScalar(0.75); pg.rotation.y = Math.PI;
     const ph = Math.random()*7;
     animators.push((t) => {
       for (let w = 0; w < 2; w++)
         pg.userData.wings[w].rotation.z = (w===0?1:-1)*Math.sin(t*11 + ph)*0.9;
     });
-    orbiter(g, pg, R + 2 + i*0.4, 0.3 + i*0.08, Math.random()*2.4, Math.random()*2.4, 0.3, 1.4);
+    orbiter(g, pg, R + 2 + (i%12)*0.5, 0.28 + (i%7)*0.06, Math.random()*3.1, Math.random()*3.1, 0.3, 1.4);
   }
-  // PERCY — the only teal-headed one, slightly grand
-  const percy = plushPigeon({}, { stripes:true });
-  percy.scale.setScalar(1.25);
+  // PERCY — real 3D model (game-assets/percy/percy.glb), the grand one Beanie
+  // talks to and eventually rides.
+  const percy = new THREE.Group();
+  loadModel('./game-assets/percy/percy.glb').then((m) => {
+    m.scale.setScalar(1.7); m.rotation.y = Math.PI; percy.add(m);
+  }).catch((err) => {
+    console.error('Percy model failed, using plush fallback', err);
+    const fb = plushPigeon({}, { stripes:true }); fb.scale.setScalar(1.25); percy.add(fb);
+  });
   const percyN = dirNear(plazaN, 0.2);
   const percyHolder = new THREE.Group(); percyHolder.add(percy);
   placeOn(g, percyHolder, percyN, R, 0.02);
@@ -1375,7 +1553,7 @@ function buildPigeons(g, R, ctx){
   animators.push((t) => {
     if (percyHolder.userData.flying) return;
     percy.position.y = Math.abs(Math.sin(t*2.2))*0.05;             // proud little hops
-    percy.rotation.y = Math.sin(t*0.7)*0.4;
+    percy.rotation.y = Math.sin(t*0.7)*0.3;
   });
   return { percyHolder, percyN, plazaN, crowd };
 }
@@ -1578,13 +1756,13 @@ const WORLD_DEFS = [
     mission:'<b>MISSION:</b> jump to the next world! Drag / swipe to aim your view at it, then press <b>SPACE</b> to leap up high and land there.',
     pos:[0,0,0], r:7,  col:0xe4e8f0, step:'stone' },
   { key:'books',    name:'Book Stacks',      emoji:'📚', tag:'somebody should really tidy these',
-    mission:'<b>MISSION:</b> say hi to Chippy (he is napping on a book pile), then keep leaping!',
+    mission:'<b>MISSION:</b> find <b>Chippy</b>, then bring him <b>5 favourite books</b> (the glowy ones — press <b>A</b> to pick up).',
     pos:[130,20,-60], r:23.75, col:PALETTE.lightBeige, step:'book' },
   { key:'cucumber', name:'Cucumber Meadow',  emoji:'🥒', tag:'they school like fish out here',
-    mission:'<b>MISSION:</b> listen to the grass under your feet… and keep leaping!',
+    mission:'<b>MISSION:</b> find <b>bbak</b> the polar bear — he is overheating. Bring him something <b>cold</b> to cool him down!',
     pos:[300,-10,-190], r:30, col:PALETTE.moss, step:'grass' },
   { key:'pigeon',   name:'Pigeon Plaza',     emoji:'🕊️', tag:'way, WAY too many pigeons',
-    mission:'<b>MISSION:</b> one of these pigeons is not like the others. Find <b>Percy</b> and press <b>SPACE</b> to talk to him.',
+    mission:'<b>MISSION:</b> find <b>Percy</b> — he needs help finding a long-lost friend among all these pigeons.',
     pos:[170,20,-400], r:40, col:PALETTE.mutedLavender, step:'stone' },
   { key:'garden',   name:'The Garden',       emoji:'💐', tag:'happy birthday, Beanie 🤍',
     mission:'<b>MISSION:</b> wander the garden… someone set up a big white couch for you. 🤍',
@@ -1613,6 +1791,9 @@ chain.forEach((bi, ci) => { bodies[bi].chainNext = ci < chain.length-1 ? chain[c
 // flip to done via their NPC flow. (Chicago = accept Bred's letter.)
 bodies.forEach(b => { b.missionDone = true; });
 bodies[0].missionDone = false;   // Chicago — gated by the pigeon's letter intro
+bodies[1].missionDone = false;   // Book Stacks — gated by Chippy's 5-books quest
+bodies[2].missionDone = false;   // Cucumber/Food — gated by bbak's cooling quest
+bodies[3].missionDone = false;   // Pigeon Plaza — the Percy/Doodles quest (Percy flight is the exit)
 
 // decorate: worlds get builders, moons get sprinkles
 const GARDEN_I = 4, PIGEON_I = 3;
@@ -1625,11 +1806,345 @@ const GARDEN_I = 4, PIGEON_I = 3;
   worldRefs.books = buildBooks(bodies[1].group, bodies[1].r);
   bodies[0].colliders = worldRefs.chicago.colliders;
   bodies[1].colliders = worldRefs.books.colliders;
-  buildCucumber(bodies[2].group, bodies[2].r);
+  worldRefs.cucumber = buildCucumber(bodies[2].group, bodies[2].r);
   worldRefs.pigeon = buildPigeons(bodies[PIGEON_I].group, bodies[PIGEON_I].r);
   worldRefs.garden = buildGarden(bodies[GARDEN_I].group, bodies[GARDEN_I].r,
     { gardenLandN: bodies[GARDEN_I].landN });
 }
+
+/* ---------- World 2: Chippy's 5-books quest ---------- */
+const booksQuest = { phase:0, got:0, need:5 };   // 0=find Chippy, 1=collecting, 2=done
+function chippyPos(out){ return worldRefs.books.chippy.getWorldPosition(out || new THREE.Vector3()); }
+const CHIPPY_ASK_LINES = [
+  `Oh! Hello Rachel. *yaaawn* …I was just about to make some tea. 🍵`,
+  `Say — while the kettle boils, would you fetch me something to read?`,
+  `Bring me 5 of your favourite books from around here. The glowy ones! ✨`,
+  `Press A to pick each one up, then come back to me. Off you pop!`,
+];
+const CHIPPY_NEED_MORE = [
+  `Mmm, a lovely start… but that's not 5 yet. Keep looking! 📚`,
+];
+const CHIPPY_DONE_LINES = [
+  `Ooh! Now THESE are good picks. *happy squeak* 🐿️`,
+  `Perfect reading for a slow afternoon. Thank you, Rachel!`,
+  `Now — the way onward. Aim past the tallest stack and leap. Go find him! 🤍`,
+];
+bodies[1].guideNear = 3.6;
+function nearestUncollected(){
+  if (!worldRefs.books) return null;
+  let best = null, bd = Infinity;
+  for (const gb of worldRefs.books.giftBooks){
+    if (gb.taken) continue;
+    const d = her.position.distanceTo(gb.holder.getWorldPosition(new THREE.Vector3()));
+    if (d < bd){ bd = d; best = gb; }
+  }
+  return best;
+}
+function refreshBooksGuide(){
+  const collecting = booksQuest.phase >= 1 && booksQuest.got < booksQuest.need;
+  const gotAll = booksQuest.got >= booksQuest.need;
+  if (booksQuest.phase === 2){ bodies[1].guideFn = null; return; }
+  if (gotAll){
+    bodies[1].guideLabel = '📚 take the books back to Chippy!';
+    bodies[1].guideFn = () => chippyPos();
+  } else if (collecting){
+    bodies[1].guideLabel = `✨ glowing book (${booksQuest.got}/${booksQuest.need}) — press A to collect`;
+    bodies[1].guideFn = () => { const gb = nearestUncollected(); return gb ? gb.holder.getWorldPosition(new THREE.Vector3()) : chippyPos(); };
+  } else {
+    bodies[1].guideLabel = '🐿️ find Chippy (he is resting on a book pile)';
+    bodies[1].guideFn = () => chippyPos();
+  }
+}
+refreshBooksGuide();
+function talkChippy(){
+  const npc = { npcPos: () => chippyPos(), speaker:'🐿️ Chippy', npcObj: worldRefs.books.chippy };
+  if (booksQuest.phase === 0){
+    startDialog(CHIPPY_ASK_LINES, () => { booksQuest.phase = 1; refreshBooksGuide(); }, npc);
+  } else if (booksQuest.phase === 1 && booksQuest.got < booksQuest.need){
+    startDialog(CHIPPY_NEED_MORE, null, npc);
+  } else if (booksQuest.phase === 1){
+    startDialog(CHIPPY_DONE_LINES, () => {
+      booksQuest.phase = 2;
+      bodies[1].missionDone = true;
+      setMission('<b>MISSION:</b> aim past the tallest stack and <b>leap</b> to the next world!');
+    }, npc);
+  }
+}
+function nearestGiftBook(){
+  if (!worldRefs.books) return null;
+  let best = null, bd = 2.6;   // pickup radius
+  for (const gb of worldRefs.books.giftBooks){
+    if (gb.taken) continue;
+    const d = her.position.distanceTo(gb.holder.getWorldPosition(new THREE.Vector3()));
+    if (d < bd){ bd = d; best = gb; }
+  }
+  return best;
+}
+function pickupBook(gb){
+  if (!gb || gb.taken) return;
+  gb.taken = true;
+  gb.holder.visible = false;
+  booksQuest.got++;
+  playChime();
+  for (let i = 0; i < 8; i++)
+    spawnEphemeral(new THREE.Mesh(sparkGeo, sparkMat), her.position,
+      randDir().multiplyScalar(2).addScaledVector(herUp(V()), 2), 0.7, 4);
+  if (booksQuest.phase === 0) booksQuest.phase = 1;   // allow grabbing before talking, too
+  refreshBooksGuide();
+  showBookPop(gb.color, gb.title);
+}
+
+/* ---------- World 3: bbak's "cool me down" quest ---------- */
+const bbakQuest = { phase:0, tries:0, need:3, holding:null, cukeRevealed:false };
+function bbakPos(out){ return worldRefs.cucumber.bbak.getWorldPosition(out || new THREE.Vector3()); }
+const BBAK_INTRO = [
+  `Hnngh… oh, hi Rachel. *pant pant* It is SO hot out here… 🥵`,
+  `This global-warming business is melting my brain. I need something COLD.`,
+  `Fetch me a cold treat? Grab a glowy snack (press A) and bring it back to me.`,
+];
+const BBAK_REJECT = [
+  [`…ice cream? It melted before you even got here. Blehh. Try again? 🫠`],
+  [`Too sweet, not cold enough — my fur's still sweating. One more, maybe?`],
+  [`Nnnope, that won't do either. *flops dramatically* …Okay. New plan.`,
+   `There's a special little cucumber growing nearby — cold, crisp, PERFECT.`,
+   `I marked it with a green sparkle. Go fetch THAT one for me! 🥒`],
+];
+const BBAK_NEEDCUKE = [`No no — the glowing green CUCUMBER I told you about. Go get it! 🥒`];
+const BBAK_SUCCESS = [
+  `Ahhh… *CRUNCH* …cold and crisp and perfect. You're the best, Rachel. 💙`,
+  `I feel cooler already. Now go on — aim at the next world and leap! 🤍`,
+];
+function nearestFood(){
+  if (!worldRefs.cucumber) return null;
+  let best=null, bd=Infinity;
+  for (const f of worldRefs.cucumber.foods){ if (f.taken) continue;
+    const d = her.position.distanceTo(f.holder.getWorldPosition(new THREE.Vector3()));
+    if (d<bd){ bd=d; best=f; } }
+  return best;
+}
+function nearestFoodPickup(){
+  if (!worldRefs.cucumber) return null;
+  const R = 3.0, cuke = worldRefs.cucumber.cuke;
+  if (cuke.visible && her.position.distanceTo(cuke.getWorldPosition(new THREE.Vector3())) < R) return { cuke:true };
+  let best=null, bd=R;
+  for (const f of worldRefs.cucumber.foods){ if (f.taken) continue;
+    const d = her.position.distanceTo(f.holder.getWorldPosition(new THREE.Vector3()));
+    if (d<bd){ bd=d; best=f; } }
+  return best;
+}
+function refreshBbakGuide(){
+  const b = bodies[2];
+  if (bbakQuest.phase === 2){ b.guideFn = null; return; }
+  if (bbakQuest.holding){ b.guideLabel = '🐻‍❄️ take it back to bbak'; b.guideFn = () => bbakPos(); return; }
+  if (bbakQuest.phase === 0){ b.guideLabel = '🐻‍❄️ find bbak (lounging in the grass)'; b.guideFn = () => bbakPos(); return; }
+  if (bbakQuest.cukeRevealed){
+    b.guideLabel = '🥒 fetch the glowing cucumber — press A';
+    b.guideFn = () => worldRefs.cucumber.cuke.getWorldPosition(new THREE.Vector3());
+    return;
+  }
+  b.guideLabel = '🍨 grab a cold treat (press A), then bring it to bbak';
+  b.guideFn = () => { const f = nearestFood(); return f ? f.holder.getWorldPosition(new THREE.Vector3()) : bbakPos(); };
+}
+bodies[2].guideNear = 3.6;
+function pickupFood(f){
+  if (!f || f.taken) return;
+  f.taken = true; f.holder.visible = false;
+  bbakQuest.holding = f.name;
+  playChime();
+  showToast(`🍨 picked up ${f.name}`, 'bring it to bbak!');
+  refreshBbakGuide();
+}
+function pickupCuke(){
+  const cuke = worldRefs.cucumber.cuke;
+  if (!cuke.visible) return;
+  cuke.visible = false;
+  bbakQuest.holding = 'cucumber';
+  playChime();
+  for (let i = 0; i < 8; i++)
+    spawnEphemeral(new THREE.Mesh(sparkGeo, sparkMat), her.position,
+      randDir().multiplyScalar(2).addScaledVector(herUp(V()), 2), 0.7, 4);
+  showToast('🥒 got the special cucumber!', 'bring it to bbak!');
+  refreshBbakGuide();
+}
+function talkBbak(){
+  const npc = { npcPos: () => bbakPos(), speaker:'🐻‍❄️ bbak', npcObj: worldRefs.cucumber.bbak };
+  if (bbakQuest.phase === 0){ startDialog(BBAK_INTRO, () => { bbakQuest.phase = 1; refreshBbakGuide(); }, npc); return; }
+  if (bbakQuest.phase >= 2) return;
+  const h = bbakQuest.holding;
+  if (!h){ startDialog([`Bring me something cold, please… anything! 🥵`], null, npc); return; }
+  if (h === 'cucumber'){
+    startDialog(BBAK_SUCCESS, () => {
+      bbakQuest.phase = 2; bodies[2].missionDone = true;
+      setMission('<b>MISSION:</b> aim at the next world and <b>leap</b>!');
+      refreshBbakGuide();
+    }, npc);
+    bbakQuest.holding = null; return;
+  }
+  if (bbakQuest.cukeRevealed){ startDialog(BBAK_NEEDCUKE, null, npc); bbakQuest.holding = null; return; }
+  const idx = Math.min(bbakQuest.tries, BBAK_REJECT.length - 1);
+  startDialog(BBAK_REJECT[idx], () => {
+    bbakQuest.tries++;
+    if (bbakQuest.tries >= bbakQuest.need){ bbakQuest.cukeRevealed = true; worldRefs.cucumber.cuke.visible = true; }
+    refreshBbakGuide();
+  }, npc);
+  bbakQuest.holding = null;
+}
+refreshBbakGuide();
+
+/* ---------- World 4: Pigeon Plaza — find Percy's long-lost friend ---------- */
+const PLAZA_DECOYS = [
+  { name:'vanessa', glb:'vanessa', speaker:'👑 Vanessa', scale:1.0, rotY:0, bounce:false, lines:[
+    `Ahem. I am Vanessa, the Victoria Crowned Pigeon — the largest pigeon in all the world. 👑`,
+    `Do admire the crest, won't you? It fans out like a royal crown.`,
+    `Percy's dear old friend? *sniff* That is not me. I don't do "old friends". Move along.` ] },
+  { name:'nibbles', glb:'nibbles', speaker:'🌈 Nibbles', scale:1.0, rotY:0, bounce:true, lines:[
+    `Hihi! Nibbles here — a Nicobar Pigeon. 🌈`,
+    `These metallic rainbow feathers? I'm the dodo's closest living cousin, you know!`,
+    `Am I Percy's lost friend? Nope, not me — but you're close in spirit! 💫` ] },
+  { name:'alfred', glb:'alfred', speaker:'🫒 Alfred', scale:1.0, rotY:0, bounce:true, lines:[
+    `…hello. Down here. Alfred, African Green Pigeon. 🫒`,
+    `Wait — a parrot? No, no, NO. I am not a parrot in disguise. I'm a PIGEON, thank you.`,
+    `My green feathers hide me so well most folk hear me before they see me.`,
+    `Percy's friend? Afraid not, dear. Onward!` ] },
+  { name:'sunny', glb:'sunny', speaker:'🎨 Sunny', scale:1.0, rotY:0, bounce:true, lines:[
+    `Hey hey! Sunny the Superb Fruit Dove! 🎨`,
+    `Folks say I look hand-painted. I don't disagree, honestly.`,
+    `Percy's missing friend? Ha — not me, but good luck!` ] },
+  { name:'otto', glb:'otto', speaker:'🍊 Otto', scale:1.0, rotY:0, bounce:true, lines:[
+    `Bula! Otto, the Orange Dove, all the way from Fiji. 🍊`,
+    `I glow like a little ember in the forest, if I do say so myself.`,
+    `Percy's long-lost pal? Nope, sorry friend. Keep at it!` ] },
+  { name:'mochi', glb:'mochi', speaker:'🌈 Mochi', scale:1.0, rotY:0, bounce:true, lines:[
+    `Hi! I'm Mochi, a Many-colored Fruit Dove. 🌈`,
+    `Every one of us is a different little rainbow. I'm one of a kind!`,
+    `Am I who Percy misses? Aw, no — but you'll find them. 🩷` ] },
+  { name:'buckle', glb:'buckle', speaker:'❤️ Buckle', scale:1.0, rotY:0, bounce:true, lines:[
+    `Oh — hello. Buckle, a Bleeding-heart Dove. ❤️`,
+    `See the crimson patch on my chest? Looks just like a tiny heart.`,
+    `Percy's friend? …no, not me either. That's everyone, isn't it? Maybe ask Percy again.` ] },
+];
+const DOODLES_CFG = { name:'doodles', glb:'doodles', speaker:'🦤 Doodles', scale:1.15, rotY:0, bounce:true, lines:[
+  `Oh! …hello there. I'm Doodles. A dodo. 🦤`,
+  `Everyone thinks we were clumsy — we weren't. We just never needed to fly. No predators. It was peaceful.`,
+  `…but it does get lonely now. I miss my family so much.`,
+  `You'll… be my family? Really? *sniffle* …okay. Lead the way — take me to your friend.` ] };
+const PERCY_INTRO = [
+  `Coo! Rachel — you found me! 🕊️`,
+  `Listen… long, long ago I had a dear, dear friend. We were inseparable.`,
+  `I've looked all over this plaza and I just can't find him. Would you help me look?`,
+  `Go say hello to the pigeons around here — maybe one of them is him!` ];
+const PERCY_NUDGE_SEARCH = [ `Keep saying hello to the pigeons — one of them might be my friend!` ];
+const PERCY_GIVEUP = [
+  `No luck? Hmm… let me think harder.`,
+  `The last time I saw him… goodness, it was AGES ago. Around 1690, maybe?`,
+  `…and his name — it started with a "D". Does that help, Rachel?` ];
+const PERCY_NUDGE_DOODLES = [ `A name starting with "D"… from way back in 1690… go find him, Rachel! I'll wait here.` ];
+const PERCY_REUNION = [
+  `…Doodles? DOODLES! Oh — it's really you! 🥹`,
+  `I thought I'd lost you forever, old friend.`,
+  `Rachel — you brought my family back to me. I could never thank you enough. 🤍`,
+  `Now: hop on my back and hold tight. I know EXACTLY where Bred is!` ];
+
+const plazaQuest = { phase:'intro', step:0, decoyHolders:[], active:null, doodles:null, talkingPigeon:null };
+function tiltDir(n, angle, azimuth){
+  const t1 = arbitraryPerp(n), t2 = new THREE.Vector3().crossVectors(n, t1).normalize();
+  const dir = new THREE.Vector3().copy(t1).multiplyScalar(Math.cos(azimuth)).addScaledVector(t2, Math.sin(azimuth));
+  return new THREE.Vector3().copy(n).multiplyScalar(Math.cos(angle)).addScaledVector(dir, Math.sin(angle)).normalize();
+}
+function spawnStoryPigeon(cfg){
+  const g = bodies[PIGEON_I].group, R = bodies[PIGEON_I].r;
+  const holder = new THREE.Group();
+  const inner = new THREE.Group(); holder.add(inner);
+  const n = dirNear(worldRefs.pigeon.plazaN, 0.7 + Math.random()*1.5);
+  placeOn(g, holder, n, R, 0.02);
+  loadModel(`./game-assets/pigeons/${cfg.glb}.glb`).then((m) => {
+    m.rotation.y = cfg.rotY || 0; m.scale.setScalar(cfg.scale || 1); inner.add(m);
+  }).catch((e) => console.error('pigeon load failed', cfg.glb, e));
+  const ph = Math.random()*6;
+  animators.push((t) => {
+    // bounce only while this pigeon is the one talking (Vanessa never bounces)
+    if (cfg.bounce && plazaQuest.talkingPigeon === holder) inner.position.y = Math.abs(Math.sin(t*6 + ph))*0.35;
+    else inner.position.y += (0 - inner.position.y)*0.15;
+    // face Beanie while talking, else idle
+    if (plazaQuest.talkingPigeon === holder)
+      holder.quaternion.copy(quatFromBasis(n, tangentToward(holder.getWorldPosition(tmpVP), n, her.position)));
+  });
+  holder.userData = { cfg, n };
+  return holder;
+}
+const tmpVP = new THREE.Vector3();
+function plazaTargetHolder(){        // the pigeon Beanie currently needs to reach (else null → Percy)
+  if (plazaQuest.phase === 'searching') return plazaQuest.active;
+  if (plazaQuest.phase === 'seek-doodles') return plazaQuest.doodles;
+  return null;
+}
+function plazaWantsPercy(){ return ['intro','giveup','bring-doodles'].includes(plazaQuest.phase); }
+function refreshPlazaGuide(){
+  const b = bodies[PIGEON_I];
+  if (plazaQuest.phase === 'done'){ b.guideFn = null; return; }
+  if (plazaWantsPercy()){
+    b.guideLabel = plazaQuest.phase === 'bring-doodles' ? '🕊️ bring Doodles to Percy!'
+      : (plazaQuest.phase === 'giveup' ? '🕊️ go back to Percy for a hint' : '🕊️ find Percy');
+    b.guideFn = () => percyWorldPos(new THREE.Vector3());
+  } else {
+    b.guideLabel = plazaQuest.phase === 'seek-doodles' ? '🦤 find the pigeon whose name starts with "D"'
+      : '🕊️ say hello to that pigeon';
+    b.guideFn = () => { const h = plazaTargetHolder(); return h ? h.getWorldPosition(new THREE.Vector3()) : percyWorldPos(new THREE.Vector3()); };
+  }
+}
+bodies[PIGEON_I].guideNear = 4.0;
+function spawnNextDecoy(){
+  if (plazaQuest.step >= PLAZA_DECOYS.length){   // met everyone → back to Percy
+    plazaQuest.phase = 'giveup'; plazaQuest.active = null; refreshPlazaGuide(); return;
+  }
+  const cfg = PLAZA_DECOYS[plazaQuest.step];
+  const h = spawnStoryPigeon(cfg);
+  plazaQuest.decoyHolders.push(h);
+  plazaQuest.active = h;
+  plazaQuest.phase = 'searching';
+  refreshPlazaGuide();
+}
+function talkPercy(){
+  const npc = { npcPos: () => percyWorldPos(new THREE.Vector3()), speaker:'Percy 🕊️',
+    npcObj: worldRefs.pigeon.percyHolder };
+  if (plazaQuest.phase === 'intro'){
+    startDialog(PERCY_INTRO, () => { plazaQuest.step = 0; spawnNextDecoy(); }, npc); return;
+  }
+  if (plazaQuest.phase === 'searching'){ startDialog(PERCY_NUDGE_SEARCH, null, npc); return; }
+  if (plazaQuest.phase === 'giveup'){
+    startDialog(PERCY_GIVEUP, () => { plazaQuest.phase = 'seek-doodles'; plazaQuest.doodles = spawnStoryPigeon(DOODLES_CFG); refreshPlazaGuide(); }, npc); return;
+  }
+  if (plazaQuest.phase === 'seek-doodles'){ startDialog(PERCY_NUDGE_DOODLES, null, npc); return; }
+  if (plazaQuest.phase === 'bring-doodles'){
+    startDialog(PERCY_REUNION, () => { plazaQuest.phase = 'done'; bodies[PIGEON_I].missionDone = true; doReunion(); }, npc);
+    return;
+  }
+}
+function talkActivePigeon(){
+  const h = plazaTargetHolder(); if (!h) return;
+  const cfg = h.userData.cfg;
+  plazaQuest.talkingPigeon = h;
+  const npc = { npcPos: () => h.getWorldPosition(new THREE.Vector3()), speaker: cfg.speaker, npcObj: h };
+  if (plazaQuest.phase === 'seek-doodles'){
+    startDialog(cfg.lines, () => { plazaQuest.talkingPigeon = null; plazaQuest.phase = 'bring-doodles'; refreshPlazaGuide(); }, npc);
+  } else {
+    startDialog(cfg.lines, () => { plazaQuest.talkingPigeon = null; plazaQuest.step++; spawnNextDecoy(); }, npc);
+  }
+}
+function doReunion(){
+  const pN = worldRefs.pigeon.percyN, R = bodies[PIGEON_I].r;
+  // move Doodles right next to Percy and ring the found pigeons around them
+  const flock = [...plazaQuest.decoyHolders, plazaQuest.doodles].filter(Boolean);
+  flock.forEach((h, i) => {
+    const az = i / flock.length * Math.PI * 2;
+    const n = tiltDir(pN, 0.3, az);
+    h.position.copy(n).multiplyScalar(R + 0.02);
+    orientToNormal(h, n);
+    h.quaternion.copy(quatFromBasis(n, tangentToward(h.position, n, V().copy(pN).multiplyScalar(R))));  // face Percy
+  });
+  beginPercyFlight();
+}
+refreshPlazaGuide();
 
 /* ---------- beanie: real rigged Blender model (game-assets/beanie/beanie.glb) ----------
    Loaded async into a placeholder Group, same pattern as the other real models.
@@ -1646,12 +2161,14 @@ her.userData = {
   sit(v){ this.sitting = v; },
 };
 scene.add(her);
-let herMixer = null, herWalkAction = null, herIdleAction = null, herUsingFallback = false;
+let herMixer = null, herWalkAction = null, herRunAction = null, herIdleAction = null, herUsingFallback = false;
 let herJumpLaunchAction = null, herJumpSoarAction = null, herJumpLandAction = null;
 loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
   her.add(gltf.scene);
+  gltf.scene.position.y = HER_MODEL_LIFT;   // lift so her feet rest ON the surface (idle root sinks otherwise)
   herMixer = new THREE.AnimationMixer(gltf.scene);
   const walkClip = gltf.animations.find((a) => a.name === 'Walk');
+  const runClip  = gltf.animations.find((a) => a.name === 'Run');
   const idleClip = gltf.animations.find((a) => a.name === 'Idle');
   const launchClip = gltf.animations.find((a) => a.name === 'JumpLaunch');
   const soarClip = gltf.animations.find((a) => a.name === 'JumpSoar');
@@ -1670,6 +2187,12 @@ loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
     herWalkAction.setLoop(THREE.LoopRepeat);
     herWalkAction.play();
     herWalkAction.setEffectiveWeight(0);
+  }
+  if (runClip){
+    herRunAction = herMixer.clipAction(runClip);
+    herRunAction.setLoop(THREE.LoopRepeat);
+    herRunAction.play();
+    herRunAction.setEffectiveWeight(0);
   }
   // Extracted + retimed from winter-beanie-jump.blend's cinematic (same rig,
   // no retargeting needed) — see ART_BIBLE.md. Crossfaded by updateJumpAnim()
@@ -1700,12 +2223,25 @@ function animBeanieSkinned(dt){
   if (herJumpSoarAction) herJumpSoarAction.setEffectiveWeight(0);
   if (herJumpLandAction) herJumpLandAction.setEffectiveWeight(0);
   const u = her.userData;
-  if (u.moving && !u.sitting) u.walkP += dt*21;   // keeps footstep cadence in sync
-  const walkTarget = (u.moving && !u.sitting) ? 1 : 0;
+  // She only "moves" while actually walking — so she holds the Idle pose while
+  // standing still AND while talking to a character (any non-walk state).
+  const moving = (state === 'walk') && u.moving && !u.sitting;
+  const run = moving && u.running;
+  if (moving) u.walkP += dt*(run ? 31.5 : 21);   // footstep cadence follows walk/run
+  const walkTarget = moving ? 1 : 0;
+  // Walk clip when walking; Run clip when running (falls back to the walk clip
+  // sped up if the run clip isn't present in the glb).
   if (herWalkAction){
+    const walkW = (moving && !run) ? 1 : 0;
     const w = herWalkAction.getEffectiveWeight();
-    herWalkAction.setEffectiveWeight(w + (walkTarget - w) * Math.min(1, dt*8));
-    herWalkAction.timeScale = u.movingBackward ? -2 : 2;   // reverse the cycle when backing up; 2x to match doubled WALK_SPEED
+    herWalkAction.setEffectiveWeight(w + (walkW - w) * Math.min(1, dt*8));
+    herWalkAction.timeScale = (u.movingBackward ? -1 : 1) * (herRunAction ? 1 : (run ? 1.5 : 1)) * 2;
+  }
+  if (herRunAction){
+    const runW = (moving && run) ? 1 : 0;
+    const w = herRunAction.getEffectiveWeight();
+    herRunAction.setEffectiveWeight(w + (runW - w) * Math.min(1, dt*8));
+    herRunAction.timeScale = (u.movingBackward ? -1 : 1) * 1.5;
   }
   if (herIdleAction){
     const w = herIdleAction.getEffectiveWeight();
@@ -1731,6 +2267,7 @@ let state = 'intro';       // intro | walk | fly | talk | percyfly | finale
 const visitedWorlds = new Array(WORLD_DEFS.length).fill(false);
 const keys = {};
 const WALK_SPEED = 12.0, TURN_SPEED = 2.3;
+const HER_MODEL_LIFT = 0.18;   // radial lift of the visual model so idle feet don't sink
 const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion(),
       tmpV = V(), tmpV2 = V(), tmpV3 = V();
 const cA = V(), cB = V(), cC = V(), aimDir = V();
@@ -1785,7 +2322,8 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
    walking view but ~2x closer. The camera sits just behind Beanie's shoulder
    and looks past her toward whoever she's talking to, no matter which way she
    was facing when the chat started. Beanie turns to face the NPC (rotation
-   only — her sphere position is unchanged); the camera then holds still. */
+   only — her sphere position is unchanged); the camera then holds still.
+   Nearby props are hidden while talking so nothing covers her. */
 let TALK_CAM_SIDE = 1;
 function updateTalkCam(dt){
   const npc = (dialog && dialog.npcPos) ? dialog.npcPos() : null;
@@ -1809,6 +2347,20 @@ function updateTalkCam(dt){
   camera.up.copy(camUp);
   camera.lookAt(look);
 }
+// Hide props near Beanie during a conversation so nothing covers her; the
+// speaker (npcObj) and the planet base are never hidden.
+let hiddenObstacles = [];
+function hideNearbyObstacles(npcObj){
+  restoreObstacles();
+  const b = bodies[curI]; if (!b || !b.group) return;
+  const hp = her.position, tmp = new THREE.Vector3();
+  b.group.children.forEach((c, i) => {
+    if (i === 0 || !c.visible || c === npcObj) return;   // skip base sphere + the speaker
+    c.getWorldPosition(tmp);
+    if (tmp.distanceTo(hp) < 7.5){ c.visible = false; hiddenObstacles.push(c); }
+  });
+}
+function restoreObstacles(){ for (const c of hiddenObstacles) c.visible = true; hiddenObstacles = []; }
 // drag + trackpad — only while Beanie is stopped. While she's actively
 // walking, arrow keys already steer the camera-relative view (updateWalk),
 // so free-look input is disabled to avoid the two fighting each other.
@@ -1841,6 +2393,35 @@ const targetRing = new THREE.Mesh(new THREE.TorusGeometry(1, 0.035, 8, 40),
   new THREE.MeshBasicMaterial({ color:0xffd166, transparent:true, opacity:0.9 }));
 targetRing.visible = false;
 scene.add(targetRing);
+
+/* ---------- world-space "locator" marker floating over the current NPC/goal ---------- */
+const locator = new THREE.Group();
+{
+  const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.1, 5),
+    mat(0xffd166, { emissive:0xffb43e, emissiveIntensity:2.2, roughness:0.3 }));
+  arrow.rotation.x = Math.PI;   // point down at the target
+  arrow.position.y = 1.1; locator.add(arrow);
+  const ballo = new THREE.Mesh(new THREE.SphereGeometry(0.9, 12, 10),
+    new THREE.MeshBasicMaterial({ color:0xffd9a0, transparent:true, opacity:0.16, depthWrite:false }));
+  ballo.position.y = 1.1; locator.add(ballo);
+  locator.userData = { arrow, ballo };
+}
+locator.visible = false;
+scene.add(locator);
+const _locTmp = new THREE.Vector3();
+function updateLocator(t){
+  const b = bodies[curI];
+  const active = (state === 'walk') && b && !b.missionDone && b.guideFn;
+  if (!active){ locator.visible = false; return; }
+  const tp = b.guideFn(_locTmp);
+  if (!tp){ locator.visible = false; return; }
+  const n = new THREE.Vector3().subVectors(tp, b.center).normalize();
+  const bob = 0.35*Math.sin(t*2.2);
+  locator.position.copy(tp).addScaledVector(n, 2.6 + bob);
+  locator.quaternion.copy(quatFromBasis(n, tangentToward(locator.position, n, camera.position)));
+  locator.userData.arrow.rotation.y = t*2;
+  locator.visible = true;
+}
 function updateAim(t){
   target = null;
   if (state !== 'walk'){ targetRing.visible = false; reticleEl.classList.remove('lock'); return; }
@@ -1930,6 +2511,7 @@ function jumpTo(body){
   state = 'fly';
   camYaw = 0;
   if (herWalkAction) herWalkAction.setEffectiveWeight(0);
+  if (herRunAction) herRunAction.setEffectiveWeight(0);
   if (herIdleAction) herIdleAction.setEffectiveWeight(0);
   promptEl.classList.remove('show');
   playChime();
@@ -1991,7 +2573,7 @@ function arrive(bi){
    types one line at a time; SPACE / A / ENTER advances; when the last line is
    dismissed we return to 'walk' and fire onDone (which some flows use to jump
    into another state, e.g. Percy's flight). */
-let percyNear = false, percyFly = null;
+let percyNear = false, percyFly = null, chippyNear = false, bbakNear = false, plazaNear = false, pickTarget = null;
 const PERCY_LINES = [
   `Coo! Rachel… you found me. I have been waiting ALL day!`,
   'The other pigeons talk too much. *flap flap* Anyway —',
@@ -2007,7 +2589,8 @@ function startDialog(lines, onDone, opts={}){
   reticleEl.classList.add('hidden');
   dialogEl.classList.remove('hidden');
   dialogNameEl.textContent = opts.speaker || 'Percy 🕊️';
-  dialog = { lines, idx:0, onDone, coo: opts.coo !== false };
+  dialog = { lines, idx:0, onDone, coo: opts.coo !== false, npcPos: opts.npcPos || null };
+  hideNearbyObstacles(opts.npcObj || null);   // clear props so nothing covers Beanie
   showDialogLine();
 }
 function percyWorldPos(out){
@@ -2039,6 +2622,7 @@ function advanceDialog(){
   const cb = dialog.onDone;
   dialog = null;
   state = 'walk';
+  restoreObstacles();
   if (cb) cb();
 }
 function beginPercyFlight(){
@@ -2081,9 +2665,10 @@ function updatePercyFlight(dt, t){
   const pf = percyFly;
   pf.t += dt;
   const holder = pf.holder;
-  // wings flap the whole time
-  for (let w = 0; w < 2; w++)
-    pf.percy.userData.wings[w].rotation.z = (w===0?1:-1)*Math.sin(t*10)*0.95;
+  // wings flap the whole time (only the plush fallback has wing groups)
+  if (pf.percy.userData.wings)
+    for (let w = 0; w < 2; w++)
+      pf.percy.userData.wings[w].rotation.z = (w===0?1:-1)*Math.sin(t*10)*0.95;
   if (pf.t < 1.6){                                     // percy grows!
     const k = pf.t/1.6, s = k*k*(3-2*k);
     holder.scale.setScalar(1 + s*3.6);
@@ -2211,18 +2796,37 @@ addEventListener('keydown', (e) => {
     if (state === 'intro') startJourney();
     else if (state === 'talk') advanceDialog();
     else if (state === 'walk'){
-      if (percyNear) startDialog(PERCY_LINES, beginPercyFlight,
-        { npcPos: () => worldRefs.pigeon.percyHolder.getWorldPosition(new THREE.Vector3()) });
+      if (chippyNear) talkChippy();
+      else if (bbakNear) talkBbak();
+      else if (plazaNear) talkActivePigeon();
+      else if (percyNear) talkPercy();
       else if (target) jumpTo(target);
     }
   }
-  // A also advances/accepts dialogue ("press A to select")
-  if ((e.key === 'a' || e.key === 'A') && state === 'talk') advanceDialog();
-  // QA shortcut: 1-6 instantly warps to that world (skips aim-and-leap).
-  if (state === 'walk' && e.key >= '1' && e.key <= String(WORLD_DEFS.length)){
-    window.__world.goto(Number(e.key) - 1);
+  // A picks up items during play ("press A to select"), and accepts dialogue
+  if (e.key === 'a' || e.key === 'A'){
+    if (state === 'talk') advanceDialog();
+    else if (state === 'walk' && pickTarget){
+      if (pickTarget.cuke) pickupCuke();
+      else if (curI === 2) pickupFood(pickTarget);
+      else pickupBook(pickTarget);
+    }
+  }
+  // QA shortcut: 1-6 instantly warps to that world AND skips every mission /
+  // gate (including Chicago's letter) so you can free-roam and leap onward.
+  if ((state === 'walk' || state === 'talk' || state === 'intro')
+      && e.key >= '1' && e.key <= String(WORLD_DEFS.length)){
+    qaWarp(Number(e.key) - 1);
   }
 });
+function qaWarp(i){
+  if (state === 'intro') startJourney();                // reveal HUD / start audio first
+  if (dialog){ clearInterval(dialogTyping); dialogEl.classList.add('hidden'); dialog = null; restoreObstacles(); }
+  if (chicagoMessenger) dismissChicagoMessenger();
+  bodies.forEach((b) => { b.missionDone = true; });     // QA: skip every mission/gate
+  state = 'walk';
+  window.__world.goto(i);
+}
 addEventListener('keyup', (e) => { keys[e.key] = false; });
 
 function updateWalk(dt){
@@ -2232,6 +2836,8 @@ function updateWalk(dt){
   const u = her.userData;
   u.moving = !!(ix || iz);
   u.movingBackward = iz < 0;
+  u.running = u.moving && !!(keys['Shift'] || keys['ShiftLeft'] || keys['ShiftRight']);
+  const moveSpeed = WALK_SPEED * (u.running ? 1.5 : 1);   // hold Shift to run (1.5x)
   if (ix){
     // ← → turn in place (Animal Crossing-style tank turning), and ease the
     // camera around to peek at her front on that side rather than staying
@@ -2247,7 +2853,7 @@ function updateWalk(dt){
     // ↑ ↓ walk forward/backward along her current facing — no turning, so
     // backing up never spins her whole body around.
     const preForward = tmpQ2.copy(orientation);
-    orientation.multiply(tmpQ.setFromAxisAngle(X_AXIS, iz*WALK_SPEED*dt/b.r));
+    orientation.multiply(tmpQ.setFromAxisAngle(X_AXIS, iz*moveSpeed*dt/b.r));
     orientation.normalize();
     if (isBlocked(b, orientation)) orientation.copy(preForward);   // bump back
   }
@@ -2275,13 +2881,41 @@ function updateWalk(dt){
   } else {
     guideEl.classList.remove('show');
   }
-  // percy proximity
-  percyNear = false;
+  // NPC / pickup proximity
+  percyNear = false; chippyNear = false; bbakNear = false; plazaNear = false; pickTarget = null;
   if (curI === PIGEON_I && !worldRefs.pigeon.percyHolder.userData.flying){
-    percyNear = her.position.distanceTo(percyWorldPos(tmpV3)) < 3.6;
+    percyNear = her.position.distanceTo(percyWorldPos(tmpV3)) < 4.0;
+    const h = plazaTargetHolder();
+    if (h) plazaNear = her.position.distanceTo(h.getWorldPosition(tmpV3)) < 4.2;
   }
-  if (percyNear){
-    promptEl.textContent = '🕊️ press SPACE to talk to Percy';
+  if (curI === 1 && worldRefs.books){
+    if (booksQuest.phase !== 2) chippyNear = her.position.distanceTo(chippyPos(tmpV3)) < 3.6;
+    pickTarget = nearestGiftBook();
+  }
+  if (curI === 2 && worldRefs.cucumber){
+    if (bbakQuest.phase !== 2) bbakNear = her.position.distanceTo(bbakPos(tmpV3)) < 4.2;
+    pickTarget = nearestFoodPickup();
+  }
+  if (chippyNear){
+    promptEl.textContent = (booksQuest.phase === 1 && booksQuest.got >= booksQuest.need)
+      ? '🐿️ press SPACE to give Chippy the books'
+      : '🐿️ press SPACE to talk to Chippy';
+    promptEl.classList.add('show');
+  } else if (bbakNear){
+    promptEl.textContent = bbakQuest.holding
+      ? '🐻‍❄️ press SPACE to give it to bbak'
+      : '🐻‍❄️ press SPACE to talk to bbak';
+    promptEl.classList.add('show');
+  } else if (plazaNear){
+    promptEl.textContent = '🕊️ press SPACE to say hello';
+    promptEl.classList.add('show');
+  } else if (percyNear){
+    promptEl.textContent = plazaQuest.phase === 'bring-doodles'
+      ? '🕊️ press SPACE — bring Doodles to Percy'
+      : '🕊️ press SPACE to talk to Percy';
+    promptEl.classList.add('show');
+  } else if (pickTarget){
+    promptEl.textContent = pickTarget.cuke ? '🥒 press A to pick the cucumber' : '📖 press A to pick up';
     promptEl.classList.add('show');
   } else if (target){
     promptEl.textContent = '✨ press SPACE to leap! ✨';
@@ -2330,6 +2964,19 @@ function setMission(html){
   missionEl.innerHTML = html;
   missionEl.classList.remove('hidden');
 }
+const bookpopEl = document.getElementById('bookpop');
+let bookpopTimer = null;
+function showBookPop(color, title){
+  const hex = '#' + color.toString(16).padStart(6, '0');
+  document.getElementById('bookpopCover').style.background =
+    `linear-gradient(135deg, ${hex}, ${hex}cc)`;
+  document.getElementById('bookpopTitle').textContent = `“${title}”`;
+  document.getElementById('bookpopCount').textContent =
+    `${booksQuest.got} of ${booksQuest.need} for Chippy`;
+  bookpopEl.classList.add('show');
+  clearTimeout(bookpopTimer);
+  bookpopTimer = setTimeout(() => bookpopEl.classList.remove('show'), 2800);
+}
 
 /* ---------- Chicago intro: Bred's messenger pigeon + letter ---------- */
 const CHICAGO_LETTER_LINES = [
@@ -2373,7 +3020,7 @@ function spawnChicagoMessenger(onLanded){
 }
 function dismissChicagoMessenger(){
   if (!chicagoMessenger) return;
-  const pg = chicagoMessenger.pg, up = chicagoMessenger.up;
+  const pg = chicagoMessenger.pg, up = chicagoMessenger.groundN;
   const holder = new THREE.Group(); holder.position.copy(pg.position);
   scene.add(holder); scene.remove(pg); pg.position.set(0,0,0); holder.add(pg);
   percyScatter.push({ obj: holder, life: 3.2,
@@ -2406,7 +3053,9 @@ function startJourney(){
   followCam(1, her.position, herUp(tmpV), herFwd(tmpV2), camDist, true);
   // Bred's messenger pigeon flutters in with the letter (gates the first leap)
   setTimeout(() => {
-    if (state !== 'walk' || bodies[0].missionDone) return;
+    // only run the Chicago letter if she is actually still standing on Chicago
+    // (a QA warp with 1-6 moves her on, and must NOT drag Chicago's intro along)
+    if (state !== 'walk' || curI !== 0 || bodies[0].missionDone) return;
     // messenger swoops down and LANDS, then reads the letter
     spawnChicagoMessenger(() => {
       startDialog(CHICAGO_LETTER_LINES, () => {
@@ -2495,6 +3144,7 @@ function step(dt){
   updatePercyScatter(dt);
   maybeShoot(dt);
   updateAim(t);
+  updateLocator(t);
 
   if (state === 'intro'){
     const a = t*0.075;
@@ -2616,6 +3266,20 @@ window.__world = {
   },
   waitFor(ms){ return new Promise((r) => setTimeout(r, ms)); },
   start(){ startJourney(); },
+  giftBooks(){ return worldRefs.books ? worldRefs.books.giftBooks.map(g => ({ taken:g.taken,
+    pos: g.holder.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)) })) : null; },
+  booksQuest(){ return { ...booksQuest }; },
+  plazaInfo(){ const h = plazaTargetHolder(); return {
+    phase: plazaQuest.phase, step: plazaQuest.step, missionDone: bodies[PIGEON_I].missionDone,
+    percyPos: percyWorldPos(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)),
+    targetPos: h ? h.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)) : null,
+    talking: !!plazaQuest.talkingPigeon }; },
+  bbakInfo(){ return worldRefs.cucumber ? { quest:{...bbakQuest}, missionDone:bodies[2].missionDone,
+    bbakPos: bbakPos().toArray().map(v=>+v.toFixed(2)),
+    cukePos: worldRefs.cucumber.cuke.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)),
+    cukeVisible: worldRefs.cucumber.cuke.visible,
+    foods: worldRefs.cucumber.foods.map(f => ({ taken:f.taken, name:f.name,
+      pos: f.holder.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)) })) } : null; },
   jumpChain(){ const n = bodies[curI].chainNext; if (n != null) jumpTo(bodies[n]); },
   get chainNext(){ return bodies[curI].chainNext; },
   pump(seconds){                    // advance the simulation manually (testing when tab is hidden)
