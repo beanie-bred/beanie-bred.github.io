@@ -42,8 +42,8 @@
     background:rgba(30,32,64,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,224,138,.35);
     color:#ffeccf;transition:opacity .6s}
   #mission b{color:var(--gold)}
-  #guide{position:fixed;top:118px;left:50%;transform:translateX(-50%) translateY(-6px);z-index:20;
-    font-size:12.5px;font-weight:600;padding:7px 16px;border-radius:999px;white-space:nowrap;
+  #guide{position:fixed;top:122px;left:50%;transform:translateX(-50%) translateY(-6px);z-index:20;
+    font-size:clamp(18px,2.6vw,24px);font-weight:700;padding:11px 24px;border-radius:999px;white-space:nowrap;
     background:rgba(30,32,64,.55);backdrop-filter:blur(8px);border:1px solid rgba(150,200,255,.4);
     color:#dbe7ff;opacity:0;transition:opacity .4s,transform .4s;pointer-events:none}
   #guide.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -82,11 +82,6 @@
     color:#fff;font-size:17px;cursor:pointer}
   #hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:20;
     font-size:12.5px;color:#cfd8f0;white-space:nowrap}
-  #dragHint{position:fixed;top:46%;left:50%;transform:translateX(-50%) translateY(6px);z-index:18;
-    font-size:13.5px;font-weight:600;color:#fff;padding:9px 20px;border-radius:999px;white-space:nowrap;
-    background:rgba(30,32,64,.5);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22);
-    opacity:0;pointer-events:none;transition:opacity .8s ease,transform .8s ease}
-  #dragHint.show{opacity:1;transform:translateX(-50%) translateY(0)}
   #reticle{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:19;
     width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.4);
     pointer-events:none;transition:all .18s}
@@ -116,11 +111,25 @@
 
   /* ---------- planet-arrival title card (wide establishing orbit shot) ---------- */
   #planetTitle{position:fixed;inset:0;z-index:26;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:16px;pointer-events:none;
-    opacity:0;transition:opacity 1.1s ease}
+    align-items:center;justify-content:center;gap:22px;pointer-events:none;
+    opacity:0;transition:opacity 1.1s ease;
+    background:radial-gradient(ellipse at center,rgba(10,12,28,.32) 0%,rgba(10,12,28,.08) 55%,transparent 80%)}
   #planetTitle.show{opacity:1;pointer-events:auto;cursor:pointer}
-  #planetTitleName{font-size:clamp(30px,5.4vw,54px);font-weight:700;color:#fff;
-    text-shadow:0 0 30px rgba(0,0,0,.55),0 4px 18px rgba(0,0,0,.4);letter-spacing:.5px}
+  /* big, "epic movie transition" title reveal: starts oversized/spread/blurred
+     and converges into place, bracketed by thin drawn-in gold rules */
+  #planetTitleName{font-size:clamp(56px,11vw,150px);font-weight:800;color:#fff;
+    text-transform:uppercase;letter-spacing:6px;
+    text-shadow:0 0 70px rgba(255,214,150,.55),0 0 140px rgba(255,190,110,.3),0 6px 34px rgba(0,0,0,.6);
+    animation:titleReveal 1.5s cubic-bezier(.16,1,.3,1) both}
+  #planetTitleName::before,#planetTitleName::after{content:'';display:block;
+    width:0;height:2px;margin:14px auto;background:linear-gradient(90deg,transparent,#ffd166,transparent);
+    animation:titleRule 1.1s ease-out .35s both}
+  @keyframes titleReveal{
+    0%{opacity:0;transform:scale(1.7);letter-spacing:26px;filter:blur(10px)}
+    65%{opacity:1;filter:blur(0)}
+    100%{opacity:1;transform:scale(1);letter-spacing:6px}
+  }
+  @keyframes titleRule{ from{width:0} to{width:140px} }
   #planetTitleContinue{font-size:14px;font-weight:600;color:#ffe9c9;letter-spacing:1px;
     animation:pulseTxt 1.6s ease-in-out infinite;text-shadow:0 0 14px rgba(0,0,0,.6)}
 
@@ -195,7 +204,6 @@
 <div id="dots" class="hidden"></div>
 <button id="muteBtn" class="hidden">🔊</button>
 <div id="hint" class="chip hidden">↑ ↓ ← → walk · cursor drag / trackpad swipe to look · SPACE leap / talk</div>
-<div id="dragHint">🖱️ drag to look around</div>
 <div id="reticle" class="hidden"></div>
 <div id="prompt">✨ press SPACE to leap! ✨</div>
 <div id="toast"></div>
@@ -1277,8 +1285,19 @@ function buildBooks(g, R){
   }
   const colliders = [];
   const chippyN = V().set(0.3, 1, 0.35).normalize();
+  // jumpTo's landing normal for a "regular" body is "back toward wherever
+  // she jumped from" — for the Chicago->Books leg that's approximately this
+  // fixed direction. Keep it clear of book stacks so she always lands on
+  // flat open ground (never on top of a pile) and the arrival camera never
+  // has a stack blocking its view of her fall/get-up.
+  const landN = V().subVectors(bodies[0].center, bodies[1].center).normalize();
+  bodies[1].landN = landN.clone();
+  const CHIPPY_CLEAR = 7, LAND_CLEAR = 9;
   for (let i = 0; i < 700; i++){
     const n = randDir();
+    // keep Chippy's own spot AND the landing zone open — he was getting
+    // buried under piles, and she'd sometimes touch down right on one.
+    if (n.angleTo(chippyN) < CHIPPY_CLEAR/R || n.angleTo(landN) < LAND_CLEAR/R){ i--; continue; }
     const s = 0.9 + Math.random()*0.5;
     placeOn(g, makeStack(2 + Math.floor(Math.random()*4), s), n, R);
     // Only a sparse subset block movement — colliding on all 700 would fence
@@ -1286,7 +1305,9 @@ function buildBooks(g, R){
     if (i % 22 === 0) addCollider(colliders, n, 0.9*s, R);
   }
   const grand = makeStack(6, 1.5, 0.25);          // the landmark tower of books
-  const grandN = dirNear(chippyN, 0.25);
+  // pulled farther out from Chippy (0.25->0.6 rad) so it reads as a nearby
+  // landmark instead of looming right over him.
+  const grandN = dirNear(chippyN, 0.6);
   placeOn(g, grand, grandN, R);
   addCollider(colliders, grandN, 1.35, R);
   // chippy napping on his own little stack
@@ -1347,12 +1368,21 @@ function buildBooks(g, R){
     const n = dirNear(chippyN, 0.9 + (i/5)*1.7 + Math.random()*0.4);
     placeOn(g, holder, n, R, 0.1);
     const ph = i*1.3;
+    const bkMat = bk.children[0].material;
     animators.push((t) => {
       if (!holder.visible) return;
       bk.rotation.y = t*0.9 + ph;
       bk.position.y = 1.4 + 0.2*Math.sin(t*1.6 + ph);
-      beacon.rotation.y = t*1.6; beacon.position.y = 3.4 + 0.25*Math.sin(t*2 + ph);
-      halo.material.opacity = 0.16 + 0.09*Math.sin(t*2 + ph);
+      // Don't glow/beacon until Chippy has actually asked for these — she
+      // shouldn't be able to spot the "glowy ones" before she even knows
+      // to look for them.
+      const missionActive = booksQuest.phase >= 1;
+      beacon.visible = halo.visible = beam.visible = missionActive;
+      bkMat.emissiveIntensity = missionActive ? 0.75 : 0;
+      if (missionActive){
+        beacon.rotation.y = t*1.6; beacon.position.y = 3.4 + 0.25*Math.sin(t*2 + ph);
+        halo.material.opacity = 0.16 + 0.09*Math.sin(t*2 + ph);
+      }
     });
     giftBooks.push({ holder, dir: n.clone(), taken:false, color: GIFT_COLORS[i], title: GIFT_TITLES[i] });
   }
@@ -2489,7 +2519,7 @@ const CHICAGO_START_N = arbitraryPerp(CHICAGO_TARGET_DIR);
 }
 
 /* ---------- camera: follow + trackpad orbit ---------- */
-let camYaw = 0, camPitch = 0.3, camDist = 9, camYawTarget = 0;
+let camYaw = 0, camPitch = 0.3, camDist = 9;
 const camPos = camera.position.clone();
 const camUp = V().set(0,1,0);
 function followCam(dt, pos, up, fwd, dist, snap=false){
@@ -2500,8 +2530,11 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
   tmpQ.setFromAxisAngle(cB, -camPitch);
   cA.applyQuaternion(tmpQ);                       // pitch
   cC.copy(pos).addScaledVector(cA, dist).addScaledVector(up, 7.5);
-  // Keep the third-person camera outside the current spherical world.
-  if ((state === 'walk' || state === 'talk') && bodies[curI]){
+  // Keep the third-person camera outside the current spherical world —
+  // also during 'landing' (its fallgetup phase calls followCam too), since
+  // without this the close-up landing shot had no floor-clipping guard at
+  // all and could bury the camera in the surface or nearby decorations.
+  if ((state === 'walk' || state === 'talk' || state === 'landing') && bodies[curI]){
     const b = bodies[curI];
     const radial = tmpV3.subVectors(cC, b.center);
     const safeR = b.r + 2.2;
@@ -2608,16 +2641,26 @@ scene.add(targetRing);
 /* ---------- world-space "locator" marker floating over the current NPC/goal ---------- */
 const locator = new THREE.Group();
 {
-  // sized up ~40% from the original so it still reads clearly now that it
-  // hovers much higher above big-planet targets (see beaconHeight below)
-  const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.77, 1.54, 5),
-    mat(0xffd166, { emissive:0xffb43e, emissiveIntensity:2.2, roughness:0.3 }));
-  arrow.rotation.x = Math.PI;   // point down at the target
-  arrow.position.y = 1.54; locator.add(arrow);
-  const ballo = new THREE.Mesh(new THREE.SphereGeometry(1.26, 12, 10),
-    new THREE.MeshBasicMaterial({ color:0xffd9a0, transparent:true, opacity:0.16, depthWrite:false }));
-  ballo.position.y = 1.54; locator.add(ballo);
-  locator.userData = { arrow, ballo };
+  // A cute spinning sparkle instead of a stark metallic arrow — two soft
+  // pastel-gold rays crossed around a bright core (reads like a twinkling
+  // star as it spins), using the same warm "lampAmber" glow as the game's
+  // lanterns/fireflies instead of a harsh saturated gold.
+  const sparkle = new THREE.Group();
+  sparkle.position.y = 1.4; locator.add(sparkle);
+  const rayMat = mat(0xffe0ad, { emissive:0xffc978, emissiveIntensity:2.0, roughness:0.4 });
+  for (const rz of [0, Math.PI/2]){
+    const ray = new THREE.Mesh(new THREE.OctahedronGeometry(0.62), rayMat);
+    ray.scale.set(0.26, 1, 0.26);
+    ray.rotation.z = rz;
+    sparkle.add(ray);
+  }
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10),
+    mat(0xfff6e6, { emissive:0xffe6b0, emissiveIntensity:2.8, roughness:0.25 }));
+  sparkle.add(core);
+  const ballo = new THREE.Mesh(new THREE.SphereGeometry(1.05, 14, 12),
+    new THREE.MeshBasicMaterial({ color:0xffe6c0, transparent:true, opacity:0.16, depthWrite:false }));
+  sparkle.add(ballo);
+  locator.userData = { arrow: sparkle, ballo };
 }
 locator.visible = false;
 scene.add(locator);
@@ -2639,6 +2682,7 @@ function updateLocator(t){
   locator.position.copy(tp).addScaledVector(n, beaconHeight + bob);
   locator.quaternion.copy(quatFromBasis(n, tangentToward(locator.position, n, camera.position)));
   locator.userData.arrow.rotation.y = t*2;
+  locator.userData.arrow.position.y = 1.4 + 0.14*Math.sin(t*3);   // little cute bounce
   locator.visible = true;
 }
 function updateAim(t){
@@ -2712,7 +2756,7 @@ function jumpTo(body){
   const n0 = herUp(V()).clone();
   const n1 = body.worldIndex === PIGEON_I
     ? dirNear(worldRefs.pigeon.plazaN, 0.18)
-    : V().subVectors(p0, body.center).normalize();
+    : (body.landN || V().subVectors(p0, body.center).normalize());
   const p3 = V().copy(body.center).addScaledVector(n1, body.r);
   const dist = p0.distanceTo(p3);
   // Cubic arc, asymmetric on purpose: a tall pull straight up from launch
@@ -2733,7 +2777,7 @@ function jumpTo(body){
   if (herRunAction) herRunAction.setEffectiveWeight(0);
   if (herIdleAction) herIdleAction.setEffectiveWeight(0);
   promptEl.classList.remove('show');
-  dragHintEl.classList.remove('show'); hintEl.classList.add('hidden'); idleTime = 0;
+  hintEl.classList.add('hidden'); idleTime = 0;
   playChime();
 }
 function updateFlight(dt){
@@ -2803,7 +2847,15 @@ function updateLanding(dt){
     const farHeight = Math.max(7, Math.min(30, br*0.95));
     const dist = 9 + (farDist - 9)*k;
     const height = 3.5 + (farHeight - 3.5)*k;
-    const angle = landing.t*(Math.PI*2/LAND_ORBIT_DURATION);
+    // Let her nudge the view during the cutscene instead of it being 100%
+    // scripted — dragging already updates camYaw regardless of game state,
+    // this just also wires up the arrow keys since normal input isn't read
+    // at all during 'landing'. Both accumulate as an offset on the
+    // auto-rotating base angle rather than replacing it, so letting go
+    // just resumes the automatic orbit from wherever she left it.
+    const ix = (keys['ArrowRight'] ? 1 : 0) - (keys['ArrowLeft'] ? 1 : 0);
+    if (ix) camYaw -= ix*1.6*dt;
+    const angle = landing.t*(Math.PI*2/LAND_ORBIT_DURATION) + camYaw;
     const dir = tmpV3.copy(landing.orbitBasisA).multiplyScalar(Math.cos(angle))
       .addScaledVector(landing.orbitBasisB, Math.sin(angle));
     const orbitPos = tmpV2.copy(her.position).addScaledVector(up, height).addScaledVector(dir, dist);
@@ -2863,7 +2915,7 @@ function startDialog(lines, onDone, opts={}){
   state = 'talk';
   promptEl.classList.remove('show');
   guideEl.classList.remove('show');
-  dragHintEl.classList.remove('show'); hintEl.classList.add('hidden'); idleTime = 0;
+  hintEl.classList.add('hidden'); idleTime = 0;
   targetRing.visible = false;
   reticleEl.classList.add('hidden');
   dialogEl.classList.remove('hidden');
@@ -3110,25 +3162,19 @@ function qaWarp(i){
 }
 addEventListener('keyup', (e) => { keys[e.key] = false; });
 
-// Nudge the player toward the free-look controls if she just stands still for
-// a while — fades in, and goes away the moment she moves or starts dragging.
-let idleTime = 0;
 // The control-legend chip (#hint) used to be shown once at game start and
 // never hidden again, so it sat on screen through every conversation and
-// every walk cycle. It now follows the exact same idle-only reveal as the
-// drag-to-look hint, since neither should ever cover movement or dialogue.
+// every walk cycle. It now only reveals itself once she's been idle a
+// few seconds, and hides again the moment she moves or starts dragging.
+let idleTime = 0;
 function updateIdleHint(dt, moving){
   if (moving || dragging){
     idleTime = 0;
-    dragHintEl.classList.remove('show');
     hintEl.classList.add('hidden');
     return;
   }
   idleTime += dt;
-  if (idleTime > 5.0){
-    dragHintEl.classList.add('show');
-    hintEl.classList.remove('hidden');
-  }
+  if (idleTime > 5.0) hintEl.classList.remove('hidden');
 }
 
 function updateWalk(dt){
@@ -3143,21 +3189,20 @@ function updateWalk(dt){
   const iz = (keys['ArrowUp'] ? 1 : 0) - (keys['ArrowDown'] ? 1 : 0);
   u.moving = !!(ix || iz);
   updateIdleHint(dt, u.moving);
+  // Any actual movement snaps the free-look (drag) view straight back to her
+  // standard behind-the-shoulder POV immediately — free-look is meant for
+  // looking around while she's stopped, not for wandering off mid-stride.
+  if (u.moving){
+    camPitch = 0.3;
+    camYaw = ix ? ix*0.65 : 0;   // turning still peeks toward that side
+  }
   u.movingBackward = iz < 0;
   u.running = u.moving && !!(keys['Shift'] || keys['ShiftLeft'] || keys['ShiftRight']);
   const moveSpeed = WALK_SPEED * (u.running ? 1.5 : 1);   // hold Shift to run (1.5x)
   if (ix){
-    // ← → turn in place (Animal Crossing-style tank turning), and ease the
-    // camera around to peek at her front on that side rather than staying
-    // fixed behind her back.
+    // ← → turn in place (Animal Crossing-style tank turning)
     const up = herUp(tmpV);
     orientation.premultiply(tmpQ.setFromAxisAngle(up, -ix*2.4*dt));
-    // Only nudge the camera toward the "peek" bias while actually turning —
-    // this used to run unconditionally every frame (targeting 0 whenever ix
-    // was 0), which fought and undid any manual cursor-drag orbit within
-    // about a second, making it impossible to hold a view of her front.
-    camYawTarget = ix*0.65;
-    camYaw += (camYawTarget - camYaw) * Math.min(1, dt*3.2);
   }
   if (iz){
     // ↑ ↓ walk forward/backward along her current facing — no turning, so
@@ -3266,7 +3311,6 @@ const guideArrowEl = document.getElementById('guideArrow');
 const guideLabelEl = document.getElementById('guideLabel');
 const dotsEl = document.getElementById('dots');
 const hintEl = document.getElementById('hint');
-const dragHintEl = document.getElementById('dragHint');
 const promptEl = document.getElementById('prompt');
 const toastEl = document.getElementById('toast');
 const planetNameEl = document.getElementById('planetName');
@@ -3578,7 +3622,7 @@ window.__world = {
   couchCharWorldPos(who){          // who: 'bred' | 'percy' | 'chippyPlush'
     return worldRefs.garden ? worldRefs.garden[who].getWorldPosition(new THREE.Vector3()).toArray() : null;
   },
-  camDebug(){ return { camYaw, camPitch, camDist, moving: her.userData.moving, locked: cameraLookLocked(), dragging, idleTime, dragHintShowing: dragHintEl.classList.contains('show') }; },
+  camDebug(){ return { camYaw, camPitch, camDist, moving: her.userData.moving, locked: cameraLookLocked(), dragging, idleTime, hintShowing: !hintEl.classList.contains('hidden') }; },
   talkDebug(){
     const npc = dialog && dialog.npcPos ? dialog.npcPos() : null;
     let extra = {};
