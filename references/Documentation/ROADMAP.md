@@ -120,7 +120,20 @@
         directly; none was available this session (`Could not connect to
         Blender — make sure the addon is running`). Needs the same kind of
         pass as the Talking-pose retargeting work elsewhere in this file, the
-        next time Blender is actually connected.
+        next time Blender is actually connected. **Re-confirmed live and
+        still present** after the parallel session's same-day belly-
+        deformation fix (commit `1427494`): forced `summerWalkWeight` to 1 via
+        `goto(4)` + real `ArrowUp` key dispatch (her Walk action doesn't
+        engage through `turnStep`/teleport helpers, only through the real
+        input path), then visually inspected across multiple walk frames — a
+        skin-toned mass (her hand/forearm) sits fixed against the same spot
+        on her mid-lower back every frame, not swinging like a real arm-swing
+        would. This is a DIFFERENT bug from commit `1427494`'s belly fix
+        (that was ~450 waist/hem vertices mis-weighted to Spine/Hips/thigh —
+        a weight-painting discontinuity; this looks like the right arm chain
+        itself is posed behind her back in the Walk action, not stretched
+        there by bad weights) — fixing one did not fix the other. Still
+        needs its own Blender pass on `Summer_RIGGED.blend`'s Walk action.
 - [x] Dialogue typewriter sped up 2x and de-jankified; Chicago messenger
       cutscene + fixed mission chip popping up mid-conversation
       (2026-07-15, later same day): asked to make the dialogue typewriter
