@@ -1613,7 +1613,16 @@ function buildBooks(g, R){
       placeMazeWall(tiltDir(chippyN, rad, azimuth));
     }
   }
-  const grand = makeStack(6, 1.5, 0.25);          // the landmark tower of books
+  // A maze-wall pile averages ~8 books @ scale ~1.15 (0.26*1.15*8 ≈ 2.4 tall)
+  // — the OLD landmark (6 books @ 1.5 ≈ 2.34 tall) was barely distinguishable
+  // from an ordinary wall at a glance, exactly the "hard to spot" complaint.
+  // 14 books @ 1.3 ≈ 4.73 tall — a clean two-times-the-average tower, read as
+  // one continuous column (the same visual as "several piles combined") but
+  // built with makeStack's own existing per-book jitter rather than stacking
+  // separate groups, so it still reads as one coherent pile, not a stepped
+  // stack-of-stacks. Slightly tighter tidy (0.18 vs the default 0.25) since a
+  // taller column wobbles more visibly at the same jitter magnitude.
+  const grand = makeStack(14, 1.3, 0.18);          // the landmark tower of books
   // Fixed angular distance out past the whole maze (all 4 rings top out at
   // 1.45 + jitter + their own footprint), so it always reads as a distinct
   // landmark beyond the labyrinth. dirNear() is NOT safe for this: it's
@@ -1632,6 +1641,20 @@ function buildBooks(g, R){
   while (grandN.angleTo(landN) < LAND_CLEAR/R + 1.35/R);
   placeOn(g, grand, grandN, R);
   addCollider(colliders, grandN, 1.35, R);
+  // The maze only ever covers the disc within MAZE_RING_MAX of chippyN —
+  // from a wide view (Chicago, or this world's own title-orbit) everywhere
+  // past that ring reads as one bare circle of grass around a single dense
+  // maze, not a world that's generally full of books. Smaller, sparser piles
+  // (no maze-wall-strength collider footprint, and spaced out rather than
+  // packed edge-to-edge) scattered across the REST of the planet fix that
+  // without turning the open ground out there into a second maze.
+  for (let i = 0; i < 50; i++){
+    let n;
+    do { n = randDir(); } while (n.angleTo(chippyN) < MAZE_RING_MAX + 0.15 || n.angleTo(grandN) < 1.6/R + 0.15);
+    const nb = 3 + Math.floor(Math.random()*4), s = 0.85 + Math.random()*0.35;
+    placeOn(g, makeStack(nb, s, 0.3), n, R);
+    addCollider(colliders, n, 0.5*s, R);
+  }
   // chippy napping on his own little stack — bumped from 3 books @ scale 1.1
   // (height 0.858) to 5 @ 1.3 (height 1.69): the old seat was so short and
   // neat next to the surrounding randomly-scattered 700-pile stacks (which
@@ -1944,11 +1967,19 @@ function buildCucumber(g, R){
     const holder = new THREE.Group(); holder.add(mound);
     return holder;
   }
+  // Recorded (direction, angular footprint, peak height) per pile so she can
+  // walk ON TOP of these like real hills instead of just visually overlapping
+  // them — see snowPileHeightAt(), used from updatePose() on this world.
+  const snowPiles = [];
   for (let i = 0; i < 70; i++){
     const radius = 1.3 + Math.random()*1.7;   // bigger than the old flat-circle pass (was 0.6-1.3)
-    const holder = makeSnowPile(radius);
+    const yScale = 0.42 + Math.random()*0.1;
+    const lift = radius*0.1;
+    const holder = makeSnowPile(radius, yScale);
     holder.rotation.y = Math.random()*Math.PI*2;
-    placeOn(g, holder, randDirClearOfLanding(), R, radius*0.1);
+    const n = randDirClearOfLanding();
+    placeOn(g, holder, n, R, lift);
+    snowPiles.push({ n, angularRadius: radius/R, peak: lift + radius*yScale });
   }
   // bbak (sleeping polar-bear plush) lounging on the grass — the NPC
   const bbakN = V().set(-0.25, 1, 0.35).normalize();
@@ -1956,6 +1987,7 @@ function buildCucumber(g, R){
   // same small background patches everyone else gets — reading as "this one
   // polar bear still has his own little patch of his old home to rest on".
   const BBAK_SNOW_RADIUS = 3.4, BBAK_SNOW_Y_SCALE = 0.46, BBAK_MOUND_LIFT = BBAK_SNOW_RADIUS*0.1;
+  snowPiles.push({ n:bbakN, angularRadius: BBAK_SNOW_RADIUS/R, peak: BBAK_MOUND_LIFT + BBAK_SNOW_RADIUS*BBAK_SNOW_Y_SCALE });
   // How far the mound's peak actually rises above the raw sphere surface —
   // previously bbak was placed at a hand-picked offset (radius*0.32) with no
   // relation to the mound's real height, and the mound's height was random
@@ -2039,7 +2071,7 @@ function buildCucumber(g, R){
     cukeHalo.material.opacity = 0.2 + 0.1*Math.sin(t*2.2); });
   return { bbak, bbakN, foods, cuke, cukeN, solidRing, solidMat,
     setSolidSpinScale: (s) => { solidSpinScale = s; },
-    cukeRingGroups, groundCucumberHolders,
+    cukeRingGroups, groundCucumberHolders, snowPiles,
     ringMidR: (mainInnerR+mainOuterR)/2, ringTiltX: RING_TILT_X, ringTiltZ: RING_TILT_Z,
     ringSquashZ: RING_ELLIPSE_SQUASH };
 }
@@ -3427,9 +3459,30 @@ const cA = V(), cB = V(), cC = V(), aimDir = V();
 
 function herUp(out){ return out.set(0,1,0).applyQuaternion(orientation); }
 function herFwd(out){ return out.set(0,0,1).applyQuaternion(orientation); }
+// Cucumber Meadow's decorative snow piles are real dome-shaped hills, not
+// flat ground decals — she should walk UP and over them, not glide through
+// their base at the planet's raw radius the way she used to (every other
+// world's terrain is flat relative to its own base radius, so this only
+// ever applies there). Recomputed fresh from her current direction each
+// frame rather than smoothed/cached — since it's a continuous function of
+// position, walking across a pile's edge already reads as a smooth rise and
+// fall with no separate lerp needed.
+function terrainHeightAt(up){
+  if (curI !== 2 || !worldRefs.cucumber) return 0;
+  let maxH = 0;
+  for (const p of worldRefs.cucumber.snowPiles){
+    const ang = up.angleTo(p.n);
+    if (ang >= p.angularRadius) continue;
+    const k = 1 - ang/p.angularRadius;
+    const h = p.peak * Math.sin(k*Math.PI/2);   // smooth dome falloff, 0 at the rim
+    if (h > maxH) maxH = h;
+  }
+  return maxH;
+}
 function updatePose(){
   const b = bodies[curI];
-  her.position.copy(b.center).addScaledVector(herUp(tmpV), b.r);
+  const up = herUp(tmpV);
+  her.position.copy(b.center).addScaledVector(up, b.r + terrainHeightAt(up));
   her.quaternion.copy(orientation);
 }
 // title pose: sitting right beside the tower on Chicago — she spawns close
