@@ -1650,7 +1650,7 @@ function buildBooks(g, R){
   // without turning the open ground out there into a second maze.
   for (let i = 0; i < 50; i++){
     let n;
-    do { n = randDir(); } while (n.angleTo(chippyN) < MAZE_RING_MAX + 0.15 || n.angleTo(grandN) < 1.6/R + 0.15);
+    do { n = randDir(); } while (n.angleTo(chippyN) < MAZE_RING_MAX + 0.15 || n.angleTo(grandN) < 1.35/R + 0.15);
     const nb = 3 + Math.floor(Math.random()*4), s = 0.85 + Math.random()*0.35;
     placeOn(g, makeStack(nb, s, 0.3), n, R);
     addCollider(colliders, n, 0.5*s, R);
