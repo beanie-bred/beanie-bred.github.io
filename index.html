@@ -576,6 +576,28 @@ const sparkGeo = new THREE.OctahedronGeometry(0.16);
 const sparkMat = mat(0xffe08a, { emissive:0xffc23e, emissiveIntensity:1.6 });
 const heartBurstMat = mat(0xf2889e, { emissive:0xe86a86, emissiveIntensity:0.7 });
 
+/* ---------- footprints ---------- */
+// A simple flattened oval "impression" per footstep — alternates left/right
+// with the same step parity that already drives footstep() sound/dust, sits
+// flush against the local surface, and fades via spawnEphemeral's own
+// life-based opacity ramp (no separate fade timer needed).
+const footprintGeo = new THREE.CircleGeometry(0.14, 10);
+// Default CircleGeometry lies in the XY plane (normal +Z). Pre-rotate it
+// once so its normal becomes +Y instead — matching quatFromBasis's own
+// up=local-Y, forward=local-Z convention (used for her, every NPC, etc.),
+// so a plain quatFromBasis(up, fwd) here lies the decal flush against the
+// surface with its long axis already pointing the way she's walking,
+// instead of re-deriving that rotation by hand.
+footprintGeo.rotateX(-Math.PI/2);
+const FOOTPRINT_LIFE = 2.0;
+function spawnFootprint(pos, up, fwd, side, leftSide){
+  const mesh = new THREE.Mesh(footprintGeo, mat(0x000000, { roughness:1, transparent:true, opacity:0.22 }));
+  mesh.quaternion.copy(quatFromBasis(up, fwd));
+  mesh.scale.set(0.65, 1, 1.15);   // narrower side-to-side (local X), a touch longer along her forward (local Z)
+  const footPos = new THREE.Vector3().copy(pos)
+    .addScaledVector(up, 0.015).addScaledVector(side, leftSide ? -0.13 : 0.13);
+  spawnEphemeral(mesh, footPos, null, FOOTPRINT_LIFE, 0);
+}
 /* ---------- footstep dust puffs ---------- */
 const dustGeo = new THREE.SphereGeometry(0.13, 7, 5);
 const DUST_COLORS = { stone:0xbcb8c4, grass:0x9fb48f, book:0xe6dcc0, pop:0xd8cfe0 };
@@ -645,7 +667,56 @@ makeStars(2200, 1400, 2600, 2.6, 0xffffff, 0.95);
 makeStars(600, 1350, 2500, 3.6, 0xbcd4ff, 0.7);
 const pinkStars = makeStars(420, 1350, 2500, 3.2, 0xffd0de, 0.65);
 makeStars(90, 1400, 2500, 6.5, 0xffffff, 1.0);   // sparse, extra-bright "hero" stars
+makeStars(140, 1400, 2500, 4.2, 0xffffff, 0.85);   // an extra prominent layer, per request for more density
 animators.push((t) => { pinkStars.rotation.y = t*0.004; });
+// Constellations: small clusters of bright anchor stars connected by faint
+// lines suggesting a star-picture, in the same spirit as (not an attempt at
+// astronomically real) actual constellations — reads as whimsical detail in
+// the background sky rather than a literal skybox.
+{
+  const CONSTELLATION_COUNT = 7, STARS_PER = 5;
+  const constellationStarGeo = new THREE.SphereGeometry(4, 8, 6);
+  for (let c = 0; c < CONSTELLATION_COUNT; c++){
+    const centerDir = randDir();
+    const center = centerDir.clone().multiplyScalar(1950 + Math.random()*350);
+    const t1 = arbitraryPerp(centerDir);
+    const t2 = new THREE.Vector3().crossVectors(centerDir, t1).normalize();
+    const points = [];
+    for (let i = 0; i < STARS_PER; i++){
+      const p = center.clone()
+        .addScaledVector(t1, (Math.random()-0.5)*280)
+        .addScaledVector(t2, (Math.random()-0.5)*280);
+      points.push(p);
+      const starMesh = new THREE.Mesh(constellationStarGeo,
+        new THREE.MeshBasicMaterial({ color:0xffffff }));
+      starMesh.position.copy(p);
+      scene.add(starMesh);
+    }
+    const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+    const line = new THREE.Line(lineGeo,
+      new THREE.LineBasicMaterial({ color:0x9fb8e8, transparent:true, opacity:0.4 }));
+    scene.add(line);
+  }
+}
+// Shooting stars: a bright streak flies across a random chord of the sky
+// every several seconds and fades — same life-based opacity fade as every
+// other ephemeral, just with a custom elongated/oriented mesh and a much
+// longer travel distance than anything else that uses spawnEphemeral.
+const shootingStarGeo = new THREE.ConeGeometry(2.4, 60, 6);
+const shootingStarMat = mat(0xffffff, { emissive:0xffffff, emissiveIntensity:2.2 });
+function spawnShootingStar(){
+  const start = randDir().multiplyScalar(1950 + Math.random()*300);
+  const dir = randDir();
+  const mesh = new THREE.Mesh(shootingStarGeo, shootingStarMat.clone());
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().negate());   // wide/bright end leads
+  spawnEphemeral(mesh, start, dir.clone().multiplyScalar(950), 0.85 + Math.random()*0.3, 0);
+}
+let nextShootingStarT = 4 + Math.random()*6;
+animators.push((t) => {
+  if (t < nextShootingStarT) return;
+  spawnShootingStar();
+  nextShootingStarT = t + 7 + Math.random()*11;
+});
 
 /* ═══════════════ AUDIO ═══════════════ */
 let audio = null, muted = false, melodyGain = null, melodyTimer = null;
@@ -2578,7 +2649,9 @@ const booksQuest = { phase:0, got:0, need:5 };   // 0=find Chippy, 1=collecting,
 function chippyPos(out){ return worldRefs.books.chippy.getWorldPosition(out || new THREE.Vector3()); }
 const CHIPPY_ASK_LINES = [
   `Oh! Hello Rachel. *yaaawn* …I was just about to make some tea. 🍵`,
+  { speaker:'Rachel 💫', text:`Chippy! I didn't expect to find you way out here, buried in books.` },
   `Say, while the kettle boils, would you fetch me something to read?`,
+  { speaker:'Rachel 💫', text:`Of course — this whole place is basically ours to raid, right?` },
   `Bring me 5 of your favourite books from around here. The glowy ones! ✨`,
   `Press A to pick each one up, then come back to me. Off you pop!`,
 ];
@@ -2588,6 +2661,7 @@ const CHIPPY_NEED_MORE = [
 const CHIPPY_DONE_LINES = [
   `Ooh! Now THESE are good picks. *happy squeak* 🐿️`,
   `Perfect reading for a slow afternoon. Thank you, Rachel!`,
+  { speaker:'Rachel 💫', text:`Happy to help. Enjoy your tea, Chippy.` },
   `Now, the way onward. Aim past the tallest stack and leap. Go find him! 🤍`,
 ];
 bodies[1].guideNear = 3.6;
@@ -2661,9 +2735,12 @@ const bbakQuest = { phase:0, tries:0, need:4, holding:null, cukeRevealed:false }
 function bbakPos(out){ return worldRefs.cucumber.bbak.getWorldPosition(out || new THREE.Vector3()); }
 const BBAK_INTRO = [
   `Hnngh… oh, hi Rachel. *pant pant* It is SO hot out here… 🥵`,
+  { speaker:'Rachel 💫', text:`Oh no, bbak! I've never seen a polar bear look this... melted.` },
   `This whole place used to be solid ice and snow, believe it or not. Now it's all melted into... this. A meadow.`,
+  { speaker:'Rachel 💫', text:`That's awful. There has to be SOMETHING I can do for you.` },
   `This global-warming business is melting my brain, too. I need something COLD.`,
   `Fetch me a cold treat? Grab a glowy snack (press A) and bring it back to me.`,
+  { speaker:'Rachel 💫', text:`On it. Hang in there, bbak.` },
 ];
 // A reaction PER FOOD TYPE — bbak actually comments on whatever she tossed him,
 // instead of a generic "nope, try again" regardless of what it was.
@@ -3024,8 +3101,10 @@ const DOODLES_CFG = { name:'doodles', glb:'doodles', speaker:'🦤 Doodles the D
   `You'll… be my family? Really? *sniffle* …okay. Lead the way, take me to your friend.` ] };
 const PERCY_INTRO = [
   `Coo! Rachel, you found me! 🕊️`,
+  { speaker:'Rachel 💫', text:`Percy! Wow, you're bigger than I imagined. What's going on?` },
   `Listen… long, long ago I had a dear, dear friend. We were inseparable.`,
   `I've looked all over this plaza and I just can't find him. Would you help me look?`,
+  { speaker:'Rachel 💫', text:`Of course I'll help. We'll find your friend, Percy.` },
   `Go say hello to the pigeons around here, maybe one of them is him!` ];
 const PERCY_NUDGE_SEARCH = [ `Keep saying hello to the pigeons, one of them might be my friend!` ];
 const PERCY_GIVEUP = [
@@ -3036,7 +3115,9 @@ const PERCY_NUDGE_DOODLES = [ `A name starting with "D"… from way back in 1690
 const PERCY_REUNION = [
   `…Doodles? DOODLES! Oh, it's really you! 🥹`,
   `I thought I'd lost you forever, old friend.`,
+  { speaker:'Rachel 💫', text:`I'm so glad I could bring you two back together.` },
   `Rachel, you brought my family back to me. I could never thank you enough. 🤍`,
+  { speaker:'Rachel 💫', text:`Alright, Percy — where to next?` },
   `Now: hop on my back and hold tight. I know EXACTLY where Bred is!` ];
 
 const plazaQuest = { phase:'intro', step:0, decoyHolders:[], active:null, doodles:null, talkingPigeon:null };
@@ -3451,7 +3532,16 @@ let state = 'intro';       // intro | walk | fly | talk | percyfly | finale
 let introLocked = false;
 const visitedWorlds = new Array(WORLD_DEFS.length).fill(false);
 const keys = {};
-const WALK_SPEED = 12.0, TURN_SPEED = 2.3;
+// Slowed from 12.0 per request ("she moves too fast, no sense of weight") —
+// combined with the per-step camera "punch" in updateWalk (see u.stepPunch)
+// and the slower drag-turn sensitivity just below, walking reads as a
+// deliberate, weighted stride instead of a quick glide.
+const WALK_SPEED = 8.5, TURN_SPEED = 2.3;
+// A small decaying downward camera "punch" set on each footstep (see
+// updateWalk) and consumed by followCam, read+decayed once per frame in
+// step() — putting real weight behind each stride instead of a perfectly
+// smooth glide, without needing a dedicated bob animation.
+let stepPunch = 0;
 const HER_MODEL_LIFT = 0.18;   // radial lift of the visual model so idle feet don't sink
 const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion(),
       tmpV = V(), tmpV2 = V(), tmpV3 = V();
@@ -3512,7 +3602,7 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
   cB.crossVectors(up, cA).normalize();            // side axis
   tmpQ.setFromAxisAngle(cB, -camPitch);
   cA.applyQuaternion(tmpQ);                       // pitch
-  cC.copy(pos).addScaledVector(cA, dist).addScaledVector(up, 7.5);
+  cC.copy(pos).addScaledVector(cA, dist).addScaledVector(up, 7.5 - stepPunch);
   // Keep the third-person camera outside the current spherical world —
   // also during 'landing' (its fallgetup phase calls followCam too), since
   // without this the close-up landing shot had no floor-clipping guard at
@@ -3620,10 +3710,14 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   if (cameraLookLocked()) return;
   dragging = true; lastX = e.clientX; lastY = e.clientY;
 });
+// Drag/wheel look sensitivity slowed ~30% per request — the old speed made
+// fine aiming at a distant planet (or hunting for a specific NPC) twitchy
+// and easy to overshoot; slower turning makes it easier to settle exactly
+// where she's looking ("각 잡기" — lining up the shot) before committing.
 addEventListener('pointermove', (e) => {
   if (!dragging || cameraLookLocked()){ dragging = false; return; }
-  camYaw   -= (e.clientX - lastX)*0.006;
-  camPitch += (e.clientY - lastY)*0.005;
+  camYaw   -= (e.clientX - lastX)*0.0042;
+  camPitch += (e.clientY - lastY)*0.0035;
   camPitch = Math.max(-1.05, Math.min(1.2, camPitch));
   lastX = e.clientX; lastY = e.clientY;
 });
@@ -3632,8 +3726,8 @@ addEventListener('wheel', (e) => {
   e.preventDefault();
   if (cameraLookLocked()) return;
   if (e.ctrlKey){ camDist = Math.max(5, Math.min(16, camDist + e.deltaY*0.05)); return; }
-  camYaw   -= e.deltaX*0.0035;
-  camPitch += e.deltaY*0.0035;
+  camYaw   -= e.deltaX*0.0024;
+  camPitch += e.deltaY*0.0024;
   camPitch = Math.max(-1.05, Math.min(1.2, camPitch));
 }, { passive:false });
 
@@ -4135,6 +4229,13 @@ function ensureTalkDistance(npcPos, minDist=MIN_TALK_DIST){
   orientation.normalize();
   updatePose();
 }
+// Each entry in `lines` is normally a plain string (spoken by opts.speaker,
+// unchanged for every existing call site) — but can also be an object
+// { speaker, text } to have a DIFFERENT speaker for just that one line,
+// which is how Beanie's own interjections get woven into a conversation
+// that's otherwise one NPC's lines.
+function lineText(line){ return typeof line === 'string' ? line : line.text; }
+function lineSpeaker(line, fallback){ return (line && typeof line === 'object' && line.speaker) ? line.speaker : fallback; }
 function startDialog(lines, onDone, opts={}){
   state = 'talk';
   if (herTalkAction){ herTalkAction.reset(); herTalkAction.play(); }   // fresh gesture each time a conversation begins
@@ -4146,8 +4247,8 @@ function startDialog(lines, onDone, opts={}){
   targetRing.visible = false;
   reticleEl.classList.add('hidden');
   dialogEl.classList.remove('hidden');
-  dialogNameEl.textContent = opts.speaker || 'Percy 🕊️';
-  dialog = { lines, idx:0, onDone, coo: opts.coo !== false, npcPos: opts.npcPos || null, npcObj: opts.npcObj || null };
+  dialog = { lines, idx:0, onDone, coo: opts.coo !== false, npcPos: opts.npcPos || null, npcObj: opts.npcObj || null,
+    defaultSpeaker: opts.speaker || 'Percy 🕊️' };
   hideNearbyObstacles(opts.npcObj || null);   // clear props so nothing covers Beanie
   showDialogLine();
 }
@@ -4157,6 +4258,7 @@ function percyWorldPos(out){
 }
 function showDialogLine(){
   if (dialog.coo) playCoo();
+  dialogNameEl.textContent = lineSpeaker(dialog.lines[dialog.idx], dialog.defaultSpeaker);
   dialogTextEl.textContent = '';
   dialog.lineT = 0;
 }
@@ -4164,7 +4266,7 @@ function showDialogLine(){
 // at a rate derived from simulated dt rather than a wall-clock setInterval.
 function updateDialogTyping(dt){
   if (!dialog) return;
-  const line = dialog.lines[dialog.idx];
+  const line = lineText(dialog.lines[dialog.idx]);
   const fullT = line.length * DIALOG_CHAR_SECONDS;
   if (dialog.lineT >= fullT) return;   // already fully revealed, nothing to do
   dialog.lineT = Math.min(fullT, dialog.lineT + dt);
@@ -4173,7 +4275,7 @@ function updateDialogTyping(dt){
 }
 function advanceDialog(){
   if (!dialog) return;
-  const line = dialog.lines[dialog.idx];
+  const line = lineText(dialog.lines[dialog.idx]);
   if (dialogTextEl.textContent.length < line.length){   // still typing → reveal all first
     dialogTextEl.textContent = line;
     dialog.lineT = line.length * DIALOG_CHAR_SECONDS;   // mark fully revealed so the per-frame update doesn't fight it
@@ -4516,7 +4618,11 @@ function updateWalk(dt){
     if (step !== u.lastStep){
       u.lastStep = step;
       footstep(b.step);
-      spawnDust(b.step, her.position, herUp(V()), herFwd(V()));
+      const upV = herUp(V()), fwdV = herFwd(V());
+      spawnDust(b.step, her.position, upV, fwdV);
+      const sideV = new THREE.Vector3().crossVectors(upV, fwdV).normalize();
+      spawnFootprint(her.position, upV, fwdV, sideV, step % 2 === 0);
+      stepPunch = 0.1;
     }
   }
   // distance-to-NPC guide — shown while the current world's mission isn't done.
@@ -4796,11 +4902,15 @@ function showBookPop(color, title){
 /* ---------- Chicago intro: Bred's messenger pigeon + letter ---------- */
 const CHICAGO_LETTER_LINES = [
   `Coo! Rachel? …Rachel! Oh good, I found you. *pant pant*`,
+  { speaker:'Rachel 💫', text:`Whoa — a pigeon? Are you… okay? You look like you flew all the way here.` },
   `I flew a LONG way. I have something for you… a letter. 💌 It's from Bred.`,
+  { speaker:'Rachel 💫', text:`From Bred? What is all this…` },
   `He couldn't FaceTime today, so he wrote this instead:`,
   `"Beanie, I built you a little universe. Every world is something you love. Leap across them all and follow them to the very end…"`,
   `"…and I'll be waiting for you there. Come find me. 🤍 Bred"`,
+  { speaker:'Rachel 💫', text:`He built me a whole universe? …okay. Okay! I'm doing this.` },
   `Oh — almost forgot! He also sent this tiny notebook. 📔 Somewhere to keep records of things, he said, for whatever you find along the way.`,
+  { speaker:'Rachel 💫', text:`Thank you for carrying all that this far, little pigeon.` },
   `So don't stop, okay? Aim at the next little world and leap. Off you go!`,
 ];
 // A small folded letter, clamped in the messenger's beak — this pigeon is
@@ -5076,6 +5186,7 @@ function step(dt){
   updatePercyScatter(dt);
   maybeShoot(dt);
   updateAim(t);
+  stepPunch *= Math.exp(-12*dt);
   updateLocator(t);
 
   // General backstop, not just a per-cutscene special case: the mission box
