@@ -96,7 +96,8 @@ The big reveal world. She has **no idea it's cucumbers** until bbak tells her.
   plain sight the whole time.
 - She fetches the now-visible glowing special cucumber and brings it to
   bbak → he's cooled down → gate opens.
-- Font: **Baloo 2** (rounded, cute).
+- Font: **Comfortaa** (geometric rounded sans — went through Baloo 2, then
+  Fredoka, then this; the first two both got direct "looks ugly" feedback).
 
 ## World 4 — Pigeon Plaza
 Full script lives in `PIGEON_PLAZA_MISSION.md`. Summary: find **Percy**, who

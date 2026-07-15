@@ -6,7 +6,7 @@
 <title>Beanie's Little Universe 💫</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=Playfair+Display:wght@700;800&family=Fredoka:wght@600;700&family=Bungee&family=Cormorant+Garamond:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=Playfair+Display:wght@700;800&family=Comfortaa:wght@600;700&family=Bungee&family=Cormorant+Garamond:wght@700&display=swap" rel="stylesheet">
 <style>
   :root{ --gold:#ffd166; --pink:#f2a0b4; --ink:#3a3050; }
   *{margin:0;padding:0;box-sizing:border-box}
@@ -163,13 +163,13 @@
      below it (verified against Chicago's tight orbit, the closest framing
      any world's arrival title ever gets). */
   #planetTitleName{--tls:6px;font-size:clamp(100px,30vw,340px);font-weight:800;color:#fff;
-    text-transform:uppercase;letter-spacing:var(--tls);white-space:normal;max-width:92vw;
-    text-align:center;text-shadow:0 0 10px rgba(0,0,0,.5),0 3px 10px rgba(0,0,0,.35);
+    text-transform:uppercase;letter-spacing:var(--tls);white-space:nowrap;
+    text-shadow:0 0 10px rgba(0,0,0,.5),0 3px 10px rgba(0,0,0,.35);
     opacity:0}
   /* one distinct display font per world — set as a class alongside .play */
   #planetTitleName.font-chicago{--tls:8px;font-family:'Oswald',sans-serif;font-weight:600}
   #planetTitleName.font-books{--tls:4px;font-family:'Playfair Display',serif;font-weight:800}
-  #planetTitleName.font-cucumber{--tls:3px;font-family:'Fredoka',sans-serif;font-weight:700}
+  #planetTitleName.font-cucumber{--tls:2px;font-family:'Comfortaa',cursive;font-weight:700}
   #planetTitleName.font-pigeon{--tls:3px;font-family:'Bungee',cursive;font-weight:400}
   #planetTitleName.font-garden{--tls:8px;font-family:'Cormorant Garamond',serif;font-weight:700}
   /* .play is toggled off/on in JS each time a new title shows (a plain CSS
@@ -2057,18 +2057,21 @@ const WORLD_DEFS = [
     pos:[0,0,0], r:5.25,  col:0xe4e8f0, step:'stone' },
   { key:'books',    name:'Main Stacks',      emoji:'📚', tag:'the old library where you and Bred used to study',
     mission:'<b>MISSION:</b> find <b>Chippy</b>, then bring him <b>5 favourite books</b> (the glowy ones, press <b>A</b> to pick up).',
-    pos:[130,20,-60], r:17.8125, col:PALETTE.lightBeige, step:'book' },
+    pos:[195,30,-90], r:17.8125, col:PALETTE.lightBeige, step:'book' },
   { key:'cucumber', name:'Emerald Meadow',  emoji:'🌱', tag:'a mysterious green ring circles overhead…',
     mission:'<b>MISSION:</b> find <b>bbak</b> the polar bear, he is overheating. Bring him something <b>cold</b> to cool him down!',
     // revealed after bbak's final hint — see startCukeRevealCutscene()
     revealName:'Cucumber Meadow', revealEmoji:'🥒', revealTag:'they school like fish out here',
-    pos:[300,-10,-190], r:45, col:PALETTE.moss, step:'grass' },
+    // world positions all scaled 1.5x (below too) so the cucumber ring's much
+    // larger radius (see buildCucumber's RING_INNER) has room to sit clear of
+    // Main Stacks — it was previously close enough to be visible from there.
+    pos:[450,-15,-285], r:45, col:PALETTE.moss, step:'grass' },
   { key:'pigeon',   name:'Pigeon Plaza',     emoji:'🕊️', tag:'way, WAY too many pigeons',
     mission:'<b>MISSION:</b> find <b>Percy</b>, he needs help finding a long-lost friend among all these pigeons.',
-    pos:[170,20,-400], r:30, col:PALETTE.mutedLavender, step:'stone' },
+    pos:[255,30,-600], r:30, col:PALETTE.mutedLavender, step:'stone' },
   { key:'garden',   name:'The Garden',       emoji:'💐', tag:'happy birthday, Beanie 🤍',
     mission:'<b>MISSION:</b> wander the garden… someone set up a big white couch for you. 🤍',
-    pos:[-250,50,-120], r:41.25, col:PALETTE.sageGreen, step:'grass' },
+    pos:[-375,75,-180], r:41.25, col:PALETTE.sageGreen, step:'grass' },
 ];
 // All five planets scaled to 3/4 their original radius (7/23.75/30/40/55) so
 // NPCs and landmarks are quicker to walk to — the cucumber ring's own radial
@@ -3725,22 +3728,24 @@ function showPlanetTitle(b){
     planetTitleNameEl.classList.add('play');
   });
 }
-// Despite the name (kept to avoid touching every call site), this no longer
-// forces a single line — #planetTitleName now wraps normally (max-width:92vw)
-// so a name that's too wide for one line just grows taller across two lines
-// at full size instead of being shrunk down to fit on one. The shrink loop
-// now only kicks in if the whole (possibly 2-line) block would be too TALL,
-// e.g. an unexpectedly long name wrapping to 3+ lines.
+// Titles are always a single line — a two-line wrap grows tall enough to
+// cover Beanie's own body during the cutscene, which is worse than a name
+// shrinking a bit. Shrinks font-size proportionally (rather than in flat
+// -4px steps) until the single nowrap line fits the screen width — a flat
+// per-step decrement needed as many as ~50+ iterations to shrink a wide
+// name/font combo (e.g. "EMERALD MEADOW" in Comfortaa) down far enough,
+// which blew past the old 40-iteration guard and left it still overflowing.
 function fitPlanetTitleOneLine(onDone){
   const el = planetTitleNameEl;
   el.style.fontSize = '';
   requestAnimationFrame(() => {
-    const maxH = innerHeight*0.5;
+    const maxW = innerWidth*0.92;
     let guard = 0;
-    while (el.scrollHeight > maxH && guard++ < 40){
+    while (el.scrollWidth > maxW && guard++ < 20){
       const cur = parseFloat(getComputedStyle(el).fontSize);
       if (cur <= 28) break;
-      el.style.fontSize = (cur - 4) + 'px';
+      const next = Math.max(28, cur*(maxW/el.scrollWidth)*0.97);
+      el.style.fontSize = next + 'px';
     }
     if (onDone) onDone();
   });

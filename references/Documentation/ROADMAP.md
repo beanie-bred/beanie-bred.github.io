@@ -1,4 +1,31 @@
 # ROADMAP
+- [x] Title single-line revert, Cucumber Meadow font swap #2, planet spacing
+      (2026-07-15, same-day):
+      - **Titles forced back to a strict single line.** The prior "let it
+        wrap to 2+ lines instead of shrinking" change (see below) backfired
+        in practice — a 2-line title grows tall enough to cover Beanie's own
+        body during the cutscene, which is worse than a smaller one-liner.
+        `#planetTitleName` is `white-space:nowrap` again, `fitPlanetTitleOneLine()`
+        shrinks by scroll*width* again (not height).
+      - **Real bug found in that shrink loop**: it stepped font-size down by
+        a flat 4px per iteration, capped at 40 iterations — fine for modest
+        shrinks, but a wide name/font combo (e.g. "EMERALD MEADOW" in the
+        new Comfortaa) needed ~50+ steps to fit, blew past the guard, and
+        was left rendering wider than the screen. Rewrote it to shrink
+        *proportionally* (`cur * (maxW/scrollWidth) * 0.97`) each step,
+        which converges in 1-2 iterations regardless of how far overshoot
+        is. Verified computed font-size settles at a value that actually
+        fits (`scrollWidth <= innerWidth*0.92`) rather than trusting the
+        loop merely "ran".
+      - **Cucumber Meadow's title font changed again**, Fredoka → **Comfortaa**
+        (geometric rounded sans) — still not loved, per direct feedback.
+      - **All non-Chicago world positions scaled 1.5x** (Main Stacks,
+        Cucumber Meadow, Pigeon Plaza, Garden) — the cucumber ring's much
+        larger radius (from the earlier Saturn-ring rework) reached far
+        enough that it was visibly bleeding into neighboring Main Stacks,
+        breaking the illusion that each world is its own separate place.
+        Verified: standing on Main Stacks' title/orbit shot no longer shows
+        any trace of the ring.
 - [x] Landing cutscene, QA, and movement polish batch (2026-07-15, same-day):
       - **Dust explosion on landing**: `spawnLandingDustBurst()` (new, next to
         the existing footstep `spawnDust()`) throws ~30 big dust puffs
