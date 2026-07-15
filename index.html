@@ -1474,14 +1474,20 @@ function buildBooks(g, R){
   const grandN = dirNear(chippyN, 0.6);
   placeOn(g, grand, grandN, R);
   addCollider(colliders, grandN, 1.35, R);
-  // chippy napping on his own little stack
-  const seat = makeStack(3, 1.1, 0.15);
+  // chippy napping on his own little stack — bumped from 3 books @ scale 1.1
+  // (height 0.858) to 5 @ 1.3 (height 1.69): the old seat was so short and
+  // neat next to the surrounding randomly-scattered 700-pile stacks (which
+  // run up to 6 books @ 1.4, plus a looser tidy jitter that reads as more
+  // voluminous) that it was effectively invisible under him — he looked
+  // like he was just standing on bare ground, not resting on his own pile.
+  const CHIPPY_SEAT_BOOKS = 5, CHIPPY_SEAT_SCALE = 1.3;
+  const seat = makeStack(CHIPPY_SEAT_BOOKS, CHIPPY_SEAT_SCALE, 0.12);
   placeOn(g, seat, chippyN, R);
-  addCollider(colliders, chippyN, 0.99, R);
+  addCollider(colliders, chippyN, 1.2, R);
   // Chippy: real Blender/Rodin model (game-assets/chippy/chippy.glb), loaded async
   // into a placeholder group so world-building never blocks on the network.
   const chippy = new THREE.Group();
-  chippy.position.copy(chippyN).multiplyScalar(R + 3*0.26*1.1);
+  chippy.position.copy(chippyN).multiplyScalar(R + CHIPPY_SEAT_BOOKS*0.26*CHIPPY_SEAT_SCALE);
   orientToNormal(chippy, chippyN);
   chippy.rotateY(2.4); // face toward the landing spot; tuned against the model's raw front
   g.add(chippy);

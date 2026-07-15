@@ -1,4 +1,25 @@
 # ROADMAP
+- [x] Chippy's book-pile visibility, guide/locator dialogue-hiding clarified
+      (2026-07-15, later still same day): user screenshot during a Chippy
+      conversation asked why the guide compass and 3D locator weren't
+      visible, and reported the book pile not reading as "right below" him.
+      - **Guide compass + 3D locator hiding during dialogue is intentional,
+        not a bug** — confirmed by triggering a real Chippy conversation and
+        checking both (`state==='talk'` turns off `updateLocator()`'s
+        `active` condition and `startDialog()` explicitly hides the guide
+        chip). Every NPC in the game works this way: the guide exists to
+        help her find someone, and correctly stops once she's found them and
+        is already talking to them. Left unchanged since this matches every
+        other conversation, not something specific to Chippy.
+      - **Chippy's own seat WAS a real, fixable problem**: 3 books at scale
+        1.1 (height 0.858) sitting right next to the randomly-scattered
+        700-pile stacks (up to 6 books @ 1.4 scale, plus a looser jitter
+        that reads as more voluminous) — his own pile was so short and neat
+        by comparison that it was effectively invisible under him, reading
+        as him just standing on bare ground. Bumped to 5 books @ scale 1.3
+        (height 1.69, ~2x taller) and the exclusion collider to match (0.99
+        → 1.2). Verified via both a debug top-down shot and the real talk-
+        camera view — book shapes now clearly read at his base.
 - [x] World spacing doubled, elliptical ring, gradient sky, Chicago clouds
       (2026-07-15, later still same day): user screenshot showed the ring
       (even after the earlier shrink pass) still visually engulfing Main
