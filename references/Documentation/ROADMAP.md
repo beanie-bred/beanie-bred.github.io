@@ -1,4 +1,70 @@
 # ROADMAP
+- [x] Summer Beanie mesh-deformation root-cause fix, file reorganization, LFS
+      re-fix (2026-07-15, later still same day): a GitHub Desktop screenshot
+      showed the user's own push rejected (`GH008: ...52 unknown Git LFS
+      objects`), plus a report that Summer Beanie's belly/hem region looked
+      boxed-out and jagged (misread at a glance as an odd "mouth" shape) and
+      that her upper and lower body seemed to move separately.
+      - **Root cause found via the bind-pose diagnostic**: reset Summer's
+        armature to a true bind pose (every bone's `rotation_quaternion` set
+        to identity) — the defect vanished completely. That's conclusive:
+        deformation that disappears at bind pose but reappears under
+        animation is a weight-painting bug, not broken mesh topology. (Ruled
+        out topology first — `remove_doubles` and `dissolve_degenerate` on a
+        scratch copy had zero visible effect, which is what motivated
+        checking bind pose instead of chasing bigger mesh-repair thresholds.)
+      - **Quantified exactly why Winter Beanie never showed this bug**: ran
+        the same neighbor-weight-jump check (compare each vertex's weight in
+        a bone's group against the average of its immediate mesh-neighbors;
+        a jump >0.15-0.25 signals unsmoothed weight painting) on both rigs
+        across `['Hips','Spine','Chest','Neck','Thigh.L','Thigh.R']` in the
+        belly/waist region. Winter: 0 outliers, max jump 0.01 — clean.
+        Summer: 447 outliers, jumps up to 0.6+ — a real cluster of vertices
+        weighted almost randomly to Spine/Hips/thigh bones, so a couple
+        degrees of spine rotation sent them flying while their neighbors
+        barely moved. Both characters share identical bone names and run the
+        identical procedural Talking-pose code, so this confirms the
+        difference was always in Summer's source skinning data, never in the
+        animation authoring.
+      - **Fixed by smoothing, not rebuilding**: expanded the 447 outliers to
+        a 2-ring neighborhood (1646 vertices) and ran 9 iterations of
+        neighbor-average weight smoothing across all vertex groups together,
+        renormalizing each vertex back to sum=1.0 after every pass — scoped
+        to just the affected region plus a margin, so it fixes the defect
+        without flattening legitimate weight painting elsewhere or
+        introducing a new hard boundary at the edge of the fix. Verified
+        clean via test-pose renders before touching the canonical files.
+      - **Caught and fixed a real gap: the first fix never shipped.** An
+        earlier pass in this same round had already "fixed" the mesh, but
+        only inside a scratch preview `.blend` — never exported back into
+        the canonical `Summer beanie/Summer_RIGGED.blend` or the live
+        `game-assets/beanie/beanie_summer.glb`, so the user correctly saw no
+        change at all in-game. This time the fix went into the actual
+        source file (`Summer_RIGGED.blend`, saved in place) and was
+        re-exported to a fresh `beanie_summer.glb` (Draco level 6, JPEG
+        textures, both `Idle`/`Walk` actions re-attached), verified by
+        direct glTF binary/JSON parsing (not a re-import) and live-tested in
+        the actual game via a local dev server before being committed.
+      - **File organization**: renamed the dot-prefixed `.blender_preview_scratch/`
+        (hidden by Finder by default — the direct cause of "cant find this")
+        to a visible `blender-preview-wip/`, and cleared out redundant
+        intermediate render frames, keeping only the final comparison
+        images/GIFs and a `backups/` copy of the pre-fix `.blend`/`.glb`.
+      - **Git LFS push rejection fixed again** (recurring issue — same root
+        cause as the earlier sticker fix, different files this time): the
+        newly re-exported `beanie_summer.glb` and other binary assets needed
+        `git lfs push origin main --all` to actually upload the real LFS
+        objects before GitHub would accept the ref update; this round it was
+        494 objects / 1.8GB. Unblocked both this push and the user's own
+        pending GitHub Desktop push.
+      - Also included in this commit: two small unrelated `index.html` fixes
+        from the parallel session (Chicago's flag cloth stripes/stars now
+        reparented so they sway with the cloth instead of separately; Beanie
+        now re-faces toward her next destination after the Chicago letter
+        dialogue ends) — reviewed and verified consistent before bundling in.
+      - Verified live post-deploy: fetched `beanie_summer.glb` directly from
+        the production URL and confirmed its byte size matches the fixed
+        local file exactly.
 - [x] Gift books away from Chippy, mission-reveal gating, Book Stacks maze
       (2026-07-15, later still same day): user sent 3 screenshots — a glowing
       gift book right next to Beanie with Chippy visible behind her; the
