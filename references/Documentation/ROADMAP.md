@@ -1,4 +1,45 @@
 # ROADMAP
+- [x] World spacing doubled, elliptical ring, gradient sky, Chicago clouds
+      (2026-07-15, later still same day): user screenshot showed the ring
+      (even after the earlier shrink pass) still visually engulfing Main
+      Stacks from the aim-and-leap view.
+      - **World positions doubled again** (all non-Chicago `pos:` in
+        `WORLD_DEFS` — Chicago stays at the origin). The ring's own absolute
+        size wasn't really the remaining problem; Cucumber Meadow just
+        needed real empty space between it and its neighbors regardless of
+        ring size. New gaps: Chicago→Books ~434, Books→Cucumber ~648,
+        Cucumber→Pigeon ~746 (were ~217/324/373).
+      - **Updated the aim-lock's hardcoded distance cap** (`surf < 250` →
+        `surf < 800` in `updateAim()`) — this doesn't auto-scale with world
+        positions the way flight duration/jump-arc height already do (both
+        are computed live from actual distance), so leaving it at 250 would
+        have made every hop past Chicago un-lockable. Verified end-to-end:
+        aimed from Chicago, leaped, landed correctly on Main Stacks at the
+        new distance.
+      - **Ring reshaped into a true ellipse**: a `RING_ELLIPSE_SQUASH=0.62`
+        scale on the Z axis of both the solid pre-reveal ring and each real
+        cucumber-band holder (same tilted, spinning groups, so the reveal
+        swap still reads as one object). Verified visually from a top-down
+        debug shot — reads as a clear tilted oval, not a circle.
+      - **Star field radii pushed way out** (461-940 → 1350-2600) — with
+        Pigeon Plaza now ~1305 units from the origin, the old star radii
+        would have put her standing farther out than her own stars. Bumped
+        into "more prominent stars" too: bigger points (1.8-2.6 → 2.6-3.6),
+        higher opacity, more of them, plus a new sparse extra-bright "hero
+        star" layer.
+      - **New: gradient space background.** Replaced the flat
+        `PALETTE.nightNavy` fill with a small vertical-gradient canvas
+        texture (deep navy at top easing into the richer nightNavy tone
+        lower down) assigned to `scene.background`. Since that's no longer
+        a plain `THREE.Color`, updated the two `scene.background.copy(
+        GARDEN_BG)` call sites (Garden arrival) to `scene.background =
+        GARDEN_BG.clone()` instead — reassignment, not an in-place copy a
+        Color-shaped object can't do to a Texture.
+      - **Chicago's clouds**: were 3 identical rows of 4 same-size spheres,
+        orbiting only 3-4.4 units above the surface — level with the tower,
+        not above it. Rebuilt as actual cumulus clusters (6-8 varied-size
+        puffs scattered in a rough flattened circle per cloud) orbiting
+        8-10.6 units up, clearing the ~8.7-unit tower.
 - [x] Landing polish, title-timing, left-side compass, melted snow, sticker
       fix (2026-07-15, later still same day):
       - **Fall pose sink reduced 0.6→0.22** (`updateLandingAnim()`) — the
