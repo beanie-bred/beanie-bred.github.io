@@ -138,14 +138,24 @@
     border-radius:999px;font-size:13px;color:#fff;background:linear-gradient(135deg,#ff8fae,#e8547c)}
   /* "met a new friend" toast — like #toast but with a sticker thumbnail */
   #friendToast{position:fixed;top:76px;left:50%;transform:translateX(-50%) translateY(-8px);z-index:23;
-    display:flex;align-items:center;gap:12px;padding:10px 22px 10px 12px;border-radius:999px;
+    display:flex;align-items:center;gap:16px;padding:16px 34px 16px 16px;border-radius:999px;
     background:rgba(30,32,64,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,224,138,.5);
     opacity:0;transition:opacity .5s,transform .5s;pointer-events:none}
   #friendToast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  #friendToastImg{width:40px;height:40px;border-radius:10px;object-fit:cover;
-    box-shadow:0 0 12px rgba(255,209,102,.6)}
-  #friendToastText{font-size:13px;color:#dbe7ff;text-align:left;line-height:1.3}
-  #friendToastText b{color:var(--gold);font-size:15px}
+  #friendToastImg{width:70px;height:70px;border-radius:16px;object-fit:contain;
+    background:rgba(255,255,255,.12);box-shadow:0 0 18px rgba(255,209,102,.7)}
+  /* "stamped" reveal: the sticker slams in oversized and rotated, then
+     settles with a little overshoot bounce — re-triggered every call via a
+     forced reflow (see showFriendToast) so repeat sticker toasts replay it. */
+  @keyframes stampIn{
+    0%{transform:scale(2.4) rotate(-20deg);opacity:0}
+    50%{transform:scale(0.85) rotate(5deg);opacity:1}
+    72%{transform:scale(1.1) rotate(-3deg)}
+    100%{transform:scale(1) rotate(0deg)}
+  }
+  #friendToastImg.stamp{animation:stampIn .6s cubic-bezier(.22,.9,.32,1.1)}
+  #friendToastText{font-size:15px;color:#dbe7ff;text-align:left;line-height:1.35}
+  #friendToastText b{color:var(--gold);font-size:19px}
   #hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:20;
     font-size:12.5px;color:#cfd8f0;white-space:nowrap}
   #reticle{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:19;
@@ -575,15 +585,18 @@ function spawnDust(kind, pos, up, fwd){
 // geometry/material as footstep dust, but many more of them thrown outward
 // and upward in a wide radial burst instead of a few kicked backward.
 function spawnLandingDustBurst(pos, up){
-  const n = 26 + Math.floor(Math.random()*10);
+  // Bumped again per request ("much bigger cloud, slower, smoother, rumbles
+  // more"): more puffs, each noticeably larger, expanding at roughly half
+  // the previous speed with proportionally longer hang time so the cloud
+  // reads as a big billowing settle rather than a burst, and a slower spin
+  // per puff so individual pieces of dust don't tumble distractingly fast.
+  const n = 42 + Math.floor(Math.random()*14);
   for (let i = 0; i < n; i++){
     const puff = new THREE.Mesh(dustGeo, mat(0xd6cdbc, { roughness:1, transparent:true, opacity:0.7 }));
-    puff.scale.setScalar(1.1 + Math.random()*2.0);
+    puff.scale.setScalar(2.2 + Math.random()*3.4);
     const dir = randDir().addScaledVector(up, 0.5 + Math.random()*0.4).normalize();
-    // slowed way down (was 4-10) and given more hang time (was 0.7-1.3s) —
-    // a fast sharp burst read more like an explosion than settling dust.
-    const speed = 1.5 + Math.random()*2.5;
-    spawnEphemeral(puff, pos, dir.multiplyScalar(speed), 1.4 + Math.random()*0.9, 0.5);
+    const speed = 0.7 + Math.random()*1.3;
+    spawnEphemeral(puff, pos, dir.multiplyScalar(speed), 2.6 + Math.random()*1.4, 0.25);
   }
 }
 
@@ -1576,7 +1589,6 @@ function buildBooks(g, R){
   // like he was just standing on bare ground, not resting on his own pile.
   const CHIPPY_SEAT_BOOKS = 5, CHIPPY_SEAT_SCALE = 1.3;
   const seat = makeStack(CHIPPY_SEAT_BOOKS, CHIPPY_SEAT_SCALE, 0.12);
-  placeOn(g, seat, chippyN, R);
   addCollider(colliders, chippyN, 1.2, R);
   // Chippy: real Blender/Rodin model (game-assets/chippy/chippy.glb), loaded async
   // into a placeholder group so world-building never blocks on the network.
@@ -1584,6 +1596,17 @@ function buildBooks(g, R){
   chippy.position.copy(chippyN).multiplyScalar(R + CHIPPY_SEAT_BOOKS*0.26*CHIPPY_SEAT_SCALE);
   orientToNormal(chippy, chippyN);
   chippy.rotateY(2.4); // face toward the landing spot; tuned against the model's raw front
+  // The seat is a CHILD of chippy (not a separate world-group object placed
+  // via placeOn) so hideNearbyObstacles() — which declutters every OTHER
+  // prop near her during a conversation, exempting only the npcObj itself —
+  // can never hide the pile out from under him; it only ever iterates
+  // bodies[curI].group's direct children, and the seat isn't one anymore.
+  // Local transform cancels chippy's own rotateY(2.4) and drops back down
+  // by the seat's own height so it lands at the exact same world position/
+  // orientation placeOn(g, seat, chippyN, R) used to produce.
+  seat.position.set(0, -CHIPPY_SEAT_BOOKS*0.26*CHIPPY_SEAT_SCALE, 0);
+  seat.rotation.y = -2.4;
+  chippy.add(seat);
   g.add(chippy);
   let chippyModel = null;
   loadModel('./game-assets/chippy/chippy.glb').then((model) => {
@@ -2260,6 +2283,12 @@ const WORLD_DEFS = [
     pos:[0,0,0], r:5.25,  col:0xe4e8f0, step:'stone' },
   { key:'books',    name:'Main Stacks',      emoji:'📚', tag:'the old library where you and Bred used to study',
     mission:'<b>MISSION:</b> find <b>Chippy</b>, then bring him <b>5 favourite books</b> (the glowy ones, press <b>A</b> to pick up).',
+    // Shown on arrival instead of the full mission above — that spells out
+    // the actual task before she's even met him, which the mission-reveal
+    // gating (see arrive()) intentionally withholds until the first real
+    // conversation. This generic lead-in still tells her SOMETHING to do
+    // (go find him) rather than nothing at all until she stumbles into him.
+    introMission:'<b>MISSION:</b> find <b>Chippy</b> and say hello.',
     // Pulled in to 65% of its old distance (434 -> ~282, same direction from
     // Chicago) so it reads as noticeably bigger/closer from the very first
     // view — it's the immediate next stop and was too small/easy to miss
@@ -2267,6 +2296,7 @@ const WORLD_DEFS = [
     pos:[253,39,-117], r:17.8125, col:PALETTE.lightBeige, step:'book' },
   { key:'cucumber', name:'Emerald Meadow',  emoji:'🌱', tag:'a mysterious green ring circles overhead…',
     mission:'<b>MISSION:</b> find <b>bbak</b> the polar bear, he is overheating. Bring him something <b>cold</b> to cool him down!',
+    introMission:'<b>MISSION:</b> find <b>bbak</b> the polar bear and talk to him.',
     // revealed after bbak's final hint — see startCukeRevealCutscene()
     revealName:'Cucumber Meadow', revealEmoji:'🥒', revealTag:'they school like fish out here',
     // Doubling distance (previous pass) didn't fix "the ring touches Main
@@ -2282,6 +2312,7 @@ const WORLD_DEFS = [
     pos:[500,-500,-450], r:45, col:PALETTE.moss, step:'grass' },
   { key:'pigeon',   name:'Pigeon Plaza',     emoji:'🕊️', tag:'way, WAY too many pigeons',
     mission:'<b>MISSION:</b> find <b>Percy</b>, he needs help finding a long-lost friend among all these pigeons.',
+    introMission:'<b>MISSION:</b> find <b>Percy</b> among all these pigeons and talk to him.',
     pos:[510,60,-1200], r:30, col:PALETTE.mutedLavender, step:'stone' },
   { key:'garden',   name:'The Garden',       emoji:'💐', tag:'happy birthday, Beanie 🤍',
     mission:'<b>MISSION:</b> wander the garden… someone set up a big white couch for you. 🤍',
@@ -2995,6 +3026,7 @@ function updateLandingAnim(){
   if (herJumpSoarAction) herJumpSoarAction.setEffectiveWeight(0);
   if (herWalkAction) herWalkAction.setEffectiveWeight(0);
   if (herRunAction) herRunAction.setEffectiveWeight(0);
+  if (herTalkAction) herTalkAction.setEffectiveWeight(0);
   if (!herLandFallGetUpAction){ if (herIdleAction) herIdleAction.setEffectiveWeight(1); return; }
   const dur = landingClipDuration();
   const fadeIn  = Math.min(1, landing.t/0.2);
@@ -3339,6 +3371,7 @@ function jumpTo(body){
   if (herWalkAction) herWalkAction.setEffectiveWeight(0);
   if (herRunAction) herRunAction.setEffectiveWeight(0);
   if (herIdleAction) herIdleAction.setEffectiveWeight(0);
+  if (herTalkAction) herTalkAction.setEffectiveWeight(0);
   promptEl.classList.remove('show');
   hintEl.classList.add('hidden'); idleTime = 0;
   // hide the HUD/mission for the whole flight->landing->title stretch — was
@@ -3447,13 +3480,24 @@ function updateLanding(dt){
   updateLandingAnim();
   const up = herUp(tmpV);
   if (landing.phase === 'fallgetup'){
-    // pulled way in (was 11) so the fall itself actually reads up close
-    // instead of a distant wide shot — she's the whole point of this beat.
-    followCam(dt, her.position, up, herFwd(tmpV2), 5.5);
+    // Close, dramatically tilted "just landed" shot instead of a flat,
+    // upright behind-the-shoulder view: camera holds near her side (not
+    // dead behind) and its up vector is rolled toward that side, so her
+    // whole body reads on a diagonal across the frame, head toward the
+    // bottom-left, the way a real camera would tumble with an impact.
+    const fwd = herFwd(new THREE.Vector3());
+    const side = new THREE.Vector3().crossVectors(up, fwd).normalize();
+    const dist = 4.0;
+    const camPos2 = new THREE.Vector3().copy(her.position)
+      .addScaledVector(side, dist*0.55).addScaledVector(fwd, dist*0.75).addScaledVector(up, dist*0.5);
+    camera.position.copy(camPos2);
+    camera.up.copy(new THREE.Vector3().copy(up).addScaledVector(side, -0.6).normalize());
+    camera.lookAt(new THREE.Vector3().copy(her.position).addScaledVector(up, 1.2));
     // a quick decaying shake right on impact — landing.t resets to 0 at the
     // start of this phase, so this is purely a function of elapsed time,
     // no separate persistent state needed (and it's pump()-testable).
-    const shakeMag = Math.max(0, 1 - landing.t/0.4) * 0.32;
+    // Bigger and longer per request ("rumbles more") — was 0.32 over 0.4s.
+    const shakeMag = Math.max(0, 1 - landing.t/0.6) * 0.55;
     if (shakeMag > 0){
       camera.position.x += (Math.random()-0.5)*shakeMag;
       camera.position.y += (Math.random()-0.5)*shakeMag;
@@ -3545,14 +3589,18 @@ function arrive(bi){
   if (b.isWorld){
     visitedWorlds[b.worldIndex] = true;
     updateDots();
-    // Books/Cucumber/Pigeon's mission text spells out the actual task (e.g.
-    // "bring him 5 favourite books") before she's even met Chippy/bbak/
-    // Percy — held back here and revealed instead right when each world's
-    // first conversation with them actually finishes (see talkChippy(),
-    // talkBbak-equivalent, talkPercy()), same spirit as Chicago already
-    // withholding its own mission until the letter is read.
+    // Books/Cucumber/Pigeon's full mission text spells out the actual task
+    // (e.g. "bring him 5 favourite books") before she's even met Chippy/
+    // bbak/Percy — that detail is held back here and revealed instead right
+    // when each world's first conversation with them actually finishes (see
+    // talkChippy(), talkBbak-equivalent, talkPercy()). That's NOT the same
+    // as showing nothing at all, though — she still needs a lead-in telling
+    // her to go find that character in the first place, just without
+    // spoiling what happens once she does (introMission on each WORLD_DEFS
+    // entry: "find bbak and talk to him", no mention of the cold-treat ask).
     const revealsOnMeeting = b.worldIndex === 1 || b.worldIndex === 2 || b.worldIndex === 3;
-    if (b.mission && !revealsOnMeeting) setMission(b.mission);
+    if (revealsOnMeeting && b.introMission) setMission(b.introMission);
+    else if (b.mission) setMission(b.mission);
     else missionEl.classList.add('hidden');
   }
   for (let i = 0; i < 9; i++)
@@ -4414,6 +4462,12 @@ function showFriendToast(key){
   friendToastImgEl.src = stickerURL(STICKER_FILES[key]);
   friendToastNameEl.textContent = STICKER_LABELS[key];
   friendToastEl.classList.add('show');
+  // restart the stamp animation every call, even back-to-back — removing the
+  // class alone wouldn't replay it if it's still present from a moment ago,
+  // so force a reflow in between (reading offsetWidth flushes style first).
+  friendToastImgEl.classList.remove('stamp');
+  void friendToastImgEl.offsetWidth;
+  friendToastImgEl.classList.add('stamp');
   clearTimeout(showFriendToast._t);
   showFriendToast._t = setTimeout(() => friendToastEl.classList.remove('show'), 3600);
 }
@@ -4548,7 +4602,7 @@ window.__world = {
     model.traverse((o) => {
       if (o.isBone){
         out.allBoneNames.push(o.name);
-        if (/upperarm/i.test(o.name)){
+        if (/upperarm|chest|spine|head|neck/i.test(o.name)){
           out.bones[o.name] = { quat: o.quaternion.toArray().map(v => +v.toFixed(4)) };
         }
       }
@@ -4556,6 +4610,8 @@ window.__world = {
     out.idleWeight = herIdleAction ? +herIdleAction.getEffectiveWeight().toFixed(3) : null;
     out.walkWeight = herWalkAction ? +herWalkAction.getEffectiveWeight().toFixed(3) : null;
     out.talkWeight = herTalkAction ? +herTalkAction.getEffectiveWeight().toFixed(3) : null;
+    out.talkTime = herTalkAction ? +herTalkAction.time.toFixed(3) : null;
+    out.talkDuration = herTalkAction ? +herTalkAction.getClip().duration.toFixed(3) : null;
     out.summerIdleWeight = herSummerIdleAction ? +herSummerIdleAction.getEffectiveWeight().toFixed(3) : null;
     out.summerWalkWeight = herSummerWalkAction ? +herSummerWalkAction.getEffectiveWeight().toFixed(3) : null;
     out.showingSummer = !!(herSummerGroup && herSummerGroup.visible);
