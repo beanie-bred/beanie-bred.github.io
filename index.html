@@ -37,10 +37,10 @@
     border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:9px 18px;font-size:14px}
   #hud{position:fixed;top:16px;left:16px;z-index:20;display:flex;gap:10px;align-items:center}
   #planetName{font-weight:600;color:#ffe9c9}
-  #mission{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:20;max-width:72vw;
-    text-align:center;font-size:13.5px;line-height:1.45;padding:10px 22px;border-radius:16px;
-    background:rgba(30,32,64,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,224,138,.35);
-    color:#ffeccf;transition:opacity .6s}
+  #mission{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:20;max-width:80vw;
+    text-align:center;font-size:clamp(15px,2.4vw,20px);line-height:1.5;padding:16px 30px;border-radius:20px;
+    background:rgba(30,32,64,.65);backdrop-filter:blur(10px);border:1.5px solid rgba(255,224,138,.55);
+    box-shadow:0 0 40px rgba(255,200,120,.16);color:#ffeccf;transition:opacity .6s}
   #mission b{color:var(--gold)}
   #guide{position:fixed;top:122px;left:50%;transform:translateX(-50%) translateY(-6px);z-index:20;
     font-size:clamp(16px,2.6vw,24px);font-weight:700;padding:11px 24px;border-radius:24px;
@@ -1336,7 +1336,10 @@ function buildBooks(g, R){
     chippy.add(makeChippy());
   });
   animators.push((t) => {
-    if (chippyModel) chippyModel.scale.setScalar(1 + 0.03*Math.sin(t*1.6));   // gentle breathing
+    if (!chippyModel) return;
+    chippyModel.scale.setScalar(1 + 0.03*Math.sin(t*1.6));   // gentle breathing
+    // little happy bounce on his book pile while he's actually talking
+    chippyModel.position.y = (dialog && dialog.npcObj === chippy) ? Math.abs(Math.sin(t*5))*0.18 : 0;
   });
   // a few floating loose pages
   for (let i = 0; i < 9; i++){
@@ -2087,6 +2090,7 @@ function nearestFood(){
 }
 function nearestFoodPickup(){
   if (!worldRefs.cucumber) return null;
+  if (bbakQuest.phase < 1) return null;   // nothing to pick up until bbak actually asks for something cold
   const R = 3.0, cuke = worldRefs.cucumber.cuke;
   if (cuke.visible && her.position.distanceTo(cuke.getWorldPosition(new THREE.Vector3())) < R) return { cuke:true };
   let best=null, bd=R;
@@ -2116,7 +2120,7 @@ const foodPocketIconEl = document.getElementById('foodPocketIcon');
 const foodPocketLabelEl = document.getElementById('foodPocketLabel');
 function refreshFoodPocket(){
   const h = bbakQuest.holding;
-  if (!h){ foodPocketEl.classList.remove('show'); return; }
+  if (!h || curI !== 2){ foodPocketEl.classList.remove('show'); return; }   // only meaningful on the cucumber/bbak world
   foodPocketIconEl.textContent = FOOD_ICONS[h] || '🍽️';
   foodPocketLabelEl.textContent = h;
   foodPocketEl.classList.add('show');
@@ -2607,7 +2611,12 @@ function updateTalkCam(dt){
   orientation.copy(quatFromBasis(up, herFacing));
   updatePose();
   // The NPC (if it's a real Object3D, not just a position) turns to face Beanie directly.
-  if (dialog.npcObj && dialog.npcObj.isObject3D){
+  // Chippy is exempt: he's perched on a lumpy book pile at a hand-tuned seated
+  // orientation (orientToNormal + rotateY in buildBooks), and this generic
+  // face-Beanie override uses HER local up rather than the pile's own surface
+  // normal — reorienting him would make him look like he'd popped up off his seat.
+  const isChippy = worldRefs.books && dialog.npcObj === worldRefs.books.chippy;
+  if (dialog.npcObj && dialog.npcObj.isObject3D && !isChippy){
     const npcPos3 = dialog.npcObj.getWorldPosition(new THREE.Vector3());
     const toHer = tangentToward(npcPos3, up, her.position);
     dialog.npcObj.quaternion.copy(quatFromBasis(up, toHer));
@@ -2680,27 +2689,44 @@ const targetRing = new THREE.Mesh(new THREE.TorusGeometry(1, 0.035, 8, 40),
 targetRing.visible = false;
 scene.add(targetRing);
 
+// a flat N-pointed star outline, used for the locator below — built in the
+// local XY plane so it reads as a proper star silhouette (not just a blob)
+// when it's facing roughly toward the camera.
+function starGeometry(outerR, innerR, points){
+  const shape = new THREE.Shape();
+  const step = Math.PI/points;
+  for (let i = 0; i < points*2; i++){
+    const r = (i % 2 === 0) ? outerR : innerR;
+    const a = i*step - Math.PI/2;
+    const x = Math.cos(a)*r, y = Math.sin(a)*r;
+    if (i === 0) shape.moveTo(x, y); else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  return new THREE.ShapeGeometry(shape);
+}
 /* ---------- world-space "locator" marker floating over the current NPC/goal ---------- */
 const locator = new THREE.Group();
 {
-  // A cute spinning sparkle instead of a stark metallic arrow — two soft
-  // pastel-gold rays crossed around a bright core (reads like a twinkling
-  // star as it spins), using the same warm "lampAmber" glow as the game's
-  // lanterns/fireflies instead of a harsh saturated gold.
+  // A big glowing 5-point star, sized up further and given a crisp
+  // silhouette (the earlier crossed-sparkle shape read as a soft blob at
+  // real gameplay distances — a proper star silhouette is what actually
+  // catches the eye across a whole planet).
   const sparkle = new THREE.Group();
-  sparkle.position.y = 1.4; locator.add(sparkle);
-  const rayMat = mat(0xffe0ad, { emissive:0xffc978, emissiveIntensity:2.0, roughness:0.4 });
-  for (const rz of [0, Math.PI/2]){
-    const ray = new THREE.Mesh(new THREE.OctahedronGeometry(0.62), rayMat);
-    ray.scale.set(0.26, 1, 0.26);
-    ray.rotation.z = rz;
-    sparkle.add(ray);
-  }
-  const core = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10),
-    mat(0xfff6e6, { emissive:0xffe6b0, emissiveIntensity:2.8, roughness:0.25 }));
+  sparkle.position.y = 1.6; locator.add(sparkle);
+  const starMat = mat(0xffe6ad, { emissive:0xffc958, emissiveIntensity:2.6, roughness:0.35,
+    side: THREE.DoubleSide });
+  const starGeo = starGeometry(1.15, 0.46, 5);
+  const star = new THREE.Mesh(starGeo, starMat);
+  sparkle.add(star);
+  const starBack = new THREE.Mesh(starGeo, starMat);
+  starBack.rotation.y = Math.PI; starBack.rotation.z = Math.PI/5;   // faint depth so it isn't paper-thin from the side
+  starBack.position.z = -0.06;
+  sparkle.add(starBack);
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10),
+    mat(0xfff8ea, { emissive:0xffedc0, emissiveIntensity:3.2, roughness:0.2 }));
   sparkle.add(core);
-  const ballo = new THREE.Mesh(new THREE.SphereGeometry(1.05, 14, 12),
-    new THREE.MeshBasicMaterial({ color:0xffe6c0, transparent:true, opacity:0.16, depthWrite:false }));
+  const ballo = new THREE.Mesh(new THREE.SphereGeometry(1.5, 14, 12),
+    new THREE.MeshBasicMaterial({ color:0xffe6c0, transparent:true, opacity:0.18, depthWrite:false }));
   sparkle.add(ballo);
   locator.userData = { arrow: sparkle, ballo };
 }
@@ -2935,6 +2961,7 @@ function arrive(bi){
   camYaw = 0;
   camPitch = 0.3;
   updatePose();
+  refreshFoodPocket();   // the held-food chip only ever makes sense on the cucumber/bbak world
   const b = bodies[bi];
   planetNameEl.textContent = `${b.emoji} ${b.name}`;
   if (b.isWorld){
@@ -3209,8 +3236,17 @@ function qaWarp(i){
   if (chicagoMessenger) dismissChicagoMessenger();
   if (landing){ planetTitleEl.classList.remove('show'); landing = null; }
   bodies.forEach((b) => { b.missionDone = true; });     // QA: skip every mission/gate
+  // Play the same fall/get-up + orbit + title cutscene a real jump ends on,
+  // instead of teleporting straight into 'walk' — so QA warps stay a true
+  // dress rehearsal of the real arrival experience on every world, not just
+  // the first one. Position/facing math mirrors window.__world.goto(i).
+  const b = bodies[i];
+  const n = b.landN || V().subVectors(bodies[Math.max(0, i-1)].center, b.center).normalize();
+  const p = V().copy(b.center).addScaledVector(n, b.r);
+  const faceTo = b.chainNext != null ? bodies[b.chainNext].center : b.center.clone().add(arbitraryPerp(n));
+  orientation.copy(quatFromBasis(n, tangentToward(p, n, faceTo)));
   state = 'walk';
-  window.__world.goto(i);
+  startLandingSequence(i);
 }
 addEventListener('keyup', (e) => { keys[e.key] = false; });
 
