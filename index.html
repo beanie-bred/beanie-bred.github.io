@@ -142,7 +142,7 @@
     background:rgba(30,32,64,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,224,138,.5);
     opacity:0;transition:opacity .5s,transform .5s;pointer-events:none}
   #friendToast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  #friendToastImg{width:70px;height:70px;border-radius:16px;object-fit:contain;
+  #friendToastImg{position:relative;width:70px;height:70px;border-radius:16px;object-fit:contain;
     background:rgba(255,255,255,.12);box-shadow:0 0 18px rgba(255,209,102,.7)}
   /* "stamped" reveal: the sticker slams in oversized and rotated, then
      settles with a little overshoot bounce — re-triggered every call via a
@@ -153,7 +153,14 @@
     72%{transform:scale(1.1) rotate(-3deg)}
     100%{transform:scale(1) rotate(0deg)}
   }
-  #friendToastImg.stamp{animation:stampIn .6s cubic-bezier(.22,.9,.32,1.1)}
+  /* impact flash/ring: a quick expanding gold ring right at the moment of
+     "contact", layered alongside the pop-in bounce above. */
+  @keyframes stampRing{
+    0%{box-shadow:0 0 0 0 rgba(255,224,138,.9),0 0 18px rgba(255,209,102,.7)}
+    100%{box-shadow:0 0 0 22px rgba(255,224,138,0),0 0 18px rgba(255,209,102,.7)}
+  }
+  #friendToastImg.stamp{animation:stampIn .6s cubic-bezier(.22,.9,.32,1.1),
+    stampRing .5s ease-out}
   #friendToastText{font-size:15px;color:#dbe7ff;text-align:left;line-height:1.35}
   #friendToastText b{color:var(--gold);font-size:19px}
   #hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:20;
@@ -179,10 +186,14 @@
   /* ---------- dialogue ---------- */
   #dialog{position:fixed;bottom:44px;left:50%;transform:translateX(-50%);z-index:30;
     width:min(560px,90vw);background:rgba(28,26,54,.82);backdrop-filter:blur(12px);
-    border:1.5px solid rgba(255,255,255,.22);border-radius:20px;padding:18px 24px 18px}
-  #dialogName{font-weight:700;color:#8fd8d0;font-size:14px;margin-bottom:6px}
-  #dialogText{font-size:16px;line-height:1.55;min-height:44px;color:#f2f0ff}
-  #dialogNext{text-align:right;font-size:12px;color:#b9b4dd;margin-top:18px;
+    border:1.5px solid rgba(255,255,255,.22);border-radius:20px;padding:14px 24px 12px}
+  #dialogName{font-weight:700;color:#8fd8d0;font-size:14px;margin-bottom:4px}
+  /* was min-height:44px — reserved room for ~2 lines even when a message was
+     only ever revealed/shown one line at a time, reading as a big empty box
+     covering the game view underneath. Sized to one real line instead; it
+     still grows naturally for the rarer message that wraps to 2-3 lines. */
+  #dialogText{font-size:16px;line-height:1.55;min-height:25px;color:#f2f0ff}
+  #dialogNext{text-align:right;font-size:12px;color:#b9b4dd;margin-top:10px;
     animation:pulseTxt 1.4s ease-in-out infinite}
 
   /* ---------- planet-arrival title card (wide establishing orbit shot) ---------- */
@@ -718,6 +729,24 @@ function playCoo(){
     gn.gain.exponentialRampToValueAtTime(0.0001, t0+off+0.22);
     o.connect(gn); gn.connect(master); o.start(t0+off); o.stop(t0+off+0.3);
   });
+}
+function playStamp(){
+  if (!audio || muted) return;
+  const { ctx, master } = audio, t0 = ctx.currentTime;
+  // low percussive "thud" (the stamp hitting) — fast attack, quick decay
+  const thud = ctx.createOscillator(), thudGain = ctx.createGain();
+  thud.type = 'sine'; thud.frequency.setValueAtTime(160, t0);
+  thud.frequency.exponentialRampToValueAtTime(70, t0 + 0.12);
+  thudGain.gain.setValueAtTime(0.0001, t0);
+  thudGain.gain.linearRampToValueAtTime(0.32, t0 + 0.008);
+  thudGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+  thud.connect(thudGain); thudGain.connect(master); thud.start(t0); thud.stop(t0 + 0.25);
+  // a brief high mechanical "click" layered right on top of the thud
+  const click = ctx.createOscillator(), clickGain = ctx.createGain();
+  click.type = 'square'; click.frequency.setValueAtTime(1800, t0);
+  clickGain.gain.setValueAtTime(0.05, t0);
+  clickGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.03);
+  click.connect(clickGain); clickGain.connect(master); click.start(t0); click.stop(t0 + 0.04);
 }
 function footstep(kind){
   if (!audio || muted) return;
@@ -1895,16 +1924,18 @@ function buildCucumber(g, R){
     do { n = randDir(); } while (n.angleTo(cukeLandN) < CUKE_LAND_CLEAR/R);
     return n;
   }
-  function makeSnowPile(radius){
+  function makeSnowPile(radius, yScale){
     // squashed sphere with a bit of extra random lumpiness per-instance
     // (slight non-uniform scale on x/z) so a field of these doesn't read as
     // identical stamped-out discs — bumped whiter/more opaque than the
     // original flat-circle pass, too: against the sage-green grass
     // (PALETTE.moss, itself fairly pale/muted) anything much less than
     // near-solid white barely registered as snow at all.
+    // yScale is normally randomized per-instance; bbak's own pile (below)
+    // passes a fixed value instead so his exact peak height is computable.
     const mound = new THREE.Mesh(new THREE.SphereGeometry(radius, 14, 10),
       mat(0xf3faff, { roughness:0.35 }));
-    mound.scale.set(1 + (Math.random()-0.5)*0.3, 0.42 + Math.random()*0.1, 1 + (Math.random()-0.5)*0.3);
+    mound.scale.set(1 + (Math.random()-0.5)*0.3, yScale ?? (0.42 + Math.random()*0.1), 1 + (Math.random()-0.5)*0.3);
     const holder = new THREE.Group(); holder.add(mound);
     return holder;
   }
@@ -1919,10 +1950,31 @@ function buildCucumber(g, R){
   // He gets his own notably WIDE, prominent snow pile — not just one of the
   // same small background patches everyone else gets — reading as "this one
   // polar bear still has his own little patch of his old home to rest on".
-  const BBAK_SNOW_RADIUS = 3.4;
-  placeOn(g, makeSnowPile(BBAK_SNOW_RADIUS), bbakN, R, BBAK_SNOW_RADIUS*0.1);
+  const BBAK_SNOW_RADIUS = 3.4, BBAK_SNOW_Y_SCALE = 0.46, BBAK_MOUND_LIFT = BBAK_SNOW_RADIUS*0.1;
+  // How far the mound's peak actually rises above the raw sphere surface —
+  // previously bbak was placed at a hand-picked offset (radius*0.32) with no
+  // relation to the mound's real height, and the mound's height was random
+  // on top of that, so he ended up genuinely buried past his shoulders in
+  // the snow about as often as not. Now his own placement is derived
+  // directly from the mound's known peak, minus a small sink so he still
+  // reads as resting IN the snow rather than floating just above it.
+  const BBAK_MOUND_PEAK = BBAK_MOUND_LIFT + BBAK_SNOW_RADIUS*BBAK_SNOW_Y_SCALE;
+  const BBAK_SINK = 0.35;
+  const bbakSnowMound = makeSnowPile(BBAK_SNOW_RADIUS, BBAK_SNOW_Y_SCALE);
   const bbak = new THREE.Group();
-  placeOn(g, bbak, bbakN, R, BBAK_SNOW_RADIUS*0.32);
+  placeOn(g, bbak, bbakN, R, BBAK_MOUND_PEAK - BBAK_SINK);
+  // The mound used to be its own sibling placeOn() call, positioned on the
+  // sphere independently of bbak — which meant hideNearbyObstacles() (which
+  // only ever exempts the NPC object itself during a conversation, not
+  // "whatever happens to be near it") hid the mound out from under him the
+  // instant she started talking to him, same bug class as Chippy's book
+  // pile earlier this session. Making it a real child of bbak's own group
+  // fixes both that AND keeps it locked to his position by construction —
+  // local Y here is bbak's own local "up" (his placeOn already oriented his
+  // +Y along bbakN), so this offset alone reproduces the mound's original
+  // world-space lift relative to him, no separate rotation math needed.
+  bbakSnowMound.position.y = BBAK_MOUND_LIFT - (BBAK_MOUND_PEAK - BBAK_SINK);
+  bbak.add(bbakSnowMound);
   bbak.rotateY(1.2);
   let bbakModel = null;
   loadModel('./game-assets/bbak/bbak.glb').then((model) => {
@@ -2557,12 +2609,16 @@ function tossFoodToBbak(foodName, onDone){
   const end = bbakPos(new THREE.Vector3()).addScaledVector(up, 0.55);
   model.position.copy(start);
   scene.add(model);
-  let t = 0; const dur = 0.55;
+  // was dur=0.55 (rotation rates 9/7 rad/s) — read as a quick flick rather
+  // than a toss. Doubled the flight time and halved the rotation rates in
+  // step, so it still tumbles the same total amount, just spread out slower
+  // and smoother instead of spinning faster to match the shorter time.
+  let t = 0; const dur = 1.1;
   function step(_, dt){
     t += dt/dur;
     const k = Math.min(1, t);
     model.position.lerpVectors(start, end, k).addScaledVector(up, Math.sin(Math.PI*k)*1.1);
-    model.rotation.x += dt*9; model.rotation.y += dt*7;
+    model.rotation.x += dt*4.5; model.rotation.y += dt*3.5;
     if (k >= 1){
       scene.remove(model);
       animators.splice(animators.indexOf(step), 1);
@@ -2875,7 +2931,15 @@ function spawnStoryPigeon(cfg){
   const g = bodies[PIGEON_I].group, R = bodies[PIGEON_I].r;
   const holder = new THREE.Group();
   const inner = new THREE.Group(); holder.add(inner);
-  const n = dirNear(worldRefs.pigeon.plazaN, 0.7 + Math.random()*1.5);
+  // Was dirNear(plazaN, 0.7 + Math.random()*1.5) — dirNear doesn't reliably
+  // control angular distance at spreads this large (see the gift-book/tower
+  // dirNear gotcha elsewhere in this file), and even at face value 0.7-2.2
+  // rad is up to ~126° from the plaza center on this r=30 planet — confirmed
+  // live: Doodles landed ~108° of arc from her, a genuinely long, clutter-
+  // filled walk through 520 background pigeons with only a compass to go on.
+  // tiltDir gives an exact, bounded angular distance every time; azimuth
+  // still varies so each decoy/Doodles doesn't always land in the same spot.
+  const n = tiltDir(worldRefs.pigeon.plazaN, 0.35 + Math.random()*0.4, Math.random()*Math.PI*2);
   placeOn(g, holder, n, R, 0.02);
   if (cfg.procedural){
     // no sculpted glb for this one yet — build the same plushPigeon() used
@@ -3699,9 +3763,10 @@ function updateLanding(dt){
   if (landing.phase === 'fallgetup'){
     // Close, dramatically tilted "just landed" shot instead of a flat,
     // upright behind-the-shoulder view: camera holds near her side (not
-    // dead behind) and its up vector is rolled toward that side, so her
-    // whole body reads on a diagonal across the frame, head toward the
-    // bottom-left, the way a real camera would tumble with an impact.
+    // dead behind) and its up vector is rolled a full 90° counterclockwise
+    // (as seen on screen) so her whole body reads on a clean diagonal
+    // across the frame, head toward the bottom-left, the way a real camera
+    // would tumble with an impact.
     const fwd = herFwd(new THREE.Vector3());
     const side = new THREE.Vector3().crossVectors(up, fwd).normalize();
     // The dust burst (spawnLandingDustBurst) erupts from this exact spot at
@@ -3713,19 +3778,42 @@ function updateLanding(dt){
     // the camera in from a wide establishing distance (reads as "the big
     // dust cloud swallows her on impact") down to the close diagonal shot
     // over DUST_CLEAR_EASE seconds, arriving right around when the puffs
-    // have traveled clear of her.
+    // have traveled clear of her. Settled distance pulled back a bit further
+    // (was 4.0) per request for a bit more breathing room in the close shot.
     const DUST_CLEAR_EASE = 1.6;
     const easeT = Math.min(1, landing.t / DUST_CLEAR_EASE);
     const easeOut = 1 - Math.pow(1 - easeT, 3);
-    const dist = 9.0 - (9.0 - 4.0) * easeOut;
+    const dist = 9.0 - (9.0 - 5.5) * easeOut;
     // Camera sits BEHIND her (-fwd), matching followCam's convention —
     // using +fwd here previously put the camera in front of her face,
     // clipping straight into her own head instead of framing her body.
     const camPos2 = new THREE.Vector3().copy(her.position)
       .addScaledVector(side, dist*0.55).addScaledVector(fwd, -dist*0.75).addScaledVector(up, dist*0.5);
+    const lookAtPoint = new THREE.Vector3().copy(her.position).addScaledVector(up, 1.2);
     camera.position.copy(camPos2);
-    camera.up.copy(new THREE.Vector3().copy(up).addScaledVector(side, -0.6).normalize());
-    camera.lookAt(new THREE.Vector3().copy(her.position).addScaledVector(up, 1.2));
+    // A true 90°-CCW image roll. Rotating her raw body-up directly around
+    // the view axis gave an unpredictable result (confirmed live: the angle
+    // between it and the result measured ~53°, not 90°) because her body-up
+    // isn't perpendicular to the view axis to begin with — any component
+    // of it parallel to the axis doesn't rotate, so the leftover angle
+    // depends on camera geometry instead of being a clean quarter-turn.
+    // Project out that parallel component FIRST to get the "0°-roll"
+    // reference up, THEN rotate that (now-perpendicular) vector by exactly
+    // 90° around the axis pointing back toward the viewer.
+    const viewDir = new THREE.Vector3().subVectors(lookAtPoint, camPos2).normalize();
+    const naturalUp = up.clone().addScaledVector(viewDir, -up.dot(viewDir)).normalize();
+    const viewerAxis = viewDir.clone().negate();
+    camera.up.copy(naturalUp.applyAxisAngle(viewerAxis, Math.PI/2));
+    camera.lookAt(lookAtPoint);
+    // camFill (a point light riding on the camera, tuned for its NORMAL
+    // walking/talking distance) sits noticeably closer to her during this
+    // close landing shot than usual — inverse-square falloff meant the top
+    // of her head (facing the light almost dead-on from directly above in
+    // this framing) blew out into a bright glare that a normal gameplay
+    // distance never showed. Dimmed only for this phase, restored the
+    // instant it ends (see the phase transition below) so nothing else
+    // during normal play is affected.
+    camFill.intensity = 28;
     // a quick decaying shake right on impact — landing.t resets to 0 at the
     // start of this phase, so this is purely a function of elapsed time,
     // no separate persistent state needed (and it's pump()-testable).
@@ -3737,6 +3825,7 @@ function updateLanding(dt){
       camera.position.z += (Math.random()-0.5)*shakeMag;
     }
     if (landing.t >= landingClipDuration() + 0.5){
+      camFill.intensity = 95;   // restore — only this close phase needed it dimmed
       landing.phase = 'orbit'; landing.t = 0;
       landing.orbitBasisA = arbitraryPerp(up);
       landing.orbitBasisB = new THREE.Vector3().crossVectors(up, landing.orbitBasisA).normalize();
@@ -4763,6 +4852,7 @@ function showFriendToast(key){
   friendToastImgEl.classList.remove('stamp');
   void friendToastImgEl.offsetWidth;
   friendToastImgEl.classList.add('stamp');
+  playStamp();
   clearTimeout(showFriendToast._t);
   showFriendToast._t = setTimeout(() => friendToastEl.classList.remove('show'), 3600);
 }
@@ -4958,6 +5048,18 @@ window.__world = {
     return { herTalkActionIsNull: herTalkAction === null, clipNames };
   },
   curBodyDebug(){ const b = bodies[curI]; return { center: b.center.toArray(), r: b.r }; },
+  herMaterialsDebug(){
+    const out = [];
+    const model = her.children[0];
+    if (!model) return out;
+    model.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      const m = o.material;
+      out.push({ name: o.name, matName: m.name, roughness: m.roughness, metalness: m.metalness,
+        envMapIntensity: m.envMapIntensity, color: m.color ? '#'+m.color.getHexString() : null });
+    });
+    return out;
+  },
   walkTowardWorldPos(worldPos, seconds){
     const b = bodies[curI];
     const n = new THREE.Vector3(...worldPos).sub(b.center).normalize();
@@ -5121,12 +5223,18 @@ window.__world = {
     const target = new THREE.Vector3().copy(her.position).addScaledVector(up, 1.3);
     const expectedFwd = new THREE.Vector3().subVectors(target, camera.position).normalize();
     const actualFwd = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+    const screenUp = new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion).normalize();
+    const screenRight = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
     return { phase: landing.phase, t: landing.t, her: her.position.toArray().map(v=>+v.toFixed(2)),
       up: up.toArray().map(v=>+v.toFixed(3)),
+      screenUp: screenUp.toArray().map(v=>+v.toFixed(3)),
+      screenRight: screenRight.toArray().map(v=>+v.toFixed(3)),
+      screenUpDotHerUp: +screenUp.dot(up).toFixed(4),
       orbitBasisA: landing.orbitBasisA ? landing.orbitBasisA.toArray().map(v=>+v.toFixed(3)) : null,
       orbitBasisB: landing.orbitBasisB ? landing.orbitBasisB.toArray().map(v=>+v.toFixed(3)) : null,
       camPos: camPos.toArray().map(v=>+v.toFixed(2)), camUp: camUp.toArray().map(v=>+v.toFixed(3)),
       camActualPos: camera.position.toArray().map(v=>+v.toFixed(2)),
+      camActualUp: camera.up.toArray().map(v=>+v.toFixed(3)),
       expectedFwd: expectedFwd.toArray().map(v=>+v.toFixed(3)),
       actualFwd: actualFwd.toArray().map(v=>+v.toFixed(3)),
       fwdDot: +expectedFwd.dot(actualFwd).toFixed(4),
