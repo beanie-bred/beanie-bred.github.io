@@ -1329,14 +1329,20 @@ function buildChicago(g, R){
   const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.4),
     mat(0xf4f4f0, { side:THREE.DoubleSide, roughness:0.8 }));
   cloth.position.x = 0.33; flag.add(cloth);
+  // Stripes/stars are children of `cloth` (not `flag`) so they share its extra
+  // sway below — they used to be siblings positioned to line up with cloth's
+  // span only while cloth had zero rotation of its own; once cloth started
+  // rippling independently, the design stayed rigid and visibly sheared off
+  // the moving cloth. Positions are relative to cloth's own origin now (was
+  // flag-relative, hence the -0.33 shift to compensate for cloth's offset).
   for (const sy of [0.12, -0.12]){
     const stripe = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.075),
       mat(0x8fc8e8, { side:THREE.DoubleSide }));
-    stripe.position.set(0.33, sy, 0.001); flag.add(stripe);
+    stripe.position.set(0, sy, 0.001); cloth.add(stripe);
   }
   for (let s = 0; s < 4; s++){
     const star = new THREE.Mesh(new THREE.SphereGeometry(0.026, 6, 6), mat(0xd84a4a));
-    star.position.set(0.12 + s*0.14, 0, 0.004); flag.add(star);
+    star.position.set(0.12 + s*0.14 - 0.33, 0, 0.004); cloth.add(star);
   }
   animators.push((t) => {
     flag.rotation.y = Math.sin(t*2.2)*0.35;
@@ -4178,6 +4184,18 @@ function startJourney(){
         dismissChicagoMessenger();
         introLocked = false;
         journalBtn.classList.remove('hidden');   // the notebook the letter just gave her
+        // The letter conversation (ensureTalkDistance nudging her to keep her
+        // distance from the messenger) leaves her facing wherever the pigeon
+        // happened to land, with zero relation to Main Stacks' direction —
+        // and nothing ever pointed her back at the actual next destination
+        // afterward. Her very first real task is "aim at the next world," so
+        // re-face her toward it now, the same way startJourney() originally
+        // aimed her at it before the messenger showed up.
+        if (bodies[0].chainNext != null){
+          const up = herUp(V());
+          orientation.copy(quatFromBasis(up, tangentToward(her.position, up, bodies[bodies[0].chainNext].center)));
+          updatePose();
+        }
         startChicagoTitleCutscene();   // the same orbit+title reveal every other world gets, just delayed until after the letter
       }, { speaker:'🕊️ a breathless pigeon',
            npcPos: () => chicagoMessenger ? chicagoMessenger.pg.getWorldPosition(new THREE.Vector3()) : null });
