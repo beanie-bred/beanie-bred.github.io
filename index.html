@@ -1448,30 +1448,55 @@ function buildBooks(g, R){
   // has a stack blocking its view of her fall/get-up.
   const landN = V().subVectors(bodies[0].center, bodies[1].center).normalize();
   bodies[1].landN = landN.clone();
-  const CHIPPY_CLEAR = 7, LAND_CLEAR = 9;
-  // Cut from 700 -> 420 stacks: at the old density she kept getting boxed in
-  // with no way around a cluster, even though only a sparse subset collide —
-  // visually it still read as "no path through". A meaningfully lower count
-  // opens real walkable gaps while still reading as a cluttered book world.
-  const placedDirs = [];
-  const STACK_SEP = 0.1;   // radians between stack centers — keeps a walkable gap between neighbors
-  for (let i = 0; i < 420; i++){
-    const n = randDir();
-    // keep Chippy's own spot AND the landing zone open — he was getting
-    // buried under piles, and she'd sometimes touch down right on one.
-    if (n.angleTo(chippyN) < CHIPPY_CLEAR/R || n.angleTo(landN) < LAND_CLEAR/R){ i--; continue; }
-    if (placedDirs.some((p) => n.angleTo(p) < STACK_SEP)){ i--; continue; }
-    placedDirs.push(n.clone());
-    const s = 0.9 + Math.random()*0.5;
-    placeOn(g, makeStack(2 + Math.floor(Math.random()*4), s), n, R);
-    // Only a sparse subset block movement — colliding on all of them would fence
-    // her in and make the book-collecting quest impossible to walk.
-    if (i % 22 === 0) addCollider(colliders, n, 0.9*s, R);
+  const LAND_CLEAR = 9;
+  // A real labyrinth of shelving rings around Chippy instead of pure random
+  // scatter. Random placement (even with a minimum-separation constraint)
+  // could still wall her in with no way through, and only a sparse subset
+  // of stacks ever actually collided anyway — so the "obstacles" you could
+  // just walk through weren't real obstacles, they just looked cluttered.
+  // Concentric rings of book-stack "shelf segments" centered on chippyN,
+  // each ring with several gaps left open for passage; every wall segment
+  // DOES collide this time (that's the point of a maze), but gap density
+  // per ring (~30-45%) keeps a way through always findable rather than
+  // needing exact navigation. tiltDir(n, angle, azimuth) is deterministic
+  // for a given chippyN (arbitraryPerp has no randomness in it), so calling
+  // it repeatedly for different azimuths lays out a stable ring.
+  const MAZE_RINGS = [
+    { rad:0.55, segments:12, gaps:4 },
+    { rad:0.85, segments:16, gaps:5 },
+    { rad:1.15, segments:20, gaps:6 },
+    { rad:1.45, segments:24, gaps:7 },
+  ];
+  for (const ring of MAZE_RINGS){
+    const gapIdx = new Set();
+    while (gapIdx.size < ring.gaps) gapIdx.add(Math.floor(Math.random()*ring.segments));
+    for (let i = 0; i < ring.segments; i++){
+      if (gapIdx.has(i)) continue;
+      const azimuth = (i/ring.segments)*Math.PI*2;
+      const n = tiltDir(chippyN, ring.rad + (Math.random()-0.5)*0.04, azimuth);
+      if (n.angleTo(landN) < LAND_CLEAR/R) continue;   // never wall off her actual landing spot
+      const s = 1.0 + Math.random()*0.35;
+      placeOn(g, makeStack(3 + Math.floor(Math.random()*3), s), n, R);
+      addCollider(colliders, n, 0.85*s, R);
+    }
   }
   const grand = makeStack(6, 1.5, 0.25);          // the landmark tower of books
-  // pulled farther out from Chippy (0.25->0.6 rad) so it reads as a nearby
-  // landmark instead of looming right over him.
-  const grandN = dirNear(chippyN, 0.6);
+  // Fixed angular distance out past the whole maze (all 4 rings top out at
+  // 1.45 + jitter + their own footprint), so it always reads as a distinct
+  // landmark beyond the labyrinth. dirNear() is NOT safe for this: it's
+  // n + spread*randomUnitVector renormalized, which for a spread this large
+  // does NOT reliably control angular distance from n (it can land almost
+  // anywhere on the sphere) — that's how this once landed at ang~0.8, right
+  // inside ring 2's band, plugging a gap. tiltDir(n, angle, azimuth) is the
+  // deterministic one: exactly `angle` from n, only azimuth randomized.
+  // landN itself sits at roughly this same ~1.8 rad from chippyN (it's "back
+  // toward Chicago"), so a random azimuth alone can still land the tower
+  // right on top of her spawn point — reroll (azimuth only) until it clears
+  // the same LAND_CLEAR zone the maze rings respect, plus the tower's own
+  // footprint, same as isBlocked() adding her footprint to a collider's own.
+  let grandN;
+  do { grandN = tiltDir(chippyN, 1.8, Math.random()*Math.PI*2); }
+  while (grandN.angleTo(landN) < LAND_CLEAR/R + 1.35/R);
   placeOn(g, grand, grandN, R);
   addCollider(colliders, grandN, 1.35, R);
   // chippy napping on his own little stack — bumped from 3 books @ scale 1.1
@@ -1537,8 +1562,13 @@ function buildBooks(g, R){
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.0, 8),
       new THREE.MeshBasicMaterial({ color:GIFT_COLORS[i], transparent:true, opacity:0.35, depthWrite:false }));
     beam.position.y = 2.4; holder.add(beam);
-    // scattered around the planet, spread away from Chippy's stack
-    const n = dirNear(chippyN, 0.9 + (i/5)*1.7 + Math.random()*0.4);
+    // scattered around the planet, well clear of Chippy's own talk spot —
+    // the closest one used to land only ~0.9 rad out (~16 units at R=17.8),
+    // easily visible in the same shot as him, reading as "conveniently
+    // right next to where you talk to him" instead of an actual collect-
+    // and-return errand. Now lands in/beyond the maze rings' outer edge
+    // (see MAZE_RINGS below), so reaching one is itself real navigation.
+    const n = dirNear(chippyN, 1.3 + (i/5)*1.4 + Math.random()*0.3);
     placeOn(g, holder, n, R, 0.1);
     const ph = i*1.3;
     const bkMat = bk.children[0].material;
@@ -2157,12 +2187,17 @@ const WORLD_DEFS = [
     mission:'<b>MISSION:</b> find <b>bbak</b> the polar bear, he is overheating. Bring him something <b>cold</b> to cool him down!',
     // revealed after bbak's final hint — see startCukeRevealCutscene()
     revealName:'Cucumber Meadow', revealEmoji:'🥒', revealTag:'they school like fish out here',
-    // World positions doubled again on top of the earlier 1.5x pass (all
-    // non-Chicago positions below too) — even the shrunk ring (see
-    // buildCucumber's RING_INNER) still read as visually collided with
-    // neighboring worlds from the aim-and-leap view; this puts genuinely
-    // empty space between every world regardless of ring size.
-    pos:[900,-30,-570], r:45, col:PALETTE.moss, step:'grass' },
+    // Doubling distance (previous pass) didn't fix "the ring touches Main
+    // Stacks from Chicago" because that was never a distance problem —
+    // Cucumber's direction FROM CHICAGO was only ~12° away from Books' own
+    // direction, so the two projected right next to each other regardless
+    // of how far back either one sat. Moved to a genuinely different
+    // direction (~47° from both Books and Pigeon Plaza, as seen from
+    // Chicago — comparable to the ~42° Books/Pigeon already had between
+    // them) while keeping similar jump distances to its actual neighbors
+    // in the chain (Books->here ~631, here->Pigeon ~936, both well inside
+    // the existing flight-duration/arc-height clamps).
+    pos:[500,-500,-450], r:45, col:PALETTE.moss, step:'grass' },
   { key:'pigeon',   name:'Pigeon Plaza',     emoji:'🕊️', tag:'way, WAY too many pigeons',
     mission:'<b>MISSION:</b> find <b>Percy</b>, he needs help finding a long-lost friend among all these pigeons.',
     pos:[510,60,-1200], r:30, col:PALETTE.mutedLavender, step:'stone' },
@@ -2257,7 +2292,7 @@ function refreshBooksGuide(){
     bodies[1].guideLabel = `✨ glowing book (${booksQuest.got}/${booksQuest.need}), press A to collect`;
     bodies[1].guideFn = () => { const gb = nearestUncollected(); return gb ? gb.holder.getWorldPosition(new THREE.Vector3()) : chippyPos(); };
   } else {
-    bodies[1].guideLabel = '🐿️ find Chippy (he is resting on a book pile)';
+    bodies[1].guideLabel = '🐿️ find Chippy';
     bodies[1].guideFn = () => chippyPos();
   }
 }
@@ -2266,7 +2301,7 @@ function talkChippy(){
   const npc = { npcPos: () => chippyPos(), speaker:'🐿️ Chippy', npcObj: worldRefs.books.chippy };
   if (booksQuest.phase === 0){
     meetFriend('chippy');
-    startDialog(CHIPPY_ASK_LINES, () => { booksQuest.phase = 1; refreshBooksGuide(); }, npc);
+    startDialog(CHIPPY_ASK_LINES, () => { booksQuest.phase = 1; refreshBooksGuide(); setMission(bodies[1].mission); }, npc);
   } else if (booksQuest.phase === 1 && booksQuest.got < booksQuest.need){
     startDialog(CHIPPY_NEED_MORE, null, npc);
   } else if (booksQuest.phase === 1){
@@ -2380,7 +2415,7 @@ function refreshBbakGuide(){
   const b = bodies[2];
   if (bbakQuest.phase === 2){ b.guideFn = null; return; }
   if (bbakQuest.holding){ b.guideLabel = '🐻‍❄️ take it back to bbak'; b.guideFn = () => bbakPos(); return; }
-  if (bbakQuest.phase === 0){ b.guideLabel = '🐻‍❄️ find bbak (lounging in the grass)'; b.guideFn = () => bbakPos(); return; }
+  if (bbakQuest.phase === 0){ b.guideLabel = '🐻‍❄️ find bbak'; b.guideFn = () => bbakPos(); return; }
   if (bbakQuest.cukeRevealed){
     b.guideLabel = '🥒 fetch the glowing cucumber, press A';
     b.guideFn = () => worldRefs.cucumber.cuke.getWorldPosition(new THREE.Vector3());
@@ -2428,7 +2463,7 @@ function pickupCuke(){
 }
 function talkBbak(){
   const npc = { npcPos: () => bbakPos(), speaker:'🐻‍❄️ bbak', npcObj: worldRefs.cucumber.bbak };
-  if (bbakQuest.phase === 0){ meetFriend('bbak'); startDialog(BBAK_INTRO, () => { bbakQuest.phase = 1; refreshBbakGuide(); }, npc); return; }
+  if (bbakQuest.phase === 0){ meetFriend('bbak'); startDialog(BBAK_INTRO, () => { bbakQuest.phase = 1; refreshBbakGuide(); setMission(bodies[2].mission); }, npc); return; }
   if (bbakQuest.phase >= 2) return;
   const h = bbakQuest.holding;
   if (!h){ startDialog([`Bring me something cold, please… anything! 🥵`], null, npc); return; }
@@ -2649,7 +2684,7 @@ function talkPercy(){
     npcObj: worldRefs.pigeon.percyHolder };
   if (plazaQuest.phase === 'intro'){
     meetFriend('percy');
-    startDialog(PERCY_INTRO, () => { plazaQuest.step = 0; spawnNextDecoy(); }, npc); return;
+    startDialog(PERCY_INTRO, () => { plazaQuest.step = 0; spawnNextDecoy(); setMission(bodies[PIGEON_I].mission); }, npc); return;
   }
   if (plazaQuest.phase === 'searching'){ startDialog(PERCY_NUDGE_SEARCH, null, npc); return; }
   if (plazaQuest.phase === 'giveup'){
@@ -3207,6 +3242,12 @@ function jumpTo(body){
   if (herIdleAction) herIdleAction.setEffectiveWeight(0);
   promptEl.classList.remove('show');
   hintEl.classList.add('hidden'); idleTime = 0;
+  // hide the HUD/mission for the whole flight->landing->title stretch — was
+  // only ever hidden starting at showPlanetTitle() (the 'orbit' phase), so
+  // the world she was LEAVING kept its own mission banner up (mid-typing,
+  // even) through the entire jump arc and the fall/get-up beat.
+  hudEl.classList.add('hidden');
+  missionEl.classList.add('hidden');
   playChime();
 }
 function updateFlight(dt){
@@ -3286,6 +3327,11 @@ function startLandingSequence(bi){
   // frozen on screen, from the world she left, straight through the new
   // planet's title reveal.
   guideEl.classList.remove('show');
+  // covers the qaWarp entry path, which calls this directly instead of
+  // through jumpTo() — same reasoning, the world she's leaving shouldn't
+  // keep its HUD/mission up through the fall/get-up beat.
+  hudEl.classList.add('hidden');
+  missionEl.classList.add('hidden');
   if (herLandFallGetUpAction) herLandFallGetUpAction.reset().play();
   landing = { bi, phase:'fallgetup', t:0 };
   spawnLandingDustBurst(her.position, herUp(V()));
@@ -3386,7 +3432,15 @@ function arrive(bi){
   if (b.isWorld){
     visitedWorlds[b.worldIndex] = true;
     updateDots();
-    if (b.mission) setMission(b.mission);
+    // Books/Cucumber/Pigeon's mission text spells out the actual task (e.g.
+    // "bring him 5 favourite books") before she's even met Chippy/bbak/
+    // Percy — held back here and revealed instead right when each world's
+    // first conversation with them actually finishes (see talkChippy(),
+    // talkBbak-equivalent, talkPercy()), same spirit as Chicago already
+    // withholding its own mission until the letter is read.
+    const revealsOnMeeting = b.worldIndex === 1 || b.worldIndex === 2 || b.worldIndex === 3;
+    if (b.mission && !revealsOnMeeting) setMission(b.mission);
+    else missionEl.classList.add('hidden');
   }
   for (let i = 0; i < 9; i++)
     spawnEphemeral(new THREE.Mesh(sparkGeo, sparkMat), her.position,
@@ -3692,6 +3746,11 @@ function qaWarp(i){
   if (chicagoMessenger) dismissChicagoMessenger();
   if (landing){ planetTitleEl.classList.remove('show'); landing = null; }
   bodies.forEach((b) => { b.missionDone = true; });     // QA: skip every mission/gate
+  // The journal notebook is normally only granted mid-letter in Chicago
+  // (see CHICAGO_LETTER_LINES) — a QA warp skips that entirely, so the
+  // journal button stayed permanently hidden for the rest of the session
+  // if you ever used a number-key shortcut before reading the real letter.
+  journalBtn.classList.remove('hidden');
   // Full fall + orbit/title cutscene on the target world, same as a real
   // jump landing — QA warping used to teleport straight into 'walk' via
   // goto(), skipping the fall entirely, which meant this shortcut couldn't
@@ -4411,6 +4470,31 @@ window.__world = {
     }
     renderer.render(scene, camera);
     return { finalPos: positions[positions.length-1], sample: positions.slice(-6) };
+  },
+  // Manual tank-control primitive for testing, mirroring the REAL keyboard
+  // scheme exactly (turn in place, THEN walk straight along the new facing —
+  // never both at once): unlike walkToward (which re-aims at a fixed target
+  // every single step, so it can never sidestep a wall sitting on that
+  // bearing), this lets a test script "look toward a gap, then walk into it"
+  // the same way a real player reacts to what they see, instead of beelining.
+  turnStep(turnRad, seconds){
+    const b = bodies[curI];
+    const up = herUp(new THREE.Vector3());
+    orientation.premultiply(new THREE.Quaternion().setFromAxisAngle(up, turnRad));
+    orientation.normalize();
+    const steps = Math.ceil(seconds*30);
+    const positions = [];
+    let blockedSteps = 0;
+    for (let i = 0; i < steps; i++){
+      const preForward = orientation.clone();
+      orientation.multiply(new THREE.Quaternion().setFromAxisAngle(X_AXIS, WALK_SPEED/30/b.r));
+      orientation.normalize();
+      if (isBlocked(b, orientation)){ orientation.copy(preForward); blockedSteps++; }
+      updatePose();
+      positions.push(her.position.toArray().map(v=>+v.toFixed(2)));
+    }
+    renderer.render(scene, camera);
+    return { finalPos: positions[positions.length-1], blockedSteps, facing: herFwd(new THREE.Vector3()).toArray().map(v=>+v.toFixed(4)) };
   },
   jumpWeights(){
     return { launch: herJumpLaunchAction && herJumpLaunchAction.getEffectiveWeight(),
