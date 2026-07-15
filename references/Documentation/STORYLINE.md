@@ -162,5 +162,15 @@ Beanie's fixed spot — Chicago's tower is the tightest case (it reaches ~8.7
 world units above her on a tiny r5.25 planet), so if that camera's radius
 setup is ever retuned again, re-verify against Chicago specifically by
 sampling several full orbit angles, not just the resting frame.
-- **QA**: number keys 1–5 instantly warp to that world and force-clear every
-  mission gate (`qaWarp()`), usable from the title screen or mid-dialogue.
+- **QA**: number keys 1–5 warp to that world, force-clearing every mission
+  gate, and play the SAME fall→orbit→title cutscene a real jump landing
+  gets (via `startLandingSequence()`) rather than teleporting straight into
+  gameplay — so the shortcut doubles as a way to review any world's landing
+  cutscene on demand. Usable from the title screen or mid-dialogue.
+- **Jump gating**: leaping onward is only ever possible once the current
+  world's mission is done (`updateAim()` won't lock a target otherwise) or
+  via the QA shortcut above — there is no other way to skip ahead.
+- **Landing impact**: every landing (real jump or QA warp) throws a big dust
+  burst around her (`spawnLandingDustBurst()`), and the fall/get-up pose now
+  visibly sinks her into contact with the ground at its flattest point
+  instead of hovering just above the surface.

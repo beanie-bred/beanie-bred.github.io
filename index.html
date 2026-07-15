@@ -163,8 +163,8 @@
      below it (verified against Chicago's tight orbit, the closest framing
      any world's arrival title ever gets). */
   #planetTitleName{--tls:6px;font-size:clamp(100px,30vw,340px);font-weight:800;color:#fff;
-    text-transform:uppercase;letter-spacing:var(--tls);white-space:nowrap;
-    text-shadow:0 0 10px rgba(0,0,0,.5),0 3px 10px rgba(0,0,0,.35);
+    text-transform:uppercase;letter-spacing:var(--tls);white-space:normal;max-width:92vw;
+    text-align:center;text-shadow:0 0 10px rgba(0,0,0,.5),0 3px 10px rgba(0,0,0,.35);
     opacity:0}
   /* one distinct display font per world — set as a class alongside .play */
   #planetTitleName.font-chicago{--tls:8px;font-family:'Oswald',sans-serif;font-weight:600}
@@ -522,6 +522,19 @@ function spawnDust(kind, pos, up, fwd){
       .addScaledVector(fwd, -0.35 - Math.random()*0.35)
       .addScaledVector(randDir(), 0.4);
     spawnEphemeral(puff, pos, vel, 0.4 + Math.random()*0.25, 1.4);
+  }
+}
+// A big impact-dust burst for the planet-landing cutscene — same puff
+// geometry/material as footstep dust, but many more of them thrown outward
+// and upward in a wide radial burst instead of a few kicked backward.
+function spawnLandingDustBurst(pos, up){
+  const n = 26 + Math.floor(Math.random()*10);
+  for (let i = 0; i < n; i++){
+    const puff = new THREE.Mesh(dustGeo, mat(0xd6cdbc, { roughness:1, transparent:true, opacity:0.7 }));
+    puff.scale.setScalar(1.1 + Math.random()*2.0);
+    const dir = randDir().addScaledVector(up, 0.5 + Math.random()*0.4).normalize();
+    const speed = 4 + Math.random()*6;
+    spawnEphemeral(puff, pos, dir.multiplyScalar(speed), 0.7 + Math.random()*0.6, 1.1);
   }
 }
 
@@ -1516,13 +1529,13 @@ function buildCucumber(g, R){
   // The real cucumber-built ring exists the whole time too, just hidden,
   // ready to be revealed by startCukeRevealCutscene() once bbak's final
   // hint lands. Both share the same tilt so the swap reads as one object.
-  // A steep tilt (the previous 1.15 rad / 66°) puts the ring almost edge-on
-  // to the establishing-shot camera for much of its orbit — even a true flat
-  // disc, viewed nearly edge-on with the camera sitting close to the ring's
-  // own plane, can visually graze the planet's silhouette purely from
-  // perspective, no matter how big the real 3D gap is. A shallower tilt
-  // reads clearly as a disc from far more of the orbit.
-  const RING_TILT_X = 0.45, RING_TILT_Z = 0.22;
+  // Kept shallow on purpose — a steep tilt (the original 1.15 rad / 66°, then
+  // 0.45 rad / 26°) reads as edge-on / a near-vertical wall from a lot of the
+  // vantage points Beanie can actually walk to on the sphere's surface, which
+  // both looks like it's touching the planet and can dominate/block the view
+  // during normal gameplay. This shallow a tilt reads as a clearly
+  // horizontal, tilted disc from nearly every angle instead.
+  const RING_TILT_X = 0.16, RING_TILT_Z = 0.08;
   // IMPORTANT: sizing this by an arbitrary multiple of R (tried R*4, then
   // R+R*0.56) kept "still merging" because it never accounted for how far
   // the establishing-shot orbit camera itself travels (see updateLanding's
@@ -2712,12 +2725,16 @@ function animBeanieSkinned(dt){
   const idleAction = showSummer ? herSummerIdleAction : herIdleAction;
   // Always the walk clip, just sped up while running (Shift) — the separate
   // Run clip's legs didn't actually cycle correctly, so holding Shift made
-  // her glide with static legs instead of visibly moving faster.
+  // her glide with static legs instead of visibly moving faster. The old
+  // flat *2 on top of that made even normal (non-Shift) movement play the
+  // walk cycle at double speed, which read as running all the time — normal
+  // movement now plays it at its natural cadence; holding Shift is the only
+  // thing that speeds the legs up.
   if (herRunAction) herRunAction.setEffectiveWeight(0);
   if (walkAction){
     const w = walkAction.getEffectiveWeight();
     walkAction.setEffectiveWeight(w + (walkTarget - w) * Math.min(1, dt*8));
-    walkAction.timeScale = (u.movingBackward ? -1 : 1) * (run ? 1.5 : 1) * 2;
+    walkAction.timeScale = (u.movingBackward ? -1 : 1) * (run ? 1.6 : 1);
   }
   if (idleAction){
     const w = idleAction.getEffectiveWeight();
@@ -2751,6 +2768,13 @@ function updateLandingAnim(){
   herLandFallGetUpAction.setEffectiveWeight(w);
   if (herJumpLandAction) herJumpLandAction.setEffectiveWeight(1 - fadeIn);
   if (herIdleAction) herIdleAction.setEffectiveWeight(fadeOut);
+  // The fall clip's own root motion was authored for a flat ground plane and
+  // doesn't quite reach this planet-scale surface, so lying flat read as
+  // floating just above it. Sink the model down while that pose actually
+  // dominates (this weight peaks mid-cutscene, at the flattest point, and
+  // eases back to 0 as she stands — HER_MODEL_LIFT's normal idle height —
+  // by the time the cutscene ends) so her body visibly touches down.
+  if (herWinterGroup) herWinterGroup.position.y = HER_MODEL_LIFT - 0.6*w;
 }
 
 /* ---------- movement / state ---------- */
@@ -3104,6 +3128,7 @@ function startLandingSequence(bi){
   guideEl.classList.remove('show');
   if (herLandFallGetUpAction) herLandFallGetUpAction.reset().play();
   landing = { bi, phase:'fallgetup', t:0 };
+  spawnLandingDustBurst(her.position, herUp(V()));
 }
 function updateLanding(dt){
   landing.t += dt;
@@ -3489,8 +3514,16 @@ function qaWarp(i){
   if (chicagoMessenger) dismissChicagoMessenger();
   if (landing){ planetTitleEl.classList.remove('show'); landing = null; }
   bodies.forEach((b) => { b.missionDone = true; });     // QA: skip every mission/gate
-  state = 'walk';
-  window.__world.goto(i);
+  // Full fall + orbit/title cutscene on the target world, same as a real
+  // jump landing — QA warping used to teleport straight into 'walk' via
+  // goto(), skipping the fall entirely, which meant this shortcut couldn't
+  // actually be used to check a world's landing/title cutscene.
+  const b = bodies[i];
+  const n = b.landN || V().subVectors(bodies[Math.max(0, i-1)].center, b.center).normalize();
+  const p = V().copy(b.center).addScaledVector(n, b.r);
+  const faceTo = b.chainNext != null ? bodies[b.chainNext].center : b.center.clone().add(arbitraryPerp(n));
+  orientation.copy(quatFromBasis(n, tangentToward(p, n, faceTo)));
+  startLandingSequence(i);
 }
 addEventListener('keyup', (e) => { keys[e.key] = false; });
 
@@ -3692,13 +3725,19 @@ function showPlanetTitle(b){
     planetTitleNameEl.classList.add('play');
   });
 }
+// Despite the name (kept to avoid touching every call site), this no longer
+// forces a single line — #planetTitleName now wraps normally (max-width:92vw)
+// so a name that's too wide for one line just grows taller across two lines
+// at full size instead of being shrunk down to fit on one. The shrink loop
+// now only kicks in if the whole (possibly 2-line) block would be too TALL,
+// e.g. an unexpectedly long name wrapping to 3+ lines.
 function fitPlanetTitleOneLine(onDone){
   const el = planetTitleNameEl;
   el.style.fontSize = '';
   requestAnimationFrame(() => {
-    const maxW = innerWidth*0.92;
+    const maxH = innerHeight*0.5;
     let guard = 0;
-    while (el.scrollWidth > maxW && guard++ < 40){
+    while (el.scrollHeight > maxH && guard++ < 40){
       const cur = parseFloat(getComputedStyle(el).fontSize);
       if (cur <= 28) break;
       el.style.fontSize = (cur - 4) + 'px';

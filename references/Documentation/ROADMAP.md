@@ -1,4 +1,59 @@
 # ROADMAP
+- [x] Landing cutscene, QA, and movement polish batch (2026-07-15, same-day):
+      - **Dust explosion on landing**: `spawnLandingDustBurst()` (new, next to
+        the existing footstep `spawnDust()`) throws ~30 big dust puffs
+        outward+upward from her position, fired from `startLandingSequence()`
+        at the moment of impact — every jump landing and every QA warp (see
+        below) now gets a real impact burst instead of nothing.
+      - **Fixed Beanie floating instead of touching down**: the fall/get-up
+        clip's own root motion was authored for a flat ground plane and
+        didn't quite reach this planet-scale surface, so lying flat read as
+        hovering just above it. `updateLandingAnim()` now sinks the visual
+        model down (`herWinterGroup.position.y`) proportional to the fall
+        clip's own blend weight — deepest at the flattest point of the pose,
+        easing back to the normal idle height as she stands back up.
+        Verified via close-up screenshots at the peak of the fall — she now
+        visibly lies flat ON the surface, not embedded in it or floating
+        above it.
+      - **QA number keys (1-9) now replay the full fall→orbit→title
+        cutscene** on that world instead of instantly teleporting — `qaWarp()`
+        now positions her at the landing spot and calls
+        `startLandingSequence()` (the same path a real jump lands through)
+        instead of the instant `goto()`. Still force-clears every mission
+        gate first, same as before.
+      - **Jump-gating re-verified, no change needed**: confirmed in code and
+        live that normal SPACE-to-leap is already fully blocked until
+        `bodies[curI].missionDone` — the aim/target-lock in `updateAim()`
+        (`if (surf<250 && ang<th && cur.missionDone) target = b`) never sets
+        a lock otherwise, and `jumpTo()` only ever fires from that lock. The
+        only bypass is the intentional QA path (number keys / `jumpChain()`),
+        exactly as intended.
+      - **Titles can now grow taller instead of always shrinking to one
+        line**: `#planetTitleName` wraps normally now (was `nowrap`, forced
+        single-line), and the shrink-to-fit pass (`fitPlanetTitleOneLine`,
+        name kept for compatibility) now caps by scroll*height* against half
+        the viewport instead of scroll*width* against one line — a name too
+        wide to read well on one line now wraps to two/three lines at full
+        size instead of shrinking down small. No currently-used world name
+        actually needs this (all fit on one line already) — this is
+        forward-looking robustness, verified with an artificial long test
+        string.
+      - **Cucumber ring tilt reduced further (26°→9°) and Emerald/Cucumber
+        Meadow re-verified for POV blocking**: the previous 26° tilt still
+        read as edge-on / a near-vertical wall from a lot of the positions
+        Beanie can actually walk to on the sphere, which both looked like
+        touching and could dominate the view during normal exploration. A
+        much shallower tilt reads as clearly horizontal from nearly every
+        angle. Verified by actually walking her to several different points
+        on the sphere and checking the normal gameplay camera (not a custom
+        debug shot) — the ring stays low and out of the way at every
+        position tested.
+      - **Normal movement now plays the Walk clip at its natural pace**: an
+        old flat `*2` multiplier on `herWalkAction.timeScale` meant even
+        default (non-Shift) movement played the walk cycle at double speed,
+        which read as running all the time. Removed the `*2` — Shift-held
+        running is now the only thing that speeds the leg animation up
+        (`*1.6`), normal movement plays the walk clip at its authored pace.
 - [x] Second cucumber ring fix + title/HUD polish (2026-07-15, same-day):
       user screenshots from the live site showed the ring STILL merging with
       the planet even after the previous fix, plus stale HUD info showing
