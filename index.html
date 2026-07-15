@@ -1671,7 +1671,11 @@ function buildBooks(g, R){
     if (!chippyModel) return;
     chippyModel.scale.setScalar(1 + 0.03*Math.sin(t*1.6));   // gentle breathing
     // little happy bounce on his book pile while he's actually talking
-    chippyModel.position.y = (dialog && dialog.npcObj === chippy) ? Math.abs(Math.sin(t*5))*0.18 : 0;
+    const isTalkingToHim = dialog && dialog.npcObj === chippy;
+    chippyModel.position.y = isTalkingToHim ? Math.abs(Math.sin(t*5))*0.18 : 0;
+    // face-Beanie heading (see updateTalkCam) only applies while talking;
+    // reset back to his default "facing the landing spot" pose otherwise.
+    if (!isTalkingToHim) chippyModel.rotation.set(0, 0, 0);
   });
   // a few floating loose pages
   for (let i = 0; i < 9; i++){
@@ -1740,6 +1744,7 @@ function buildBooks(g, R){
     giftBooks.push({ holder, dir: n.clone(), taken:false, color: GIFT_COLORS[i], title: GIFT_TITLES[i] });
   }
   return { chippy, chippyN, giftBooks, colliders,
+    get chippyModel(){ return chippyModel; },
     mazeDebug: { nRings:MAZE_N_RINGS, nSectors:MAZE_N_SECTORS, ringMin:MAZE_RING_MIN, ringMax:MAZE_RING_MAX,
       angularOpen:mazeAngularOpen, radialOpen:mazeRadialOpen } };
 }
@@ -2034,7 +2039,9 @@ function buildCucumber(g, R){
     cukeHalo.material.opacity = 0.2 + 0.1*Math.sin(t*2.2); });
   return { bbak, bbakN, foods, cuke, cukeN, solidRing, solidMat,
     setSolidSpinScale: (s) => { solidSpinScale = s; },
-    cukeRingGroups, groundCucumberHolders };
+    cukeRingGroups, groundCucumberHolders,
+    ringMidR: (mainInnerR+mainOuterR)/2, ringTiltX: RING_TILT_X, ringTiltZ: RING_TILT_Z,
+    ringSquashZ: RING_ELLIPSE_SQUASH };
 }
 
 function buildSea(g, R){
@@ -2198,6 +2205,58 @@ function buildPigeons(g, R, ctx){
     if (!(dialog && dialog.npcObj === percyHolder)) percy.rotation.y = Math.sin(t*0.7)*0.3;
   });
   return { percyHolder, percyN, plazaN, crowd, flying };
+}
+// Nearby crowd pigeons scatter outward (frightened by the impact) then
+// resettle a moment later — unlike percyScatter (beginPercyFlight), this is
+// NOT permanent removal, since she's arriving on the plaza, not leaving it.
+// Also guarantees no CONTINUOUSLY-FLYING pigeon can visually clip/merge with
+// her during the landing cutscene: those follow independent orbits with no
+// awareness of where she's about to touch down, so any one already within a
+// tight safety radius at that exact moment is briefly hidden instead — its
+// own orbit carries it well clear within the hide window.
+function spawnPigeonFleeOnLanding(landPos){
+  const wr = worldRefs.pigeon;
+  if (!wr) return;
+  const bC = bodies[PIGEON_I].center;
+  const FLEE_RADIUS = 16;
+  for (const holder of wr.crowd){
+    const wp = holder.getWorldPosition(new THREE.Vector3());
+    if (wp.distanceTo(landPos) > FLEE_RADIUS) continue;
+    const outN = new THREE.Vector3().subVectors(wp, bC).normalize();
+    const away = new THREE.Vector3().subVectors(wp, landPos);
+    away.addScaledVector(outN, -away.dot(outN)).normalize();   // tangent-only, stays on the surface
+    const origLocal = holder.position.clone();
+    const OUT = 0.5, HOLD = 1.3, BACK = 0.9, FLEE_DIST = 3.2;
+    let t = 0;
+    function step(_x, dt){
+      t += dt;
+      if (t < OUT){
+        const k = t/OUT, e = k*k*(3-2*k);
+        holder.position.copy(origLocal).addScaledVector(away, e*FLEE_DIST);
+      } else if (t < OUT+HOLD){
+        // held at the fled position — a beat of "still spooked"
+      } else if (t < OUT+HOLD+BACK){
+        const k = (t-OUT-HOLD)/BACK, e = k*k*(3-2*k);
+        holder.position.copy(origLocal).addScaledVector(away, FLEE_DIST*(1-e));
+      } else {
+        holder.position.copy(origLocal);
+        animators.splice(animators.indexOf(step), 1);
+      }
+    }
+    animators.push(step);
+  }
+  const SAFETY_RADIUS = 9, HIDE_DUR = 2.4;
+  for (const pg of wr.flying){
+    const wp = pg.getWorldPosition(new THREE.Vector3());
+    if (wp.distanceTo(landPos) > SAFETY_RADIUS) continue;
+    pg.visible = false;
+    let t = 0;
+    function step(_x, dt){
+      t += dt;
+      if (t >= HIDE_DUR){ pg.visible = true; animators.splice(animators.indexOf(step), 1); }
+    }
+    animators.push(step);
+  }
 }
 
 function buildGarden(g, R, ctx){
@@ -2773,57 +2832,84 @@ let cukeReveal = null;
 function startCukeRevealCutscene(){
   state = 'cukeReveal';
   guideEl.classList.remove('show'); promptEl.classList.remove('show');
-  cukeReveal = { t:0, dur:7.0, basisA:null, basisB:null };
+  cukeReveal = { t:0, basisA:null, basisB:null };
   const up = herUp(new THREE.Vector3());
   cukeReveal.basisA = arbitraryPerp(up);
   cukeReveal.basisB = new THREE.Vector3().crossVectors(up, cukeReveal.basisA).normalize();
 }
-// The ring's transformation window within the 7s cutscene: starts once the
-// solid ring has visibly slowed, then runs a genuine 3s crossfade (not an
-// instant swap) with enough runway left afterward to actually see the
-// result before the title card takes over.
-const RING_FADE_START = 2.3, RING_FADE_DUR = 3.0;
+// Two acts, 10s total (the requested minimum). Act 1 (0-5s): a close,
+// ground-level shot — a real change of POV from every other cutscene's wide
+// establishing orbit — watching the cucumbers actually form. The ring's own
+// solid->cucumber crossfade runs inside this act too, kept coupled to the
+// ground-cucumber growth exactly as tightly as before: both read from the
+// same shared `cucumberMat` (ground cucumbers are clones of the same loaded
+// model), so starting them at the same moment reads as one "materializing"
+// event — starting them at DIFFERENT times would make whichever finishes
+// first blink as the other's opacity ramp reset the shared material out from
+// under it. Act 2 (5-10s): a close pass on just the ring band itself — not
+// the whole planet — showing off the now-fully-cucumber result up close.
+const ACT1_DUR = 5.0, ACT2_DUR = 5.0;
+const RING_FADE_START = 0.8, RING_FADE_DUR = 3.2;
 function updateCukeReveal(dt, t){
   const cr = cukeReveal, wr = worldRefs.cucumber, b = bodies[2];
   cr.t += dt;
-  const k = Math.min(1, cr.t / cr.dur);
-  // camera: pull back to a wide, slowly-orbiting establishing shot of the ring
   const up = herUp(tmpV);
-  const ease = k*k*(3 - 2*k);
-  const dist = 14 + 26*ease, height = 4 + 10*ease;
-  const angle = cr.t*0.35;
-  const dir = tmpV3.copy(cr.basisA).multiplyScalar(Math.cos(angle)).addScaledVector(cr.basisB, Math.sin(angle));
-  camPos.copy(her.position).addScaledVector(up, height).addScaledVector(dir, dist);
-  camUp.copy(up);
-  camera.position.copy(camPos);
-  camera.up.copy(camUp);
-  camera.lookAt(tmpV2.copy(b.center));
-  // the solid ring's spin winds down to a stop before the transformation begins…
-  wr.setSolidSpinScale(Math.max(0, 1 - k*2.2));
-  // …then it visibly DISSOLVES over RING_FADE_DUR seconds while the real
-  // cucumber-built ring fades in underneath it (a crossfade, not a hard
-  // visibility toggle), and the ground cucumbers sprout up out of the grass
-  // on their own staggered timers, kicked off at the same moment.
-  const fadeK = Math.max(0, Math.min(1, (cr.t - RING_FADE_START)/RING_FADE_DUR));
-  if (fadeK > 0 && !cr.fadeStarted){
-    cr.fadeStarted = true;
-    for (const ring of wr.cukeRingGroups) ring.visible = true;
-    if (cucumberMat){ cucumberMat.transparent = true; cucumberMat.opacity = 0; }
-    startGroundCucumberGrowth(wr.groundCucumberHolders, RING_FADE_DUR + 0.5);
-  }
-  if (cr.fadeStarted){
-    wr.solidMat.opacity = 1 - fadeK;
-    if (cucumberMat) cucumberMat.opacity = fadeK;
-    if (fadeK >= 1 && !cr.solidHidden){
-      cr.solidHidden = true;
-      wr.solidRing.visible = false;
-      for (let i = 0; i < 24; i++)
-        spawnEphemeral(new THREE.Mesh(sparkGeo, sparkMat), b.center.clone().addScaledVector(up, b.r + 6),
-          randDir().multiplyScalar(6 + Math.random()*6), 1.2 + Math.random(), 4);
-      playChime();
+  if (cr.t < ACT1_DUR){
+    const k1 = cr.t / ACT1_DUR;
+    const dist = 7 + 2*k1, height = 1.6 + 0.6*k1;
+    const angle = cr.t*0.22;
+    const dir = tmpV3.copy(cr.basisA).multiplyScalar(Math.cos(angle)).addScaledVector(cr.basisB, Math.sin(angle));
+    camPos.copy(her.position).addScaledVector(up, height).addScaledVector(dir, dist);
+    camUp.copy(up);
+    camera.position.copy(camPos);
+    camera.up.copy(camUp);
+    camera.lookAt(tmpV2.copy(her.position).addScaledVector(dir, -1).addScaledVector(up, 0.4));
+    // the solid ring's spin winds down to a stop before the transformation begins…
+    wr.setSolidSpinScale(Math.max(0, 1 - k1*2.2));
+    // …then it visibly DISSOLVES over RING_FADE_DUR seconds while the real
+    // cucumber-built ring fades in underneath it (a crossfade, not a hard
+    // visibility toggle), and the ground cucumbers sprout up out of the grass
+    // on their own staggered timers, kicked off at the same moment.
+    const fadeK = Math.max(0, Math.min(1, (cr.t - RING_FADE_START)/RING_FADE_DUR));
+    if (fadeK > 0 && !cr.fadeStarted){
+      cr.fadeStarted = true;
+      for (const ring of wr.cukeRingGroups) ring.visible = true;
+      if (cucumberMat){ cucumberMat.transparent = true; cucumberMat.opacity = 0; }
+      startGroundCucumberGrowth(wr.groundCucumberHolders, RING_FADE_DUR + 0.5);
     }
+    if (cr.fadeStarted){
+      wr.solidMat.opacity = 1 - fadeK;
+      if (cucumberMat) cucumberMat.opacity = fadeK;
+      if (fadeK >= 1 && !cr.solidHidden){
+        cr.solidHidden = true;
+        wr.solidRing.visible = false;
+        for (let i = 0; i < 24; i++)
+          spawnEphemeral(new THREE.Mesh(sparkGeo, sparkMat), b.center.clone().addScaledVector(up, b.r + 6),
+            randDir().multiplyScalar(6 + Math.random()*6), 1.2 + Math.random(), 4);
+        playChime();
+      }
+    }
+  } else if (cr.t < ACT1_DUR + ACT2_DUR){
+    // Close pass alongside the ring band. Its own tilt/squash (RING_TILT_X/Z,
+    // RING_ELLIPSE_SQUASH) is shallow enough that treating it as roughly
+    // equatorial to her local up — rather than replicating that exact local
+    // transform here — still reads convincingly as "close to the ring."
+    const k2 = (cr.t - ACT1_DUR) / ACT2_DUR;
+    const ringR = wr.ringMidR || (b.r + 100);
+    const angle2 = -0.6 + k2*1.3;
+    const ringDir = tmpV3.copy(cr.basisA).multiplyScalar(Math.cos(angle2)).addScaledVector(cr.basisB, Math.sin(angle2));
+    const ringPoint = tmpV2.copy(b.center).addScaledVector(ringDir, ringR);
+    const nextAngle = angle2 + 0.08;
+    const nextDir = new THREE.Vector3().copy(cr.basisA).multiplyScalar(Math.cos(nextAngle)).addScaledVector(cr.basisB, Math.sin(nextAngle));
+    const nextPoint = new THREE.Vector3().copy(b.center).addScaledVector(nextDir, ringR);
+    camPos.copy(ringPoint).addScaledVector(up, 6).addScaledVector(ringDir, 10);
+    camUp.copy(up);
+    camera.position.copy(camPos);
+    camera.up.copy(camUp);
+    camera.lookAt(nextPoint);
+  } else {
+    finishCukeReveal();
   }
-  if (k >= 1) finishCukeReveal();
 }
 // Ground cucumbers pop up out of the grass on independent staggered timers
 // (random delay across `spread` seconds, then a quick eased grow-in) instead
@@ -3409,12 +3495,30 @@ function updateTalkCam(dt){
   orientation.copy(quatFromBasis(up, herFacing));
   updatePose();
   // The NPC (if it's a real Object3D, not just a position) turns to face Beanie directly.
-  // Chippy is exempt: he's perched on a lumpy book pile at a hand-tuned seated
-  // orientation (orientToNormal + rotateY in buildBooks), and this generic
-  // face-Beanie override uses HER local up rather than the pile's own surface
-  // normal — reorienting him would make him look like he'd popped up off his seat.
+  // Chippy is exempt from the generic version below: he's perched on a lumpy
+  // book pile at a hand-tuned seated orientation (orientToNormal + rotateY in
+  // buildBooks), and that generic override uses HER local up rather than the
+  // pile's own surface normal — reorienting his whole seat would make him
+  // look like he'd popped up off it. Instead, only his loaded model (a CHILD
+  // of the seated group, so the seat itself never moves) gets a heading-only
+  // rotation around the pile's own normal, computed as a DELTA from his
+  // known-good default facing rather than rebuilt from scratch — sidesteps
+  // ever needing to know his model's raw-front offset (the seated group's
+  // own fixed rotateY(2.4) already bakes that correction in).
   const isChippy = worldRefs.books && dialog.npcObj === worldRefs.books.chippy;
-  if (dialog.npcObj && dialog.npcObj.isObject3D && !isChippy){
+  if (isChippy && worldRefs.books.chippyModel){
+    const cN = worldRefs.books.chippyN;
+    const chippyModelObj = worldRefs.books.chippyModel;
+    const chippyPos3 = dialog.npcObj.getWorldPosition(new THREE.Vector3());
+    const toHerChippy = tangentToward(chippyPos3, cN, her.position);
+    const baseWorldQuat = dialog.npcObj.getWorldQuaternion(new THREE.Quaternion());
+    const baseForward = new THREE.Vector3(0,0,1).applyQuaternion(baseWorldQuat);
+    const delta = Math.atan2(
+      new THREE.Vector3().crossVectors(baseForward, toHerChippy).dot(cN),
+      baseForward.dot(toHerChippy));
+    chippyModelObj.rotation.set(0, 0, 0);
+    chippyModelObj.rotateY(delta);
+  } else if (dialog.npcObj && dialog.npcObj.isObject3D && !isChippy){
     const npcPos3 = dialog.npcObj.getWorldPosition(new THREE.Vector3());
     const toHer = tangentToward(npcPos3, up, her.position);
     dialog.npcObj.quaternion.copy(quatFromBasis(up, toHer));
@@ -3755,6 +3859,7 @@ function startLandingSequence(bi){
   if (herLandFallGetUpAction) herLandFallGetUpAction.reset().play();
   landing = { bi, phase:'fallgetup', t:0 };
   spawnLandingDustBurst(her.position, herUp(V()));
+  if (bi === PIGEON_I) spawnPigeonFleeOnLanding(her.position.clone());
 }
 function updateLanding(dt){
   landing.t += dt;
@@ -3922,7 +4027,15 @@ function arrive(bi){
     // spoiling what happens once she does (introMission on each WORLD_DEFS
     // entry: "find bbak and talk to him", no mention of the cold-treat ask).
     const revealsOnMeeting = b.worldIndex === 1 || b.worldIndex === 2 || b.worldIndex === 3;
-    if (revealsOnMeeting && b.introMission) setMission(b.introMission);
+    // Cucumber Meadow's own title-reveal (finishCukeReveal, at the end of
+    // the cucumber cutscene) re-triggers this same arrive() path — without
+    // this check it would fall straight back to introMission ("find bbak
+    // and talk to him"), even though she's already met him, already been
+    // asked for something cold, and the cucumber's already been revealed.
+    if (bi === 2 && bbakQuest.cukeRevealed && bbakQuest.phase < 2){
+      setMission('<b>MISSION:</b> bring bbak a <b>cucumber</b> to cool him down!');
+    }
+    else if (revealsOnMeeting && b.introMission) setMission(b.introMission);
     else if (b.mission) setMission(b.mission);
     else missionEl.classList.add('hidden');
   }
@@ -4385,12 +4498,17 @@ function updateWalk(dt){
     // particular CHARACTER in the distance (well past "right here" range,
     // but not so far it's just an abstract compass bearing), pause on a
     // closer view with a "should go talk to them" reaction — once per
-    // distinct guide label, so re-approaching the same character later
-    // doesn't retrigger it. Only fires for "go meet someone" labels (every
-    // one of those happens to read "find <x>" / "say hello…" in this game),
-    // not for "bring/take/fetch it back" item-errand labels — there's no
+    // distinct target, so re-approaching the same character later doesn't
+    // retrigger it. Only fires for "go meet someone" labels (every one of
+    // those happens to read "find <x>" / "say hello…" in this game), not
+    // for "bring/take/fetch it back" item-errand labels — there's no
     // character to react to when the guide is just pointing at a snack.
-    const noticeKey = `${curI}:${bg.guideLabel}`;
+    // Keyed on the target's actual position, not just curI+label — every
+    // Pigeon Plaza decoy shares the identical generic "say hello to that
+    // pigeon" label, so keying on the label alone meant only the FIRST
+    // decoy she ever approached got this beat; the 2nd through 8th (a
+    // genuinely new character each time) silently never did.
+    const noticeKey = `${curI}:${bg.guideLabel}:${npc.x.toFixed(0)},${npc.y.toFixed(0)},${npc.z.toFixed(0)}`;
     const noticeRange = (bg.guideNear || 4) * 6;
     const isCharacterSeek = /find |say hello/i.test(bg.guideLabel);
     if (isCharacterSeek && !near && d < noticeRange && !noticedGuides.has(noticeKey)){
@@ -5065,6 +5183,18 @@ window.__world = {
     const n = new THREE.Vector3(...worldPos).sub(b.center).normalize();
     return this.walkToward(n.toArray(), seconds);
   },
+  // Teleport her to stand at angle/azimuth from a target world position (on
+  // the CURRENT body), facing that target — for testing NPC-facing logic
+  // from arbitrary approach directions without fighting maze pathing.
+  teleportNearWorldPos(worldPos, angle, azimuth){
+    const b = bodies[curI];
+    const targetN = new THREE.Vector3(...worldPos).sub(b.center).normalize();
+    const standN = tiltDir(targetN, angle, azimuth);
+    const standPos = new THREE.Vector3().copy(b.center).addScaledVector(standN, b.r);
+    orientation.copy(quatFromBasis(standN, tangentToward(standPos, standN, new THREE.Vector3(...worldPos))));
+    updatePose();
+    return this.pos();
+  },
   findByGeoDebug(geoType, maxResults){
     const out = [];
     const wp = new THREE.Vector3();
@@ -5241,8 +5371,13 @@ window.__world = {
       br: bodies[landing.bi].r };
   },
   facingDebug(){   // numeric check: which local axis of the NPC, if any, actually points at Beanie?
-    const h = plazaQuest.talkingPigeon || (dialog && dialog.npcObj);
+    let h = plazaQuest.talkingPigeon || (dialog && dialog.npcObj);
     if (!h) return null;
+    // Chippy's own group never rotates (see updateTalkCam) — only his loaded
+    // model, a child, gets the dynamic face-Beanie heading — so check THAT.
+    if (worldRefs.books && h === worldRefs.books.chippy && worldRefs.books.chippyModel){
+      h = worldRefs.books.chippyModel;
+    }
     const q = h.getWorldQuaternion(new THREE.Quaternion());
     const toHerWorld = new THREE.Vector3().subVectors(her.position, h.getWorldPosition(new THREE.Vector3())).normalize();
     const axisDot = (lx,ly,lz) => +new THREE.Vector3(lx,ly,lz).applyQuaternion(q).normalize().dot(toHerWorld).toFixed(3);
