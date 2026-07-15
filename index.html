@@ -28,12 +28,10 @@
     filter:drop-shadow(0 6px 30px rgba(0,0,0,.35)) drop-shadow(0 0 60px rgba(150,180,255,.25));
     animation:logoFloat 4.2s ease-in-out infinite}
   @keyframes logoFloat{50%{transform:translateY(-10px)}}
-  #intro .sub{font-size:clamp(14px,2.2vw,18px);color:#c8d4ee;max-width:520px;line-height:1.6}
-  #pressSpace{margin-top:1vh;font-size:clamp(16px,2.6vw,21px);font-weight:600;color:#ffe9c9;
-    letter-spacing:1px;animation:pulseTxt 1.6s ease-in-out infinite;
-    text-shadow:0 0 18px rgba(255,209,102,.7)}
-  @keyframes pulseTxt{50%{opacity:.45}}
-  #intro .controls{font-size:12.5px;color:#93a2c8;letter-spacing:.4px}
+  #pressSpace{margin-top:2.4vh;font-size:clamp(22px,4.2vw,34px);font-weight:700;color:#fff6e6;
+    letter-spacing:1.5px;animation:pulseTxt 1.6s ease-in-out infinite}
+  @keyframes pulseTxt{0%,100%{text-shadow:0 0 22px rgba(255,209,102,.85),0 0 46px rgba(255,209,102,.5)}
+    50%{text-shadow:0 0 38px rgba(255,209,102,1),0 0 80px rgba(255,209,102,.75)}}
 
   /* ---------- HUD ---------- */
   .chip{background:rgba(30,32,64,.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
@@ -108,22 +106,36 @@
     background:rgba(20,18,40,.55);backdrop-filter:blur(6px);opacity:0;pointer-events:none;
     transition:opacity .3s ease}
   #journalPanel.show{opacity:1;pointer-events:auto}
-  #journalCard{background:linear-gradient(#fffdf8,#fbf3ea);color:#43364f;border-radius:24px;
-    padding:30px 32px;max-width:520px;width:88vw;max-height:82vh;overflow-y:auto;text-align:center;
-    box-shadow:0 20px 60px rgba(0,0,0,.45);transform:scale(.92) translateY(16px);
-    transition:transform .3s ease}
-  #journalPanel.show #journalCard{transform:scale(1) translateY(0)}
-  #journalTitle{font-size:22px;font-weight:700;color:#8a5a3a;margin-bottom:4px}
+  /* Opens like a book: two pages hinged at a central spine, each folded flat
+     against it (rotateY ±90deg) until .show flips them open to 0deg. The
+     perspective on the book (not the page) is what makes that rotation read
+     as a page swinging open in 3D instead of just squashing flat. */
+  #journalBook{position:relative;display:flex;width:min(680px,92vw);height:min(460px,86vh);
+    perspective:2000px;filter:drop-shadow(0 24px 60px rgba(0,0,0,.5));
+    transform:scale(.94);transition:transform .4s ease}
+  #journalPanel.show #journalBook{transform:scale(1)}
+  .journalPage{position:relative;width:50%;background:linear-gradient(#fffdf8,#fbf3ea);color:#43364f;
+    padding:20px 18px;overflow-y:auto;transition:transform .7s cubic-bezier(.34,1.1,.4,1)}
+  #journalPageLeft{border-radius:18px 3px 3px 18px;transform-origin:right center;
+    transform:rotateY(-100deg);text-align:center}
+  #journalPageRight{border-radius:3px 18px 18px 3px;transform-origin:left center;
+    transform:rotateY(100deg);display:flex;flex-direction:column;align-items:stretch}
+  #journalPanel.show .journalPage{transform:rotateY(0deg)}
+  #journalSpine{width:8px;flex-shrink:0;
+    background:linear-gradient(90deg,rgba(0,0,0,.3),rgba(0,0,0,.08) 40%,rgba(0,0,0,.08) 60%,rgba(0,0,0,.3));
+    box-shadow:0 0 16px rgba(0,0,0,.35)}
+  #journalTitle{font-size:21px;font-weight:700;color:#8a5a3a;margin-bottom:4px}
   #journalCount{font-size:13px;color:#8a7a95;margin-bottom:18px}
-  #journalGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .journalGrid{display:grid;grid-template-columns:repeat(2,clamp(64px,9vw,92px));
+    gap:10px;justify-content:center;width:100%}
   .journalSticker{aspect-ratio:1;border-radius:14px;background:rgba(120,100,140,.1);
     display:flex;align-items:center;justify-content:center;overflow:hidden;
     border:2px dashed rgba(120,100,140,.25);font-size:22px;color:rgba(120,100,140,.4)}
   .journalSticker.got{border:2px solid rgba(255,209,102,.7);background:#fff;
     box-shadow:0 4px 14px rgba(0,0,0,.12)}
   .journalSticker.got img{width:100%;height:100%;object-fit:cover}
-  #journalClose{margin-top:20px;border:none;cursor:pointer;padding:10px 24px;border-radius:999px;
-    font-size:13px;color:#fff;background:linear-gradient(135deg,#ff8fae,#e8547c)}
+  #journalClose{margin-top:auto;align-self:center;border:none;cursor:pointer;padding:10px 24px;
+    border-radius:999px;font-size:13px;color:#fff;background:linear-gradient(135deg,#ff8fae,#e8547c)}
   /* "met a new friend" toast — like #toast but with a sticker thumbnail */
   #friendToast{position:fixed;top:76px;left:50%;transform:translateX(-50%) translateY(-8px);z-index:23;
     display:flex;align-items:center;gap:12px;padding:10px 22px 10px 12px;border-radius:999px;
@@ -256,9 +268,7 @@
 
 <div id="intro">
   <img id="introLogo" src="./logo.png" alt="Beanie & Bred"/>
-  <div class="sub">a tiny journey across the worlds you love</div>
   <div id="pressSpace">press SPACE to start</div>
-  <div class="controls">arrow keys walk · drag with your cursor / two-finger swipe to look around</div>
 </div>
 
 <div id="hud" class="hidden"><div class="chip" id="planetName">…</div></div>
@@ -272,11 +282,17 @@
 <button id="muteBtn" class="hidden">🔊</button>
 <button id="journalBtn" class="hidden" title="Beanie's journal">📔</button>
 <div id="journalPanel" class="hidden">
-  <div id="journalCard">
-    <div id="journalTitle">📔 Beanie's Journal</div>
-    <div id="journalCount"></div>
-    <div id="journalGrid"></div>
-    <button id="journalClose">close ✕</button>
+  <div id="journalBook">
+    <div id="journalPageLeft" class="journalPage">
+      <div id="journalTitle">📔 Beanie's Journal</div>
+      <div id="journalCount"></div>
+      <div id="journalGridLeft" class="journalGrid"></div>
+    </div>
+    <div id="journalSpine"></div>
+    <div id="journalPageRight" class="journalPage">
+      <div id="journalGridRight" class="journalGrid"></div>
+      <button id="journalClose">close ✕</button>
+    </div>
   </div>
 </div>
 <div id="friendToast"><img id="friendToastImg"/><div id="friendToastText">met a new friend!<br><b id="friendToastName"></b></div></div>
@@ -1574,7 +1590,14 @@ function buildBooks(g, R){
     // right next to where you talk to him" instead of an actual collect-
     // and-return errand. Now lands in/beyond the maze rings' outer edge
     // (see MAZE_RINGS below), so reaching one is itself real navigation.
-    const n = dirNear(chippyN, 1.3 + (i/5)*1.4 + Math.random()*0.3);
+    // tiltDir (not dirNear) for the same reason as the grand landmark stack:
+    // dirNear doesn't reliably control angular distance at this spread, so
+    // it could land a book right on her own landing spot — reproduced live
+    // as a floating book covering her during the fall/get-up cutscene.
+    const giftAngle = 1.3 + (i/5)*1.4 + Math.random()*0.3;
+    let n;
+    do { n = tiltDir(chippyN, giftAngle, Math.random()*Math.PI*2); }
+    while (n.angleTo(landN) < LAND_CLEAR/R);
     placeOn(g, holder, n, R, 0.1);
     const ph = i*1.3;
     const bkMat = bk.children[0].material;
@@ -3328,6 +3351,13 @@ function startLandingSequence(bi){
   updatePose();
   state = 'landing';
   camYaw = 0;
+  // Nothing should ever cover her during the fall/get-up + orbit/title
+  // cutscene (a decorative object placed close to this world's landing spot
+  // has done this before — see the gift-book landN clearance fix in
+  // buildBooks). Same declutter startDialog() already does for
+  // conversations, reused here as a general safeguard; restored in arrive()
+  // once the whole cutscene concludes and normal gameplay resumes.
+  hideNearbyObstacles(null);
   // the walk-only guide chip (find X - N steps away) doesn't get refreshed
   // during 'landing' (updateWalk isn't called), so without this it just sat
   // frozen on screen, from the world she left, straight through the new
@@ -3434,6 +3464,7 @@ function arrive(bi){
   // aim for her, so "drag/swipe to aim" still means something.
   camPitch = bi === 0 ? -0.55 : 0.3;
   updatePose();
+  restoreObstacles();   // un-hide whatever startLandingSequence() cleared for the fall/get-up + orbit/title beat
   hudEl.classList.remove('hidden');   // re-reveal after showPlanetTitle() hid it for the title card
   refreshFoodPocket();   // the held-food chip only ever makes sense on the cucumber/bbak world
   const b = bodies[bi];
@@ -3950,7 +3981,8 @@ const planetTitleNameEl = document.getElementById('planetTitleName');
 const muteBtn = document.getElementById('muteBtn');
 const journalBtn = document.getElementById('journalBtn');
 const journalPanelEl = document.getElementById('journalPanel');
-const journalGridEl = document.getElementById('journalGrid');
+const journalGridLeftEl = document.getElementById('journalGridLeft');
+const journalGridRightEl = document.getElementById('journalGridRight');
 const journalCountEl = document.getElementById('journalCount');
 const journalCloseEl = document.getElementById('journalClose');
 const friendToastEl = document.getElementById('friendToast');
@@ -4281,13 +4313,12 @@ const STICKER_LABELS = { chippy:'Chippy', bbak:'bbak', percy:'Percy', vanessa:'V
   buckle:'Buckle', doodles:'Doodles' };
 const STICKER_ORDER = ['chippy','bbak','percy','vanessa','nibbles','alfred','sam','sunny','otto','mochi','buckle','doodles'];
 function stickerURL(file){ return './stickers/' + encodeURIComponent(file); }
+// In-memory only, on purpose — the journal is meant to reset to empty on
+// every reload/restart, not persist across sessions.
 let metFriends = new Set();
-try { metFriends = new Set(JSON.parse(localStorage.getItem('beanieMetFriends') || '[]')); } catch(err){}
-function saveMetFriends(){ try { localStorage.setItem('beanieMetFriends', JSON.stringify([...metFriends])); } catch(err){} }
 function meetFriend(key){
   if (!STICKER_FILES[key] || metFriends.has(key)) return;   // only the first meeting earns the sticker
   metFriends.add(key);
-  saveMetFriends();
   showFriendToast(key);
   renderJournal();
 }
@@ -4299,8 +4330,9 @@ function showFriendToast(key){
   showFriendToast._t = setTimeout(() => friendToastEl.classList.remove('show'), 3600);
 }
 function renderJournal(){
-  journalGridEl.innerHTML = '';
-  for (const key of STICKER_ORDER){
+  journalGridLeftEl.innerHTML = ''; journalGridRightEl.innerHTML = '';
+  const half = Math.ceil(STICKER_ORDER.length/2);
+  STICKER_ORDER.forEach((key, i) => {
     const cell = document.createElement('div');
     const got = metFriends.has(key);
     cell.className = 'journalSticker' + (got ? ' got' : '');
@@ -4308,8 +4340,8 @@ function renderJournal(){
       const img = document.createElement('img'); img.src = stickerURL(STICKER_FILES[key]);
       img.alt = STICKER_LABELS[key]; cell.appendChild(img);
     } else cell.textContent = '?';
-    journalGridEl.appendChild(cell);
-  }
+    (i < half ? journalGridLeftEl : journalGridRightEl).appendChild(cell);
+  });
   journalCountEl.textContent = `${metFriends.size} / ${STICKER_ORDER.length} friends met`;
 }
 renderJournal();
