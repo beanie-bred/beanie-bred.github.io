@@ -1,4 +1,126 @@
 # ROADMAP
+- [x] Large batch: landing-camera polish, per-world navigation/content fixes,
+      weightier movement, footprints, night-sky detail, and Beanie's own
+      dialogue lines (2026-07-15, later still same day): one big combined
+      request covering nearly every world in the game — landing-camera zoom/
+      glare/rotation, more evenly-spread Main Stacks book piles plus a real
+      2x-tall landmark tower, Chippy always facing her, the "notice" cutscene
+      only ever firing once across ALL pigeons instead of per-pigeon, bbak
+      sinking into his own snow pile, walking through (not over) snow piles,
+      a proper two-act 10s cucumber-reveal cutscene with a post-reveal
+      mission update, Doodles/decoy pigeons landing absurdly far away, a
+      Pigeon-Plaza landing cutscene where nearby pigeons flee, tighter
+      dialogue box sizing, a stamp sound+ring effect on the sticker toast, a
+      slower/heavier food-toss animation, slower walk speed and camera drag
+      sensitivity with a per-step camera "punch," temporary footprints,
+      shooting stars and constellations, and giving Beanie her own lines in
+      conversations instead of only ever listening.
+      - **Landing camera**: the reference "close diagonal, head bottom-left"
+        shot got a genuine 90°-CCW roll — a first attempt rotated her raw
+        body-up directly around the view axis and measured ~53° instead of
+        90° (her body-up wasn't perpendicular to the view axis to begin with,
+        so any parallel component just didn't rotate); fixed by projecting
+        out that parallel component FIRST to get a true perpendicular "0°"
+        reference, then rotating exactly 90° from there. **While chasing
+        this, found `landingDebug()`'s own `camUp` field was reading a stale
+        module-level scratch vector (shared with `followCam`/`updateTalkCam`),
+        not the actual `camera.up` — it never reflected this code's own
+        changes at all, and every earlier numeric check against it was
+        silently checking the wrong thing.** Added `camActualUp`/`screenUp`
+        (derived from `camera.quaternion` directly) to verify against instead.
+        Also confirmed live that the pose read as a flat vertical stand
+        rather than diagonal at t=3s into the clip specifically because by
+        then she's already mostly stood back up — the intended dramatic
+        diagonal reads clearly earlier in the same clip, right as she's
+        actually sprawled from the fall.
+      - **Chippy always faces her**: his whole seated group's orientation is
+        a hand-tuned "face the landing spot" pose (`orientToNormal` + a fixed
+        `rotateY`) that the generic per-conversation auto-face logic
+        deliberately skips, since re-deriving it from her CURRENT position/up
+        would un-seat him. Instead, only his loaded MODEL (a child of the
+        seated group, so the seat itself never moves) gets a heading-only
+        rotation each frame, computed as a DELTA from his own known-good
+        default facing rather than rebuilt from scratch — sidesteps ever
+        needing to know his model's raw-front offset. Verified via a new
+        `teleportNearWorldPos(pos, angle, azimuth)` debug helper (teleport +
+        face a point from an arbitrary angle, for testing NPC-facing without
+        fighting maze pathing) across 4 different approach angles: consistent
+        ~0.86 dot product toward her every time, vs. wildly different numbers
+        before the fix.
+      - **"Notice" cutscene only fired once, ever**: its dedup key was
+        `curI + guideLabel`, but every Pigeon Plaza decoy shares the
+        identical generic label ("say hello to that pigeon") — so only the
+        very FIRST decoy she ever approached got the "should go talk to them"
+        beat; the 2nd through 8th (each a genuinely new character) silently
+        never did. Fixed by keying on the target's actual position too.
+      - **bbak buried in his own snow pile**: he was placed at a hand-picked
+        offset (`radius*0.32`) with no relation to the mound's real height,
+        and the mound's height was itself randomized on top of that — so he
+        ended up genuinely buried past his shoulders about as often as not.
+        Now his placement is derived directly from the mound's own known
+        peak height (lift + radius*yScale), minus a small intentional sink so
+        he still reads as resting IN the snow rather than floating above it.
+      - **Walking on snow piles**: her position was always `bodyCenter +
+        up*R` — a fixed radius with zero awareness of decorative terrain.
+        Snow piles are now recorded (direction, angular footprint, peak
+        height) in an array; `updatePose()` checks her current direction
+        against every recorded pile and adds a smooth dome-shaped height
+        bump when she's within one's footprint, so she now genuinely climbs
+        onto them like real hills. Confirmed live: ~1.47 of a possible ~1.9
+        units of rise while approaching bbak's own (widest) pile.
+      - **Doodles/decoy pigeons landing absurdly far away**: `spawnStoryPigeon`
+        (used for all 8 decoys AND Doodles) placed them via `dirNear(plazaN,
+        0.7 + rand*1.5)` — `dirNear` doesn't reliably control angular distance
+        at spreads this large, and even at face value that's up to ~126° from
+        the plaza center on this small planet. Confirmed live: Doodles landed
+        ~108° of arc away, a genuinely long walk through 520 background
+        pigeons with only a compass to go on. Switched to `tiltDir` (exact,
+        bounded angular distance every time) with a much tighter 0.35-0.75
+        rad range.
+      - **Cucumber reveal cutscene**: rebuilt as two acts, 10s total (the
+        requested minimum) instead of one continuous 7s establishing orbit.
+        Act 1 (0-5s): a close, ground-level POV — genuinely different from
+        every other cutscene's wide orbit — watching the ring's solid-to-
+        cucumber crossfade AND the ground cucumbers sprouting, kept coupled
+        to start at the same moment since both read from the same shared
+        `cucumberMat` (ground cucumbers are clones of the same loaded model)
+        — starting them at different times would make whichever finishes
+        first blink as the other's opacity ramp reset the shared material
+        out from under it. Act 2 (5-10s): a close pass alongside just the
+        ring band itself (not the whole planet), showing off the now-fully-
+        cucumber result up close. Also fixed `arrive()` falling straight back
+        to the generic "find bbak and talk to him" introMission every time
+        this cutscene's own title-reveal re-triggers that same arrival path —
+        now checks `bbakQuest.cukeRevealed` first and sets the real "bring
+        bbak a cucumber" mission instead.
+      - **Pigeon Plaza landing**: nearby ground pigeons now scatter outward
+        on impact (fleeing, not permanently removed like Percy's departure
+        scatter — she's arriving, not leaving) and resettle a few seconds
+        later; any CONTINUOUSLY-FLYING pigeon within a tight safety radius of
+        her exact landing point gets briefly hidden, since those follow
+        independent orbits with zero awareness of where she's about to touch
+        down and could otherwise clip straight through her.
+      - **Movement feel**: walk speed down ~30% (12.0 -> 8.5), drag/wheel
+        look sensitivity down ~30%, and a small decaying downward camera
+        "punch" set on each footstep (consumed once per frame in `followCam`)
+        — no dedicated bob animation needed, just real per-step weight.
+      - **Dialogue can now include Beanie's own lines**: `startDialog`'s
+        `lines` array can mix plain strings (unchanged, spoken by the
+        conversation's one `opts.speaker`, exactly as before) with
+        `{ speaker, text }` objects for a line-specific override — fully
+        backward compatible with every existing conversation. Woven into the
+        Chicago letter, Chippy, bbak, and Percy's intro/reunion beats so she
+        actually participates instead of only ever listening. Verified live:
+        the speaker name in the dialogue box correctly alternates line-by-
+        line between the NPC and "Rachel 💫".
+      - **Not fixed — needs Blender, not code**: Summer Beanie's hand resting
+        on her back mid-walk is baked into the exported walk-cycle animation
+        itself (`Summer beanie/Summer_walk.blend`), not anything index.html
+        controls. Checked for a live Blender MCP connection to fix it
+        directly; none was available this session (`Could not connect to
+        Blender — make sure the addon is running`). Needs the same kind of
+        pass as the Talking-pose retargeting work elsewhere in this file, the
+        next time Blender is actually connected.
 - [x] Dialogue typewriter sped up 2x and de-jankified; Chicago messenger
       cutscene + fixed mission chip popping up mid-conversation
       (2026-07-15, later same day): asked to make the dialogue typewriter
