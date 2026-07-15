@@ -1,4 +1,54 @@
 # ROADMAP
+- [x] Dialogue typewriter sped up 2x and de-jankified; Chicago messenger
+      cutscene + fixed mission chip popping up mid-conversation
+      (2026-07-15, later same day): asked to make the dialogue typewriter
+      "2 times faster and smoother... rn its so laggy," for the Chicago
+      mission to appear only after the pigeon conversation (it wasn't), and
+      for a short cutscene before that pigeon first talks to her — idle,
+      then a pigeon lands in front of her with a letter in its mouth.
+      - The dialogue typewriter was a per-character `setInterval` (22ms/
+        char) — competing with the rAF render loop for the JS thread reveals
+        characters in uneven bursts under any load, which reads as
+        stuttery/laggy rather than a smooth type-on, independent of speed.
+        Replaced with a dt-driven reveal (`dialog.lineT` accumulated in the
+        same per-frame `step(dt)` that already drives everything else, at
+        half the per-character duration = 2x speed) — same mechanism `pump()`
+        already advances for every other animation, so this is also now
+        directly testable via `pump()` instead of needing real timer waits.
+      - Traced the mission-chip-showing-too-early complaint to last round's
+        own blanket cutscene-hide rule: `missionEl.classList.toggle('hidden',
+        isCutsceneState)` force-*removed* 'hidden' every single frame outside
+        a cutscene state — including `state==='talk'`. Chicago's messenger
+        conversation runs in `state==='talk'`, so the very first frame after
+        it started silently undid `startJourney()`'s own explicit "keep this
+        hidden until the letter is read" gate — confirmed live via a step-by-
+        step trace (`missionHidden` flips to `false` within the first
+        `pump()` after the conversation begins, mission text already fully
+        typed out in the background despite being invisible the whole time
+        beforehand). Changed the blanket rule to only ever *add* 'hidden'
+        during a cutscene, never remove it — revealing the mission stays each
+        caller's own explicit job (`setMission()`/`arrive()` already do this
+        correctly at the end of every world's arrival). Verified the full
+        sequence live: mission stays hidden through the entire letter
+        conversation AND the orbit/title cutscene afterward, appearing only
+        once she's back in normal control — and checked every other cutscene-
+        ending path (cukeReveal → landing → arrive(), percyfly → arriveGarden
+        → arrive(), the non-click-gated Garden flash-title) already reveals
+        the mission explicitly on its own, so none of them regressed.
+      - Added the requested cutscene: the messenger pigeon now carries a
+        small folded-letter prop (a simple box + a colored "wax seal"
+        cylinder) clamped in its beak, and the whole ~950ms-wait + ~1.15s-
+        swoop-in approach now gets its own two-shot camera (same side-offset
+        composition `updateTalkCam` already uses for conversations, just
+        with a taller/farther-back floor since the pigeon starts far higher
+        above the surface than any conversation partner ever stands) instead
+        of holding the very first static camera snapshot through the whole
+        beat. She was already guaranteed to stand in idle pose throughout
+        (`introLocked` already freezes movement) — the gap was purely that
+        the camera never followed the pigeon's entrance. Verified live via
+        screenshots across the sequence: a wide idle establishing shot before
+        the pigeon spawns, both her and the descending pigeon in frame
+        together as it swoops down, and the landed pigeon reading the letter.
 - [x] Landing camera: close diagonal shot, fixed clipping into her own face,
       and stopped the bigger dust cloud from hiding her the whole time
       (2026-07-15): user sent a reference screenshot asking for the
