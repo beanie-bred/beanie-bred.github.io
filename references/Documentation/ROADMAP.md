@@ -1,4 +1,66 @@
 # ROADMAP
+- [x] Dense polar maze rebuild, bigger Main Stacks, next-jump compass hint
+      (2026-07-15, later still same day): user sent a Main Stacks title-card
+      screenshot showing the maze looking sparse/empty ("where did all of
+      the books go?? ... i need many many tall piles of books that make it
+      a maze type feel"), plus asked to make Main Stacks look bigger from
+      Chicago and to add a hint for which planet to jump to next ("헷갈려" —
+      confusing).
+      - **Root cause of the sparse look**: the previous maze (4 concentric
+        rings, each with independently-random gaps — see the "Gift books
+        away from Chippy" entry below) leaves the space BETWEEN rings
+        completely bare by construction (nothing is ever placed in the
+        moats), which is exactly what makes a straight-line approach always
+        findable, but also reads as empty/sparse rather than a labyrinth.
+      - **Rebuilt as a proper polar maze**: an 8-ring x 16-sector grid around
+        Chippy, connected via randomized depth-first search (recursive
+        backtracking) — the identical algorithm any textbook Cartesian maze
+        generator uses, just walked in (ring, sector) space instead of
+        (row, col). This guarantees full connectivity BY CONSTRUCTION (a
+        spanning tree is always fully connected), so walls can fill nearly
+        every remaining boundary — 113-127 tall stacks (6-10 books each),
+        more than double the old ~49 — with zero risk of ever sealing off
+        the path to Chippy, unlike independent-per-ring gaps which only
+        happened to be probably solvable.
+      - **Verification had a real, hard-won lesson.** The first version of
+        this rebuild had a genuine bug: wall footprint sizing didn't account
+        for Beanie's own collision buffer (`isBlocked()` adds
+        `HER_FOOTPRINT/R` on top of every collider's own radius) on top of
+        the tightest (innermost-ring) spacing, leaving ~0 margin and
+        actually trapping her — confirmed live (`blockedSteps` at/near
+        every step, in every tested direction). Fixed by widening the
+        innermost ring radius and shrinking the wall footprint with the
+        buffer properly included. But naive empirical retesting (walking a
+        single randomly-explored path with a greedy seek-and-skirt script)
+        kept "failing" even after that fix — traced entirely to test-script
+        issues, not the maze: `goto()` faces her toward the NEXT chain body
+        (Cucumber Meadow) on arrival, not toward the maze, so a large
+        initial heading error made a naive turn+step-every-iteration script
+        arc away from the target instead of turning in place first; and
+        loose convergence thresholds let small positional drift compound
+        over a long path. **The verification that actually settled it**:
+        exposed the maze's exact open/closed graph via a new
+        `mazeDebug()` debug method, then exhaustively checked EVERY one of
+        the ~127 "open" edges (not just one explored path) by sampling
+        points along the straight line between each pair of adjacent cell
+        centers and testing against every collider in the scene — 0 false
+        blocks out of 127 open edges, confirmed across 3 independent fresh
+        reloads (each with a new random maze). This is a strictly stronger
+        proof than "a wall-following script happened to reach the center
+        once" — every intended passage is provably walkable, not just the
+        one path that got tried.
+      - **Main Stacks pulled closer to Chicago**: distance reduced to 65% of
+        its previous value (same direction, so no other angular relationship
+        changes) so it reads as noticeably bigger/closer in the default
+        view instead of a small dot next to Cucumber Meadow's much bigger,
+        brighter ring.
+      - **"Jump to next world" compass hint added**: the existing on-planet
+        guide-arrow mechanism (previously only active for "go find this NPC"
+        tasks) now also activates once a world's mission is done and it has
+        a `chainNext`, pointing at the next body's direction with a
+        "🚀 jump to `<emoji> <name>`" label — covers every leg in the game,
+        not just a one-off Chicago fix, directly answering "which planet do
+        I jump to next."
 - [x] Landing-cover bug, title screen cleanup, journal reset + book redesign
       (2026-07-15, later still same day): user sent two screenshots — a large
       gift book floating directly over Beanie's head during the Main Stacks
