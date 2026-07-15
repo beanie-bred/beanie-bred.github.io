@@ -1,4 +1,59 @@
 # ROADMAP
+- [x] Winter Beanie's Talking pose wired into real conversations (2026-07-15,
+      later still same day): user asked to have the Talking animation (built
+      earlier this session, previously only shown in Blender preview GIFs)
+      actually play in-game whenever she's talking to a character.
+      - **`game-assets/beanie/beanie.glb` gained a 7th animation.** Imported
+        the live glb fresh (glTF import, not FBX — the FBX importer is the
+        one that crashes the Blender MCP bridge; glTF import turned out
+        safe), appended the `Talking` action authored earlier, and re-
+        exported with all 7 clips (Idle/Walk/JumpLaunch/JumpSoar/JumpLand/
+        LandFallGetUp/Talking) intact — deliberately did NOT rebuild from
+        the various individual source .blend files (idle/walk/jump each
+        live in their own file, and the jump/landing clips were originally
+        hand-extracted-and-retimed frame ranges, not simple named actions),
+        since re-deriving those risked subtly regressing already-shipped,
+        already-tuned animations. Backed up the pre-change glb first.
+      - **Two real Blender export bugs found and fixed along the way:**
+        (1) a freshly-appended action assigned only via `.action = clip`
+        silently failed to export — Blender 5.1's slotted-actions system
+        also needs `.action_slot` explicitly bound, or the action evaluates
+        to a frozen, unchanging pose despite correct weight/time (traced by
+        comparing the SAME bone's rotation at multiple frames via the
+        properly-evaluated depsgraph and finding them bit-for-bit
+        identical); (2) even with a correctly-slotted NLA strip, the
+        exporter's default `export_animation_mode='ACTIONS'` still
+        exported a frozen Talking clip — switching to
+        `export_animation_mode='NLA_TRACKS'` (samples each NLA track
+        directly instead of internally reassigning `.action`) fixed it.
+        Verified by parsing the exported glb's raw animation sampler data
+        directly (not a re-import): Spine's rotation channel showed 97 real
+        keyframes sweeping through the gesture and settling back to
+        identity at the end, not a static repeated value.
+      - **`animBeanieSkinned()` now blends a 3-way Idle/Walk/Talk crossfade**
+        instead of just Idle/Walk — `state==='talk'` (and Winter only;
+        Summer has no Talking clip yet) fades Talk in and Idle out, matching
+        the existing `dt*8` blend rate used everywhere else. `startDialog()`
+        resets and replays the Talking action fresh every time a new
+        conversation begins (works for every NPC and the Chicago letter
+        scene alike, since they all share this one function) — a LoopOnce
+        clip that settles into an idle-like pose by design, so a
+        longer-than-4s conversation just holds a calm settled pose rather
+        than jarringly snapping back to the gesture's start.
+      - **Closed a real gap this surfaced**: `jumpTo()` and
+        `updateLandingAnim()` already explicitly zero Idle/Walk/Run weights
+        at the start of a leap/landing (to prevent any bleed-through), but
+        had no idea `herTalkAction` existed yet — added the same
+        `setEffectiveWeight(0)` line for it in both places, closing a
+        possible residual-Talk-pose-bleed edge case if a jump ever starts
+        while a talk-fade is still mid-transition.
+      - Verified live end-to-end via the local dev server: a real bbak
+        conversation shows the Spine/Chest/Head/arm bones visibly posing
+        differently at 3 separate points through the gesture (not just the
+        blend weight changing over an unchanged pose), correctly fades back
+        to Idle when the conversation ends, and a full jump→flight→landing
+        cycle immediately after shows `talkWeight` pinned at 0 throughout.
+        Zero console errors.
 - [x] Dense polar maze rebuild, bigger Main Stacks, next-jump compass hint
       (2026-07-15, later still same day): user sent a Main Stacks title-card
       screenshot showing the maze looking sparse/empty ("where did all of
