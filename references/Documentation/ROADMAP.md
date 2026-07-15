@@ -1,4 +1,82 @@
 # ROADMAP
+- [x] Cucumber ring scale-down + ground-cucumber reveal re-verify (2026-07-15,
+      later same day): user screenshot from the aim-and-leap view (standing on
+      Chicago, aiming toward Main Stacks) showed the ring so large it visually
+      swallowed Main Stacks in the background, well past just "touching its
+      own planet" (the problem earlier passes fixed).
+      - **Root cause: the camera-clearance margin was way more generous than
+        needed.** `RING_INNER = R + landCamMaxReach + 60` with 40/8/20-unit
+        bands pushed the outer radius to ~249 at R=45 (~500 across) — `+60`
+        on top of `landCamMaxReach` (already a conservative worst-case bound
+        on the establishing-shot camera's reach) was pure excess. Cut the
+        margin to `+15` and the bands to 20/5/10, landing the outer radius at
+        ~171 (~31% smaller radius, ~52% less area) — still verified clear of
+        every camera position, just no longer big enough to visually reach
+        neighboring worlds. Re-verified via `aimAtBody()` from Chicago's
+        surface toward Main Stacks: the ring now reads as a contained halo
+        well behind/around the target-locked planet instead of engulfing it.
+        World positions (`pos:` in `WORLD_DEFS`) were left untouched — no
+        need to touch jump/flight-arc tuning for this.
+      - **Ground cucumbers re-verified (2026-07-15): already correctly
+        gated, not a bug.** `groundCucumberHolders` are built with
+        `holder.visible = false` and only ever flipped to `true` inside
+        `updateCukeReveal()`'s hard-swap at the reveal cutscene's midpoint —
+        confirmed live via `window.__world.ringDebug()` on a fresh load
+        (`groundCukeVisible:false`, `cukeRevealed:false` at `bbakQuest.phase
+        0`) and by re-reading `startCukeRevealCutscene()`'s only call site
+        (gated on `bbakQuest.tries >= bbakQuest.need`, i.e. exactly bbak's
+        4th/final hint). No code change made here; if cucumbers were ever
+        seen on the ground before the hint, the likelier explanation is a
+        stale cached page rather than this code path.
+- [x] 4am feedback batch #2 (2026-07-15): 12 items checked against the other
+      session's work first (`git fetch` + re-reading current code) before
+      touching anything, to avoid redoing what was already shipped — 2 of the
+      12 turned out already done (QA-warp-plays-landing-cutscene, jump-gate-
+      already-correct via `updateAim()`'s `cur.missionDone` check) and were
+      just re-verified, not re-implemented.
+      - Mission banner made bigger/bolder (font `clamp(14px,2vw,18px)`,
+        heavier border/glow) — it wasn't reading as an urgent current
+        objective at its old 13.5px size.
+      - **Chippy exempted from the generic face-Beanie dialogue override** —
+        it used HER local up (not his book-pile's own surface normal) to
+        reorient him, which could pop him off his hand-tuned seated pose;
+        now skipped specifically for `worldRefs.books.chippy`. He also
+        bounces (`chippyModel.position.y`) while `dialog.npcObj === chippy`.
+      - Main Stacks' 700 book-stack piles cut to 420 with a minimum angular
+        separation between neighbors (rejection-sampled) — the old density
+        could box her in with no way around a cluster even though only a
+        sparse subset actually collide.
+      - `nearestFoodPickup()` now returns `null` while `bbakQuest.phase < 1`
+        — she could grab food before bbak ever asked for anything. Verified
+        live: blocked at phase 0, unlocks the instant phase becomes 1.
+      - Pigeon Plaza's guide arrow already correctly targets whichever decoy
+        she hasn't met yet (`refreshPlazaGuide()`/`plazaTargetHolder()`) —
+        verified live end-to-end (Percy intro → Victoria → Nibbles), no
+        change needed.
+      - Locator redesigned as an actual 5-point star (`starGeometry()`, a
+        `THREE.Shape`-based outline) instead of the previous crossed-
+        octahedron sparkle, which read as a soft blob at real distances.
+      - `#foodPocket` now also hides whenever `curI !== 2` (was only gated on
+        `bbakQuest.holding`), refreshed on every `arrive()`.
+      - All 9 Pigeon Plaza character speaker tags now show full species
+        names ("Sam the Spinifex Pigeon", "Doodles the Dodo", etc.) instead
+        of just their given name.
+      - **New: a "spotted them!" notice beat.** The first time she's within
+        `guideNear*6` of a character she hasn't met yet (but not yet at talk
+        range), a new `'notice'` state pauses movement for 1.8 simulated
+        seconds, turns the camera toward the target's bearing, and shows a
+        "💭 Hmm… I should go talk to that character!" bubble. Scoped to only
+        "find <x>" / "say hello…" guide labels (not "bring/take/fetch it
+        back" item errands) after live testing showed it firing oddly for
+        a food-pickup guide — there's no character to react to when the
+        guide is just pointing at a snack.
+      - Not done: retargeting the user's new `movements/Talking.fbx` onto
+        Winter Beanie/Bred/Summer Beanie for a talking animation during
+        dialogue — blocked mid-attempt by a Blender MCP connection crash
+        (a known headless-context bug in the FBX importer hitting
+        `bpy.ops.object.mode_set` with no active object). Blender itself
+        stayed open; only its MCP bridge died. Needs Blender relaunched
+        before this can be retried.
 - [x] Title single-line revert, Cucumber Meadow font swap #2, planet spacing
       (2026-07-15, same-day):
       - **Titles forced back to a strict single line.** The prior "let it

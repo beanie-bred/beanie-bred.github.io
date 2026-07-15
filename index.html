@@ -1571,8 +1571,16 @@ function buildCucumber(g, R){
   const RING_DARK_GREEN = 0x1f4d29;
   const landCamFarDist = Math.min(70, R*2.2), landCamFarHeight = Math.min(30, R*0.95);
   const landCamMaxReach = Math.sqrt(landCamFarDist**2 + landCamFarHeight**2);   // ~76 at R=45
-  const RING_INNER = R + landCamMaxReach + 60;      // ~181 at R=45 — clear of every camera position, with margin
-  const BAND_MAIN = 40, BAND_DIV = 8, BAND_OUTER = 20;
+  // The +60 margin (and the 40/8/20 band widths) made the ring's absolute
+  // world-space size huge enough (outer radius ~249 at R=45, ~500 across)
+  // that from a distance — e.g. aiming from Chicago/Main Stacks toward the
+  // next world — it visually swallowed neighboring planets in the same line
+  // of sight, even though it never actually touched them in 3D. The camera-
+  // clearance bound above (landCamMaxReach) is already a conservative worst
+  // case on its own; a small margin on top is enough, no need to inflate it
+  // further just for visual "safety".
+  const RING_INNER = R + landCamMaxReach + 15;      // ~136 at R=45 — still clear of every camera position
+  const BAND_MAIN = 20, BAND_DIV = 5, BAND_OUTER = 10;
   const mainInnerR = RING_INNER, mainOuterR = mainInnerR + BAND_MAIN;
   const outerInnerR = mainOuterR + BAND_DIV, outerOuterR = outerInnerR + BAND_OUTER;
   const solidRing = new THREE.Group();
