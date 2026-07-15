@@ -1,4 +1,37 @@
 # ROADMAP
+- [x] Talking pose: fixed the actually-broken elbow, raised into a real
+      explaining gesture (2026-07-15, later still same day): user sent 3
+      reference images (an in-game screenshot plus a robot-figure render and
+      its skeleton, both showing arms raised with elbows bent upward) and
+      asked "why are her elbows bent inside out?? make it bend upwards."
+      - **This was a real bug, not a style preference — the two previous
+        rounds' elbow bend used the wrong local rotation axis for the
+        joint's hinge.** Confirmed by rendering the elbow bent 75° on all 4
+        candidate axis/sign combinations and comparing: local +X on
+        `LowerArm` produces a clean bicep-curl-style bend (hand rises
+        straight up past the shoulder); the axis used in both previous
+        rounds (`LowerArm` local Z) instead swings the forearm sideways and
+        across the body, which is what actually reads as broken/"inside
+        out" — not a subtle judgment call, one look at the 4 renders side
+        by side made it obvious which was right.
+      - **Redesigned the pose shape to match the reference**: arms raised to
+        roughly shoulder height and spread outward (well above the previous
+        "reach forward" pose's height), elbows bent upward through the
+        confirmed-correct axis so both hands land near shoulder/face height
+        — a real "explaining/presenting with your hands" shape, much more
+        visually active than the earlier low, subtle reach. Re-targeted
+        onto the existing keyframes the same way as the previous round
+        (compose the net rotation needed on top of what's already there),
+        so the gesture's original timing and wiggle carried over unchanged
+        — only WHERE the arms end up changed, not WHEN they move.
+      - Verified via renders at start/mid/settle-tail frames (all
+        consistent — no jarring difference between the peak gesture and the
+        end pose) and a live in-game screenshot. **Learned from the last
+        round's deployment-check false positive**: this export also landed
+        on the same byte count as the previous one, so verified the actual
+        SHA-256 content hash against the live site instead of trusting
+        size, and confirmed genuinely deployed (took 5 polls / ~100s this
+        time, not just 1).
 - [x] Talking pose re-tuned: relaxed shoulders, straight forward reach
       (2026-07-15, later still same day): the scarecrow-arms fix above still
       wasn't quite right — user said her shoulders looked "awkwardly lifted"
