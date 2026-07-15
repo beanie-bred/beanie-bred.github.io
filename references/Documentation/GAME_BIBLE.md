@@ -9,6 +9,10 @@ Gameplay: Super Mario Galaxy · Art: Animal Crossing · Story: The Little Prince
 Emotion over complexity. Polish over features. Wonder over realism. Ship it.
 
 ## Story flow
+> ⚠️ Stale — superseded by `STORYLINE.md` (post-reboot: world list/order,
+> radii, mission designs, and the Cucumber Meadow reveal mechanic have all
+> changed since this was written). Kept here for the original high-level
+> pitch/tone only.
 1. Title: dark pastel-blue space, gray Chicago planet rotating, Beanie sitting
    against a building. Press SPACE → third-person.
 2. Worlds (each bigger than the last): Chicago (r7, gray, lonely) → Book Stacks

@@ -1,4 +1,295 @@
 # ROADMAP
+- [x] Title single-line revert, Cucumber Meadow font swap #2, planet spacing
+      (2026-07-15, same-day):
+      - **Titles forced back to a strict single line.** The prior "let it
+        wrap to 2+ lines instead of shrinking" change (see below) backfired
+        in practice — a 2-line title grows tall enough to cover Beanie's own
+        body during the cutscene, which is worse than a smaller one-liner.
+        `#planetTitleName` is `white-space:nowrap` again, `fitPlanetTitleOneLine()`
+        shrinks by scroll*width* again (not height).
+      - **Real bug found in that shrink loop**: it stepped font-size down by
+        a flat 4px per iteration, capped at 40 iterations — fine for modest
+        shrinks, but a wide name/font combo (e.g. "EMERALD MEADOW" in the
+        new Comfortaa) needed ~50+ steps to fit, blew past the guard, and
+        was left rendering wider than the screen. Rewrote it to shrink
+        *proportionally* (`cur * (maxW/scrollWidth) * 0.97`) each step,
+        which converges in 1-2 iterations regardless of how far overshoot
+        is. Verified computed font-size settles at a value that actually
+        fits (`scrollWidth <= innerWidth*0.92`) rather than trusting the
+        loop merely "ran".
+      - **Cucumber Meadow's title font changed again**, Fredoka → **Comfortaa**
+        (geometric rounded sans) — still not loved, per direct feedback.
+      - **All non-Chicago world positions scaled 1.5x** (Main Stacks,
+        Cucumber Meadow, Pigeon Plaza, Garden) — the cucumber ring's much
+        larger radius (from the earlier Saturn-ring rework) reached far
+        enough that it was visibly bleeding into neighboring Main Stacks,
+        breaking the illusion that each world is its own separate place.
+        Verified: standing on Main Stacks' title/orbit shot no longer shows
+        any trace of the ring.
+- [x] Landing cutscene, QA, and movement polish batch (2026-07-15, same-day):
+      - **Dust explosion on landing**: `spawnLandingDustBurst()` (new, next to
+        the existing footstep `spawnDust()`) throws ~30 big dust puffs
+        outward+upward from her position, fired from `startLandingSequence()`
+        at the moment of impact — every jump landing and every QA warp (see
+        below) now gets a real impact burst instead of nothing.
+      - **Fixed Beanie floating instead of touching down**: the fall/get-up
+        clip's own root motion was authored for a flat ground plane and
+        didn't quite reach this planet-scale surface, so lying flat read as
+        hovering just above it. `updateLandingAnim()` now sinks the visual
+        model down (`herWinterGroup.position.y`) proportional to the fall
+        clip's own blend weight — deepest at the flattest point of the pose,
+        easing back to the normal idle height as she stands back up.
+        Verified via close-up screenshots at the peak of the fall — she now
+        visibly lies flat ON the surface, not embedded in it or floating
+        above it.
+      - **QA number keys (1-9) now replay the full fall→orbit→title
+        cutscene** on that world instead of instantly teleporting — `qaWarp()`
+        now positions her at the landing spot and calls
+        `startLandingSequence()` (the same path a real jump lands through)
+        instead of the instant `goto()`. Still force-clears every mission
+        gate first, same as before.
+      - **Jump-gating re-verified, no change needed**: confirmed in code and
+        live that normal SPACE-to-leap is already fully blocked until
+        `bodies[curI].missionDone` — the aim/target-lock in `updateAim()`
+        (`if (surf<250 && ang<th && cur.missionDone) target = b`) never sets
+        a lock otherwise, and `jumpTo()` only ever fires from that lock. The
+        only bypass is the intentional QA path (number keys / `jumpChain()`),
+        exactly as intended.
+      - **Titles can now grow taller instead of always shrinking to one
+        line**: `#planetTitleName` wraps normally now (was `nowrap`, forced
+        single-line), and the shrink-to-fit pass (`fitPlanetTitleOneLine`,
+        name kept for compatibility) now caps by scroll*height* against half
+        the viewport instead of scroll*width* against one line — a name too
+        wide to read well on one line now wraps to two/three lines at full
+        size instead of shrinking down small. No currently-used world name
+        actually needs this (all fit on one line already) — this is
+        forward-looking robustness, verified with an artificial long test
+        string.
+      - **Cucumber ring tilt reduced further (26°→9°) and Emerald/Cucumber
+        Meadow re-verified for POV blocking**: the previous 26° tilt still
+        read as edge-on / a near-vertical wall from a lot of the positions
+        Beanie can actually walk to on the sphere, which both looked like
+        touching and could dominate the view during normal exploration. A
+        much shallower tilt reads as clearly horizontal from nearly every
+        angle. Verified by actually walking her to several different points
+        on the sphere and checking the normal gameplay camera (not a custom
+        debug shot) — the ring stays low and out of the way at every
+        position tested.
+      - **Normal movement now plays the Walk clip at its natural pace**: an
+        old flat `*2` multiplier on `herWalkAction.timeScale` meant even
+        default (non-Shift) movement played the walk cycle at double speed,
+        which read as running all the time. Removed the `*2` — Shift-held
+        running is now the only thing that speeds the leg animation up
+        (`*1.6`), normal movement plays the walk clip at its authored pace.
+- [x] Second cucumber ring fix + title/HUD polish (2026-07-15, same-day):
+      user screenshots from the live site showed the ring STILL merging with
+      the planet even after the previous fix, plus stale HUD info showing
+      under the title card. Root causes and fixes:
+      - **Real root cause of the "still merging" ring**: sizing it by an
+        arbitrary multiple of the planet radius R (tried R+13.5, then R*4)
+        never accounted for how far the establishing-shot orbit camera
+        itself travels. `updateLanding`'s 'orbit' phase pulls the camera out
+        to `min(70, R*2.2)` distance / `min(30, R*0.95)` height from BEANIE
+        — at R=45 that's a camera up to ~76 units from her, i.e. up to ~121
+        from the planet's center, which sat *inside* the ring's own radius.
+        The camera was literally flying through the ring's footprint, not
+        past it. Fixed by deriving the ring's inner radius from the same
+        camera-distance formula the landing code uses, plus a 60-unit safety
+        margin on top, so the ring's inner edge (now ~181 at R=45) is
+        guaranteed to clear every possible camera position for that world.
+        Also reduced the ring's tilt from 1.15 rad (66°) to 0.45 rad (26°) —
+        a steep tilt put the disc nearly edge-on to the camera for much of
+        the orbit, which reads as "touching" even with a real 3D gap.
+        Verified by driving the actual jump→landing→orbit sequence (not a
+        custom debug camera shot, which is what let the previous "fix" pass
+        review while still being broken in real gameplay) and sampling
+        multiple points across the real 15s orbit, pre- and post-reveal.
+      - **Emerald/Cucumber Meadow doubled in size** (r 22.5 → 45), per
+        request.
+      - **Stale HUD during title cards fixed**: the old planet-name chip and
+        the bottom mission banner used to keep showing the *previous*
+        world's info for the entire time a title card was up (they only
+        refresh in `arrive()`, which doesn't run until she clicks past the
+        title) — e.g. Pigeon Plaza's title card was showing Cucumber
+        Meadow's leftover "find bbak" mission text underneath it. Both now
+        hide the moment `showPlanetTitle()` fires and reappear (with fresh,
+        correct content) once the title is dismissed — handled for both the
+        click-gated cutscene and the Garden's non-blocking auto-flash
+        variant.
+      - **Titles bigger again**: clamp raised from 80–260px/24vw to
+        100–340px/30vw, padding-top dropped 11vh→6vh, gap 8px→4px.
+- [x] Cucumber ring follow-up fix (2026-07-15, same-day): the previous pass's
+      ring still visually merged with the planet in real screenshots — a fat
+      TorusGeometry tube bulges toward the viewer at a steep tilt even when
+      flattened, so its near surface could dip back into the planet from
+      some angles despite the centerline sitting clear. Rebuilt the solid
+      pre-reveal ring as a true flat disc (`THREE.RingGeometry`, zero bulge
+      at any viewing angle, double-sided material) and pushed the gap out
+      much further: inner edge now R*4 (90 units on a r22.5 planet, a
+      67.5-unit gap — ~5x the previous attempt's ~11.5). The two real
+      cucumber-ring bands were moved out to match (inner 90/118, outer
+      114/134) with flatter vertical scatter (thick 2.2/1.6 → 1.0/0.7) so
+      they read as a disc too, not a puffy band. Verified from multiple
+      camera distances/angles pre- and post-reveal — the ring now reads as
+      an unmistakably separate, thin, dark green disc with a huge visible
+      gap, zero console errors.
+- [x] 4am polish batch (2026-07-15): Chicago cutscene fix, bigger titles,
+      journal/sticker system, Saturn-style cucumber ring rework.
+      - **Chicago tower clipping fixed**: the arrival/title orbit camera
+        (shared by the title-screen idle orbit, the post-letter cutscene, and
+        every other world's landing) orbited at a fixed 9-unit radius around
+        Beanie — but Chicago's tower reaches ~8.7 world units above her (a
+        tall tower on a tiny r5.25 planet), so the camera swung straight
+        through the tower's geometry at some angles. Chicago's orbit now
+        starts at 13/5.5 (dist/height) instead of 9/3.2, easing out further
+        from there, clearing the tower at every angle. Also found and fixed a
+        second contributor: the 9 random gray skyline blocks near the tower
+        could spawn directly in Beanie's fixed spot (their spread radius
+        overlapped hers), occasionally standing right in front of her and
+        reading as her body merging into a building — they now retry their
+        spawn direction until they're ≥~37° clear of her spot.
+      - **Planet-arrival titles much bigger**: font clamp raised from
+        64–240px to 80–260px (24vw base, was 15vw), padding-top dropped
+        14vh→11vh, gap 22px→8px — titles now fill almost the entire top of
+        the screen with tight whitespace while Beanie's full body stays
+        clearly visible below. Verified across Chicago/Oswald, Main
+        Stacks/Playfair, Cucumber Meadow/Baloo 2 (both stages), Pigeon
+        Plaza/Bungee, and Garden/Cormorant Garamond.
+      - **Real bug found + fixed**: fitPlanetTitleOneLine()'s shrink-to-fit
+        measured scrollWidth on the very next animation frame after adding
+        the `.play` reveal class — catching the titleReveal keyframe's
+        transient `letter-spacing:26px` (its 0% state) mid-transition, which
+        massively inflated the measured width and over-shrunk the font (seen
+        shrinking "Cucumber Meadow" all the way down to 36px instead of its
+        intended ~192px). This was likely the real cause behind titles
+        occasionally reading as missing/illegible. Fixed by sizing the title
+        to rest BEFORE adding the `.play` class, so the reveal animation only
+        ever starts once the font-size is already final.
+      - **Verified every world's arrival title fires correctly**, including
+        Main Stacks specifically (the one the previous session flagged as
+        maybe-missing) and both of Cucumber Meadow's stages (pre-reveal
+        "Emerald Meadow" and post-reveal "Cucumber Meadow").
+      - **New: journal + sticker collection system.** Rachel loves journaling
+        and stationery, so the messenger pigeon now also hands Beanie a tiny
+        notebook right after Bred's letter in Chicago ("somewhere to keep
+        records of things"), which reveals a new 📔 HUD button beside the
+        mute button. The very first time she talks to each named character
+        (Chippy, bbak, Percy, and every Pigeon Plaza pigeon — Vanessa,
+        Nibbles, Alfred, Sam, Sunny, Otto, Mochi, Buckle, Doodles) shows a
+        "met a new friend!" toast with that character's real sticker artwork
+        (from the new `stickers/` folder) and adds it to her journal; talking
+        again never re-triggers it. The journal button opens a simple grid
+        modal showing every collected sticker plus `?` placeholders for
+        characters not yet met, with a live "N / 12 friends met" count.
+        Progress persists across reloads via localStorage. Verified end-to-
+        end: talked to Chippy in a fresh session, got the toast + sticker,
+        confirmed it persisted after a page reload and shows correctly in the
+        journal grid.
+      - **Cucumber Meadow ring completely reworked** — the previous pass's
+        "wider + flatter" change (see the entry below) had increased the
+        solid ring's tube radius without moving its base radius outward to
+        compensate, so its inner edge actually sank below the planet's own
+        surface radius: it visually intersected the planet. Rebuilt from
+        scratch as a proper Saturn-style ring: dark saturated forest green
+        (`#1f4d29`, replacing the pale `PALETTE.moss` that blended into the
+        grass) for the solid pre-reveal ring; both the solid ring and the
+        real cucumber ring's two bands now have their inner edge at
+        R+13.5 — a large, obvious, unmistakable gap from the planet at every
+        point around the orbit, verified visually from multiple camera
+        distances/angles. Cucumber density raised ~5x (520/280 → 2600/1400
+        cucumbers across the two bands); since that many individual cloned
+        Object3D cucumbers would have been a real frame-rate risk, the ring
+        now drives each band off a single `THREE.InstancedMesh` built from
+        the loaded cucumber model's geometry (baked to world-space so per-
+        instance orientation still matches the individually-cloned ground
+        cucumbers elsewhere), cutting per-band draw calls from hundreds down
+        to one. Re-ran the full bbak quest + reveal cutscene end-to-end:
+        solid ring never touches the planet pre-reveal, the reveal swap still
+        works, the real cucumber ring never touches the planet post-reveal
+        either, and it reads as a dense, dark green, clearly Saturn-like band
+        from every angle tested.
+      - Zero console errors across every verification pass above.
+- [x] Ring made wider + flatter (2026-07-14 follow-up): solid mystery-ring
+      torus tube radius 6.6→9.5 with scale.y=0.3 (flattens the round tube
+      into a wide flat band instead of a chunky donut); revealed cucumber
+      ring band 9.6/7.2→14/10.5 (wider) with thick 4.4/3.2→2.2/1.6 (flatter).
+      Verified both the solid pre-reveal ring and the post-reveal cucumber
+      band read as a wide, flat, halo-like arc from in-game camera angles;
+      full reveal-cutscene re-run, zero console errors.
+- [x] Big polish batch (2026-07-14), full details in STORYLINE.md:
+      - Cucumber ring 4x thicker / 3x wider band, now a REAL reveal mechanic:
+        world starts as "🌱 Emerald Meadow" showing only a solid green ring
+        (individual cucumbers + ground cucumbers all hidden); after bbak's
+        4th-rejection hint, a scripted ~7s cutscene (new 'cukeReveal' state)
+        pulls the camera back, winds the solid ring's spin to a stop, hard-
+        swaps to the real cucumber ring + ground cucumbers with a sparkle
+        burst, then renames to "🥒 Cucumber Meadow" and plays its title card.
+      - Mission banner moved from top to bottom (was coinciding with the
+        guide/interaction chips); auto-hides during dialogue too now (the
+        box can grow tall enough to reach it otherwise).
+      - ensureTalkDistance(): any dialogue with an npcPos now nudges Beanie
+        backward along the sphere surface first if she was standing closer
+        than 4 units, so the two-shot camera never frames her literally
+        overlapping the NPC regardless of how close SPACE was pressed.
+      - Planet titles: bumped clamp to fill more width (64-240px), text-
+        shadow cut way down to a subtle dark glow (was a big warm blur),
+        removed the gold rule lines above/below entirely.
+      - Book Stacks renamed to **Main Stacks** (lore: the library Bred and
+        Beanie used to study in).
+      - Chicago: CHICAGO_START_N now literally IS the tower-adjacent seat
+        position (was an unrelated arbitraryPerp direction) — one constant
+        drives the intro sit pose, the gameplay start position, AND the
+        post-letter title cutscene, so all three share the same "tower
+        right beside her" vantage with zero pop on transition. Intro's idle
+        camera rewritten from a fixed world-space XZ dolly to the same
+        local-tangent-plane orbit the arrival cutscenes use. Lowered the
+        landing-orbit distance/height floor (18/7 → 10/4) so a tiny world
+        like Chicago keeps a close, tower-dominant frame instead of pulling
+        back so far the landmark loses prominence (only Chicago is small
+        enough to hit this floor — verified other worlds' radii are all
+        well above it, so their cutscenes are unaffected).
+      - New STORYLINE.md: the authoritative current narrative doc across
+        every world (GAME_BIBLE.md's old "Story flow" section flagged stale
+        and pointed at it instead of silently contradicting it).
+      Full regression (Chicago letter+cutscene → Main Stacks → Cucumber
+      reveal cutscene → Pigeon Plaza → zero console errors throughout) all
+      independently verified.
+- [x] Planet-title cinematic overhaul (2026-07-14): dropped the emoji from the
+      big title (plain world name only), forced single-line with
+      white-space:nowrap + a JS shrink-to-fit pass (fitPlanetTitleOneLine —
+      measures scrollWidth, steps font-size down until it fits, since
+      different per-world fonts have very different average glyph widths),
+      and replaced the warm peach text-shadow with a pure dark glow
+      (rgba(0,0,0,...) only) so the white letters read as naturally
+      prominent against the navy sky instead of glowing amber. Added one
+      distinct Google Font per world via showPlanetTitle(b)/WORLD_FONT_CLASS:
+      Chicago=Oswald (condensed sans), Book Stacks=Playfair Display (serif),
+      Cucumber Meadow=Baloo 2 (rounded/cute), Pigeon Plaza=Bungee (blocky
+      playful), Garden=Cormorant Garamond (delicate serif). Each font's own
+      letter-spacing survives the reveal animation via a --tls CSS custom
+      property (previously the keyframe's hardcoded final letter-spacing
+      clobbered any per-font override). Also gave the Garden its own title
+      moment via a new non-blocking flashPlanetTitleAuto() (shows + auto-
+      fades after 3.2s, no click-to-continue gate, since the Percy-flight+
+      iris entrance shouldn't pause on a click). Verified all 5 fonts/text
+      render correctly via real jump-landings + the Percy/Doodles quest,
+      zero console errors.
+- [x] Chicago now gets the same orbit+title cutscene every other world gets,
+      just timed to fire AFTER the messenger's letter dialogue finishes
+      (startChicagoTitleCutscene(), reuses the existing landing/orbit/
+      click-to-continue machinery with phase:'orbit' — skips the fall/get-up
+      beat since she's already standing normally). Verified: letter dialogue
+      -> "CHICAGO" title (Oswald, dark glow, one line) -> click to continue
+      -> normal mission/gameplay, zero console errors.
+- [x] HUD polish (2026-07-14): #planetTitle cinematic card (big "BOOK STACKS"-
+      style reveal) was vertically centered, so on small planets it sat right
+      on top of Beanie standing there — moved to justify-content:flex-start +
+      padding-top:14vh so she's clearly visible below it. Also removed the
+      arrival showToast(name, tag) call in arrive() — the planetTitle card
+      already announces the world by name, and the toast chip (top:76px) sat
+      directly on top of the mission banner/guide chip. Verified via a real
+      jumpChain() landing (fall/get-up/orbit/title/click-to-continue), zero
+      console errors.
 - [x] Engine: sphere walking, gravity orientation, camera orbit, aim-and-leap
 - [x] Six worlds + eight moons, missions, progress dots
 - [x] Percy sequence + iris wipe + Garden finale + card
