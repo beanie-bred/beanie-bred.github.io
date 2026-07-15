@@ -1,4 +1,70 @@
 # ROADMAP
+- [x] Gift books away from Chippy, mission-reveal gating, Book Stacks maze
+      (2026-07-15, later still same day): user sent 3 screenshots — a glowing
+      gift book right next to Beanie with Chippy visible behind her; the
+      Chicago aim view showing Main Stacks, the ring, and Cucumber Meadow all
+      reading as adjacent; and the guide compass spelling out the first
+      mission ("find Chippy, he is resting on a book pile") before she'd even
+      met him. Batch of 7 requests, all fixed and verified:
+      - **Gift books repositioned** farther from Chippy's own talk spot
+        (`dirNear(chippyN, 1.3 + (i/5)*1.4 + ...)`, was `0.9 + ...`) so none
+        of the 5 collectibles land in the same shot as a Chippy conversation.
+      - **Journal notebook button** now force-revealed inside `qaWarp()` —
+        it was normally only granted mid-letter in Chicago, so any number-key
+        warp used before reading the real letter left it hidden for the rest
+        of the session.
+      - **Guide text simplified** to just "find Chippy" / "find bbak" (no
+        descriptive aside), per the request for "just an arrow and x steps
+        away."
+      - **Mission text now gated behind first meeting**: Books/Cucumber/
+        Pigeon's `<b>MISSION:</b>...` text used to reveal on arrival, before
+        she'd met Chippy/bbak/Percy — now withheld (`arrive()` hides it for
+        those 3 worlds) and only shown once `talkChippy()` /
+        bbak's phase-0 handler / `talkPercy()` finish their first exchange.
+      - **No mission/dialogue during cutscenes**: `jumpTo()` and
+        `startLandingSequence()` (the qaWarp entry path) both now hide
+        `#hud`/`#mission` for the whole flight→landing→title stretch — it was
+        only ever hidden starting at the orbit/title phase, so the world she
+        was leaving kept its mission banner up through the entire jump arc.
+      - **Chicago view: Cucumber Meadow repositioned.** Two earlier passes
+        already doubled world spacing and shrunk the ring, but the ring still
+        visually touched Main Stacks — root cause was never distance, it was
+        that Cucumber Meadow's direction from Chicago was only ~12° from
+        Books' own direction. Verified via Python/numpy angle-between-vectors
+        math, then moved to `pos:[500,-500,-450]` (~47° from both Books and
+        Pigeon Plaza, comparable to the ~42° Books/Pigeon already had).
+      - **Book Stacks redesigned as a real maze**: replaced the 420-stack
+        random-scatter (only a sparse subset ever collided, so it visually
+        read as clutter without being a real obstacle) with 4 concentric
+        rings of colliding shelf segments around Chippy (`MAZE_RINGS`, 12-24
+        segments per ring, 30-45% left open as gaps), built via `tiltDir()`
+        for deterministic, evenly-spaced placement.
+      - **Maze solvability verification was the hard part.** `walkToward()`
+        (the existing debug helper) got Beanie stuck at an identical distance
+        forever partway through the rings — traced to `walkToward` always
+        steering straight at the final target every step, so it can never
+        sidestep a wall sitting directly on that bearing (it has no lateral-
+        avoidance logic, unlike a real player who can turn to face a visible
+        gap and walk toward *that* instead). Added a new `turnStep(turnRad,
+        seconds)` debug primitive that mirrors the real keyboard scheme
+        exactly (turn in place, THEN walk straight — never both at once,
+        confirmed by reading `updateWalk()`'s actual Arrow-key handling),
+        then drove a wall-following navigator (seek target; on full block,
+        turn a fixed increment and keep walking until clear) through 4+ fresh
+        random layouts — all reached Chippy.
+      - **Found and fixed a real softlock bug along the way**: the "grand"
+        landmark book tower used `dirNear(chippyN, 2.0)`, but `dirNear()` is
+        `normalize(n + spread*randomUnitVector)` — for a spread this large it
+        does NOT reliably control angular distance from `n` (unlike
+        `tiltDir()`, which the maze rings correctly use), so it could land
+        almost anywhere on the sphere. One test run reproduced it landing
+        directly on Beanie's own spawn point, blocking her in every direction
+        from the very first frame — a genuine first-quest softlock. Fixed by
+        switching to `tiltDir(chippyN, 1.8, randomAzimuth)` (fixed angular
+        distance, random azimuth only) plus a rejection-sampling reroll
+        against `landN` (same `LAND_CLEAR` pattern the maze rings already
+        use), since the landing spot itself sits at almost the same ~1.8 rad
+        from Chippy and a random azimuth alone wasn't enough clearance.
 - [x] Chippy's book-pile visibility, guide/locator dialogue-hiding clarified
       (2026-07-15, later still same day): user screenshot during a Chippy
       conversation asked why the guide compass and 3D locator weren't
