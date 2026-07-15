@@ -1218,7 +1218,7 @@ function makeCucumber(scale=1){
   return g;
 }
 // cute stylized foods for the Food world
-const FOOD_TYPES = ['burger','icecream','cake','donut','pizza','fries','sushi'];
+const FOOD_TYPES = ['burger','icecream','cake','donut','pizza','fries','sushi','popsicle','watermelon','hotdog'];
 function makeFood(type){
   const g = new THREE.Group();
   const M = (c, o={}) => mat(c, { roughness:0.8, ...o });
@@ -1245,7 +1245,12 @@ function makeFood(type){
     for (let i=0;i<10;i++){ const a=i*1.9; const s=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.03,0.08),M([0xfff0d0,0x9fd8d0,0xf6e0a8][i%3])); s.position.set(Math.cos(a)*0.26,0.3,Math.sin(a)*0.26); s.rotation.y=a; g.add(s); }
   } else if (type === 'pizza'){
     const sl=new THREE.Mesh(new THREE.CircleGeometry(0.5,16,0,1.1),M(0xf6d28a)); sl.rotation.x=-Math.PI/2; sl.position.y=0.05; g.add(sl);
-    const cr=new THREE.Mesh(new THREE.TorusGeometry(0.5,0.05,6,16,1.1),M(0xe0a85c)); cr.rotation.x=Math.PI/2; cr.position.y=0.05; g.add(cr);
+    // Must match the slice's OWN rotation sign (-PI/2), not its mirror image
+    // (+PI/2) — both share the same thetaLength wedge angle, so a flipped
+    // sign here rotates the crust arc to the opposite side of the circle
+    // than the slice wedge it's supposed to hug, reading as a totally
+    // separate floating ring instead of the slice's outer edge.
+    const cr=new THREE.Mesh(new THREE.TorusGeometry(0.5,0.05,6,16,1.1),M(0xe0a85c)); cr.rotation.x=-Math.PI/2; cr.position.y=0.05; g.add(cr);
     // pepperoni must land inside the slice's actual wedge (CircleGeometry
     // thetaLength=1.1 rad sweeping x=r*cos(theta), z=-r*sin(theta)) — placing
     // them with plain independent x/z randomness scatters half of them off
@@ -1255,10 +1260,27 @@ function makeFood(type){
   } else if (type === 'fries'){
     const box=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.14,0.32,4),M(0xd84a4a)); box.position.y=0.16; box.rotation.y=Math.PI/4; g.add(box);
     for (let i=0;i<7;i++){ const f=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.4,0.04),M(0xf6cf6a)); f.position.set((Math.random()-0.5)*0.2,0.4,(Math.random()-0.5)*0.2); f.rotation.z=(Math.random()-0.5)*0.4; g.add(f); }
-  } else { // sushi
+  } else if (type === 'sushi'){
     const rice=new THREE.Mesh(new THREE.CapsuleGeometry(0.16,0.3,4,10),M(0xfbf6ee)); rice.rotation.z=Math.PI/2; rice.position.y=0.16; g.add(rice);
     const fish=new THREE.Mesh(new THREE.BoxGeometry(0.44,0.1,0.28),M(0xf29a7a)); fish.position.y=0.3; g.add(fish);
     const nori=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.34,0.32),M(0x2c3a2c)); nori.position.y=0.2; g.add(nori);
+  } else if (type === 'popsicle'){
+    const pop=new THREE.Mesh(new THREE.BoxGeometry(0.32,0.55,0.12),M(0xf07a9a)); pop.position.y=0.5; g.add(pop);
+    const stick=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.35,0.05),M(0xe0c090)); stick.position.y=0.05; g.add(stick);
+  } else if (type === 'watermelon'){
+    // a half-melon: a dome (rind) + a flat disc (flesh) just above its cut
+    // plane — no wedge angle to align between two pieces (unlike the pizza
+    // slice/crust), so there's no risk of the same mirrored-sign bug.
+    const rind=new THREE.Mesh(new THREE.SphereGeometry(0.38,16,10,0,Math.PI*2,0,Math.PI/2),M(0x2e7d3a));
+    rind.position.y=0.05; g.add(rind);
+    const flesh=new THREE.Mesh(new THREE.CircleGeometry(0.36,16),M(0xe8536a));
+    flesh.rotation.x=-Math.PI/2; flesh.position.y=0.06; g.add(flesh);
+    for (let i=0;i<8;i++){ const a=Math.random()*6.28, r=Math.random()*0.28;
+      const seed=new THREE.Mesh(new THREE.SphereGeometry(0.025,6,5),M(0x1a1a1a)); seed.position.set(Math.cos(a)*r,0.07,Math.sin(a)*r); g.add(seed); }
+  } else { // hotdog
+    const bun=new THREE.Mesh(new THREE.CapsuleGeometry(0.16,0.55,4,10),M(0xe0b878)); bun.rotation.z=Math.PI/2; bun.position.y=0.18; g.add(bun);
+    const sausage=new THREE.Mesh(new THREE.CapsuleGeometry(0.11,0.5,4,10),M(0xa85c40)); sausage.rotation.z=Math.PI/2; sausage.position.y=0.3; g.add(sausage);
+    const mustard=new THREE.Mesh(new THREE.TorusGeometry(0.02,0.02,4,8),M(0xe8c23a)); mustard.rotation.x=Math.PI/2; mustard.position.set(0,0.37,0); g.add(mustard);
   }
   return g;
 }
@@ -1764,7 +1786,7 @@ function buildCucumber(g, R){
   solidRing.rotation.x = RING_TILT_X; solidRing.rotation.z = RING_TILT_Z;
   solidRing.scale.z = RING_ELLIPSE_SQUASH;
   const solidMat = mat(RING_DARK_GREEN, { roughness:0.6, emissive:RING_DARK_GREEN, emissiveIntensity:0.12,
-    side:THREE.DoubleSide });
+    side:THREE.DoubleSide, transparent:true });   // transparent so the reveal cutscene can fade it out
   const solidDisc = new THREE.Mesh(new THREE.RingGeometry(mainInnerR, outerOuterR, 96, 1), solidMat);
   solidRing.add(solidDisc);
   g.add(solidRing);
@@ -1831,7 +1853,11 @@ function buildCucumber(g, R){
   // scatter) so it reads as a disc, not a puffy band.
   buildRing(2600, (mainInnerR+mainOuterR)/2, RING_TILT_X, RING_TILT_Z, 0.16, BAND_MAIN, 1.0);
   buildRing(1400, (outerInnerR+outerOuterR)/2, RING_TILT_X, RING_TILT_Z, 0.11, BAND_OUTER, 0.7);
-  // some cucumbers resting in the grass — hidden until the reveal, same as the ring
+  // some cucumbers resting in the grass — hidden until the reveal, same as the
+  // ring. Any one of these becomes pickable once revealed (see
+  // nearestFoodPickup()), not just the one dedicated glowing cuke below —
+  // wrapped the same {holder,taken,name} shape pickupFood() already expects
+  // so picking one up needs no special-case handling anywhere downstream.
   const groundCucumberHolders = [];
   for (let i = 0; i < 90; i++){
     const holder = new THREE.Group();
@@ -1840,7 +1866,7 @@ function buildCucumber(g, R){
     holder.add(c);
     holder.visible = false;
     placeOn(g, holder, randDir(), R, 0.3);
-    groundCucumberHolders.push(holder);
+    groundCucumberHolders.push({ holder, taken:false, name:'cucumber' });
   }
   // pastel wildflower dots
   for (let i = 0; i < 300; i++){
@@ -1849,26 +1875,54 @@ function buildCucumber(g, R){
     const holder = new THREE.Group(); holder.add(f); f.position.y = 0.12;
     placeOn(g, holder, randDir(), R, 0.1);
   }
-  // this meadow used to be bbak's icy home before it thawed into grass — a
-  // few pale, patchy, faintly wet-looking remnants of snow are scattered
-  // around as a quiet visual nod to that backstory, always visible (not
-  // gated by the cucumber reveal, unlike the ring/ground-cucumbers above).
+  // this meadow used to be bbak's icy home before it thawed into grass — real
+  // snow-pile MOUNDS (a squashed sphere, not a flat circle — genuine 3D
+  // volume you can see the roundness of from any angle) scattered around as
+  // a quiet visual nod to that backstory, always visible (not gated by the
+  // cucumber reveal, unlike the ring/ground-cucumbers above).
+  // She always arrives on the side facing whatever world she jumped from
+  // (the same default the game itself falls back to — see the `landN ||`
+  // fallback used everywhere a body has no explicit override), so that's
+  // her real landing spot here too. With piles up to radius 3 scattered
+  // fully at random across a planet this small, one landing right next to
+  // her was near-guaranteed and buried the close landing-cam shot in a
+  // wall of snow. Keep a clear radius around that spot, same pattern as
+  // the Book Stacks maze's LAND_CLEAR.
+  const cukeLandN = V().subVectors(bodies[1].center, bodies[2].center).normalize();
+  const CUKE_LAND_CLEAR = 6;
+  function randDirClearOfLanding(){
+    let n;
+    do { n = randDir(); } while (n.angleTo(cukeLandN) < CUKE_LAND_CLEAR/R);
+    return n;
+  }
+  function makeSnowPile(radius){
+    // squashed sphere with a bit of extra random lumpiness per-instance
+    // (slight non-uniform scale on x/z) so a field of these doesn't read as
+    // identical stamped-out discs — bumped whiter/more opaque than the
+    // original flat-circle pass, too: against the sage-green grass
+    // (PALETTE.moss, itself fairly pale/muted) anything much less than
+    // near-solid white barely registered as snow at all.
+    const mound = new THREE.Mesh(new THREE.SphereGeometry(radius, 14, 10),
+      mat(0xf3faff, { roughness:0.35 }));
+    mound.scale.set(1 + (Math.random()-0.5)*0.3, 0.42 + Math.random()*0.1, 1 + (Math.random()-0.5)*0.3);
+    const holder = new THREE.Group(); holder.add(mound);
+    return holder;
+  }
   for (let i = 0; i < 70; i++){
-    // bumped whiter/more opaque than the first pass — against the sage-green
-    // grass (PALETTE.moss, itself fairly pale/muted) a 50-75%-opacity patch
-    // barely registered; a near-solid, cooler white reads clearly as snow.
-    const patch = new THREE.Mesh(new THREE.CircleGeometry(0.6 + Math.random()*0.7, 10),
-      mat(0xf3faff, { roughness:0.3, transparent:true, opacity:0.78 + Math.random()*0.18 }));
-    patch.rotation.x = -Math.PI/2;
-    patch.scale.set(1, 0.6 + Math.random()*0.5, 1);
-    patch.rotation.z = Math.random()*Math.PI;
-    const holder = new THREE.Group(); holder.add(patch);
-    placeOn(g, holder, randDir(), R, 0.04);
+    const radius = 1.3 + Math.random()*1.7;   // bigger than the old flat-circle pass (was 0.6-1.3)
+    const holder = makeSnowPile(radius);
+    holder.rotation.y = Math.random()*Math.PI*2;
+    placeOn(g, holder, randDirClearOfLanding(), R, radius*0.1);
   }
   // bbak (sleeping polar-bear plush) lounging on the grass — the NPC
   const bbakN = V().set(-0.25, 1, 0.35).normalize();
+  // He gets his own notably WIDE, prominent snow pile — not just one of the
+  // same small background patches everyone else gets — reading as "this one
+  // polar bear still has his own little patch of his old home to rest on".
+  const BBAK_SNOW_RADIUS = 3.4;
+  placeOn(g, makeSnowPile(BBAK_SNOW_RADIUS), bbakN, R, BBAK_SNOW_RADIUS*0.1);
   const bbak = new THREE.Group();
-  placeOn(g, bbak, bbakN, R, 0.1);
+  placeOn(g, bbak, bbakN, R, BBAK_SNOW_RADIUS*0.32);
   bbak.rotateY(1.2);
   let bbakModel = null;
   loadModel('./game-assets/bbak/bbak.glb').then((model) => {
@@ -1886,24 +1940,30 @@ function buildCucumber(g, R){
     placeOn(g, holder, n, R, 0.1);
   }
   // ---- pickable "cold treats" (glowing) she can bring to bbak ----
-  const COLD = ['icecream','cake','donut','pizza','burger','fries'];
+  // Expanded from 6 types/6 instances (one each) to 10 types/14 instances —
+  // one-of-each on a whole R=45 planet meant a long walk to find each next
+  // try; more instances (cycling through the type list) means there's
+  // almost always one within easy reach regardless of which tries are used up.
+  const COLD = ['icecream','cake','donut','pizza','burger','fries','sushi','popsicle','watermelon','hotdog'];
+  const FOOD_PICKUP_COUNT = 14;
   const foods = [];
-  for (let i = 0; i < 6; i++){
+  for (let i = 0; i < FOOD_PICKUP_COUNT; i++){
+    const type = COLD[i % COLD.length];
     const holder = new THREE.Group();
-    const f = makeFood(COLD[i]); f.scale.setScalar(1.25*2); holder.add(f);   // 2x bigger
+    const f = makeFood(type); f.scale.setScalar(1.25*2); holder.add(f);   // 2x bigger
     const halo = new THREE.Mesh(new THREE.SphereGeometry(1.1, 12, 10),
       new THREE.MeshBasicMaterial({ color:0xbfe6ff, transparent:true, opacity:0.22, depthWrite:false }));
     halo.position.y = 0.5; holder.add(halo);
     const beacon = new THREE.Mesh(new THREE.OctahedronGeometry(0.28),
       mat(0xbfe6ff, { emissive:0x9fd8f0, emissiveIntensity:2.2, roughness:0.3 }));
     beacon.position.y = 2.4; holder.add(beacon);
-    const n = dirNear(bbakN, 0.7 + (i/6)*1.7 + Math.random()*0.3);
+    const n = dirNear(bbakN, 0.7 + (i/FOOD_PICKUP_COUNT)*1.7 + Math.random()*0.3);
     placeOn(g, holder, n, R, 0.1);
     const ph = i*1.1;
     animators.push((t) => { if (!holder.visible) return;
       f.rotation.y = t*0.7 + ph; beacon.rotation.y = t*1.6; beacon.position.y = 2.4 + 0.2*Math.sin(t*2 + ph);
       halo.material.opacity = 0.16 + 0.08*Math.sin(t*2 + ph); });
-    foods.push({ holder, taken:false, name: COLD[i] });
+    foods.push({ holder, taken:false, name: type });
   }
   // ---- the special COLD cucumber (revealed only after bbak's hint) ----
   const cukeN = dirNear(bbakN, 2.4);
@@ -1920,7 +1980,7 @@ function buildCucumber(g, R){
   animators.push((t) => { if (!cuke.visible) return;
     cukeBeacon.rotation.y = t*1.8; cukeBeacon.position.y = 2.6 + 0.25*Math.sin(t*2);
     cukeHalo.material.opacity = 0.2 + 0.1*Math.sin(t*2.2); });
-  return { bbak, bbakN, foods, cuke, cukeN, solidRing,
+  return { bbak, bbakN, foods, cuke, cukeN, solidRing, solidMat,
     setSolidSpinScale: (s) => { solidSpinScale = s; },
     cukeRingGroups, groundCucumberHolders };
 }
@@ -2001,7 +2061,8 @@ function buildPigeons(g, R, ctx){
   const TAU = Math.PI*2;
   // Each pigeon is ~13 separate meshes (no instancing), so raw count is the
   // single biggest lag lever on this planet — 850 was ~11k draw calls.
-  const PIGEON_COUNT = 260;
+  // Doubled again per request (260->520) despite that cost.
+  const PIGEON_COUNT = 520;
   for (let i = 0; i < PIGEON_COUNT; i++){
     const pg = plushPigeon(PIGEON_VARIANTS[i % PIGEON_VARIANTS.length]);
     pg.scale.setScalar(0.8 + Math.random()*0.4);
@@ -2041,9 +2102,12 @@ function buildPigeons(g, R, ctx){
       });
     }
   }
-  // some genuinely flying overhead
+  // some genuinely flying overhead — bumped well past the ground crowd's own
+  // 2x (18->42, more than double) since the request was specifically for a
+  // bigger PROPORTION continuously flying, not just an equal across-the-
+  // board scale-up.
   const flying = [];
-  for (let i = 0; i < 18; i++){
+  for (let i = 0; i < 42; i++){
     const pg = plushPigeon(PIGEON_VARIANTS[(i+1) % PIGEON_VARIANTS.length]);
     pg.scale.setScalar(0.75);   // facing is handled by orbiter's faceTravel now
     const ph = Math.random()*7;
@@ -2454,7 +2518,8 @@ const bbakQuest = { phase:0, tries:0, need:4, holding:null, cukeRevealed:false }
 function bbakPos(out){ return worldRefs.cucumber.bbak.getWorldPosition(out || new THREE.Vector3()); }
 const BBAK_INTRO = [
   `Hnngh… oh, hi Rachel. *pant pant* It is SO hot out here… 🥵`,
-  `This global-warming business is melting my brain. I need something COLD.`,
+  `This whole place used to be solid ice and snow, believe it or not. Now it's all melted into... this. A meadow.`,
+  `This global-warming business is melting my brain, too. I need something COLD.`,
   `Fetch me a cold treat? Grab a glowy snack (press A) and bring it back to me.`,
 ];
 // A reaction PER FOOD TYPE — bbak actually comments on whatever she tossed him,
@@ -2466,6 +2531,10 @@ const BBAK_FOOD_REACTIONS = {
   pizza:    [`*CATCH* Pizza smells incredible… but this is basically the OPPOSITE of cold!`],
   burger:   [`*CATCH* A burger?! That's hot off the grill, not cold at ALL.`],
   fries:    [`*CATCH* Fries are delicious and also very much not cold. 🍟`],
+  sushi:    [`*CATCH* Ooh, fancy… but room-temperature fish isn't exactly a cold treat, Rachel.`],
+  popsicle: [`*CATCH* A popsicle! …which already melted into a puddle on the way here. 😅`],
+  watermelon:[`*CATCH* Watermelon! Juicy, but it's been baking in the sun same as me. Still warm.`],
+  hotdog:   [`*CATCH* A HOT dog?! That is, quite literally, the opposite of what I asked for.`],
 };
 const BBAK_HINT = [
   `*flops dramatically* Okay. New plan, let me give you a hint, Rachel.`,
@@ -2516,13 +2585,34 @@ function nearestFood(){
 function nearestFoodPickup(){
   if (!worldRefs.cucumber) return null;
   if (bbakQuest.phase < 1) return null;   // nothing to pick up until bbak actually asks for something cold
-  const R = 3.0, cuke = worldRefs.cucumber.cuke;
-  if (cuke.visible && her.position.distanceTo(cuke.getWorldPosition(new THREE.Vector3())) < R) return { cuke:true };
+  const R = 3.0, wr = worldRefs.cucumber;
   let best=null, bd=R;
-  for (const f of worldRefs.cucumber.foods){ if (f.taken) continue;
-    const d = her.position.distanceTo(f.holder.getWorldPosition(new THREE.Vector3()));
-    if (d<bd){ bd=d; best=f; } }
+  const consider = (obj, d) => { if (d < bd){ bd = d; best = obj; } };
+  // any cucumber works, not just the one dedicated glowing one — the ground
+  // cucumbers that grew in during the reveal are equally pickable now.
+  if (wr.cuke.visible) consider({ cuke:true }, her.position.distanceTo(wr.cuke.getWorldPosition(new THREE.Vector3())));
+  for (const c of wr.groundCucumberHolders){
+    if (c.taken || !c.holder.visible) continue;
+    consider(c, her.position.distanceTo(c.holder.getWorldPosition(new THREE.Vector3())));
+  }
+  for (const f of wr.foods){
+    if (f.taken) continue;
+    consider(f, her.position.distanceTo(f.holder.getWorldPosition(new THREE.Vector3())));
+  }
   return best;
+}
+// nearest pickable cucumber's world position — the one dedicated glowing
+// cuke, or whichever ground cucumber (grown in at the reveal) is closest.
+function nearestCukePos(out){
+  const wr = worldRefs.cucumber;
+  let best = wr.cuke.visible ? wr.cuke : null;
+  let bd = best ? her.position.distanceTo(best.getWorldPosition(new THREE.Vector3())) : Infinity;
+  for (const c of wr.groundCucumberHolders){
+    if (c.taken || !c.holder.visible) continue;
+    const d = her.position.distanceTo(c.holder.getWorldPosition(new THREE.Vector3()));
+    if (d < bd){ bd = d; best = c.holder; }
+  }
+  return best ? best.getWorldPosition(out || new THREE.Vector3()) : bbakPos(out);
 }
 function refreshBbakGuide(){
   const b = bodies[2];
@@ -2530,8 +2620,8 @@ function refreshBbakGuide(){
   if (bbakQuest.holding){ b.guideLabel = '🐻‍❄️ take it back to bbak'; b.guideFn = () => bbakPos(); return; }
   if (bbakQuest.phase === 0){ b.guideLabel = '🐻‍❄️ find bbak'; b.guideFn = () => bbakPos(); return; }
   if (bbakQuest.cukeRevealed){
-    b.guideLabel = '🥒 fetch the glowing cucumber, press A';
-    b.guideFn = () => worldRefs.cucumber.cuke.getWorldPosition(new THREE.Vector3());
+    b.guideLabel = '🥒 grab any cucumber (press A), then bring it to bbak';
+    b.guideFn = () => nearestCukePos();
     return;
   }
   b.guideLabel = '🍨 grab a cold treat (press A), then bring it to bbak';
@@ -2539,7 +2629,8 @@ function refreshBbakGuide(){
 }
 bodies[2].guideNear = 3.6;
 // ---- food pocket HUD: shows the single item she's currently carrying ----
-const FOOD_ICONS = { icecream:'🍨', cake:'🍰', donut:'🍩', pizza:'🍕', burger:'🍔', fries:'🍟', cucumber:'🥒' };
+const FOOD_ICONS = { icecream:'🍨', cake:'🍰', donut:'🍩', pizza:'🍕', burger:'🍔', fries:'🍟', cucumber:'🥒',
+  sushi:'🍣', popsicle:'🍡', watermelon:'🍉', hotdog:'🌭' };
 const foodPocketEl = document.getElementById('foodPocket');
 const foodPocketIconEl = document.getElementById('foodPocketIcon');
 const foodPocketLabelEl = document.getElementById('foodPocketLabel');
@@ -2580,6 +2671,15 @@ function talkBbak(){
   if (bbakQuest.phase >= 2) return;
   const h = bbakQuest.holding;
   if (!h){ startDialog([`Bring me something cold, please… anything! 🥵`], null, npc); return; }
+  // Enter conversation mode/camera FIRST, before the toss itself plays, so
+  // it reads as part of the scene with bbak — the two-shot conversation
+  // camera engages as soon as `dialog.npcPos` is set (see updateTalkCam()),
+  // no dialogue TEXT needs to be showing yet. startDialog() (called once
+  // the toss lands, below) will overwrite `dialog` with the real reaction
+  // lines and start typing them, same as any other conversation.
+  state = 'talk';
+  dialog = { npcPos: npc.npcPos, npcObj: npc.npcObj };
+  hideNearbyObstacles(npc.npcObj);
   // she hands it over — clear the pocket right away, then toss the exact food
   // she was holding through the air into bbak's mouth before he reacts to it.
   bbakQuest.holding = null; refreshFoodPocket();
@@ -2622,6 +2722,11 @@ function startCukeRevealCutscene(){
   cukeReveal.basisA = arbitraryPerp(up);
   cukeReveal.basisB = new THREE.Vector3().crossVectors(up, cukeReveal.basisA).normalize();
 }
+// The ring's transformation window within the 7s cutscene: starts once the
+// solid ring has visibly slowed, then runs a genuine 3s crossfade (not an
+// instant swap) with enough runway left afterward to actually see the
+// result before the title card takes over.
+const RING_FADE_START = 2.3, RING_FADE_DUR = 3.0;
 function updateCukeReveal(dt, t){
   const cr = cukeReveal, wr = worldRefs.cucumber, b = bodies[2];
   cr.t += dt;
@@ -2637,21 +2742,56 @@ function updateCukeReveal(dt, t){
   camera.position.copy(camPos);
   camera.up.copy(camUp);
   camera.lookAt(tmpV2.copy(b.center));
-  // the solid ring's spin winds down to a stop by the halfway point…
+  // the solid ring's spin winds down to a stop before the transformation begins…
   wr.setSolidSpinScale(Math.max(0, 1 - k*2.2));
-  // …while the real cucumber ring + ground cucumbers fade in as a hard swap
-  // right at the midpoint, with a burst of sparkles to sell the "reveal".
-  if (k > 0.5 && !cr.swapped){
-    cr.swapped = true;
-    wr.solidRing.visible = false;
+  // …then it visibly DISSOLVES over RING_FADE_DUR seconds while the real
+  // cucumber-built ring fades in underneath it (a crossfade, not a hard
+  // visibility toggle), and the ground cucumbers sprout up out of the grass
+  // on their own staggered timers, kicked off at the same moment.
+  const fadeK = Math.max(0, Math.min(1, (cr.t - RING_FADE_START)/RING_FADE_DUR));
+  if (fadeK > 0 && !cr.fadeStarted){
+    cr.fadeStarted = true;
     for (const ring of wr.cukeRingGroups) ring.visible = true;
-    for (const h of wr.groundCucumberHolders) h.visible = true;
-    for (let i = 0; i < 24; i++)
-      spawnEphemeral(new THREE.Mesh(sparkGeo, sparkMat), b.center.clone().addScaledVector(up, b.r + 6),
-        randDir().multiplyScalar(6 + Math.random()*6), 1.2 + Math.random(), 4);
-    playChime();
+    if (cucumberMat){ cucumberMat.transparent = true; cucumberMat.opacity = 0; }
+    startGroundCucumberGrowth(wr.groundCucumberHolders, RING_FADE_DUR + 0.5);
+  }
+  if (cr.fadeStarted){
+    wr.solidMat.opacity = 1 - fadeK;
+    if (cucumberMat) cucumberMat.opacity = fadeK;
+    if (fadeK >= 1 && !cr.solidHidden){
+      cr.solidHidden = true;
+      wr.solidRing.visible = false;
+      for (let i = 0; i < 24; i++)
+        spawnEphemeral(new THREE.Mesh(sparkGeo, sparkMat), b.center.clone().addScaledVector(up, b.r + 6),
+          randDir().multiplyScalar(6 + Math.random()*6), 1.2 + Math.random(), 4);
+      playChime();
+    }
   }
   if (k >= 1) finishCukeReveal();
+}
+// Ground cucumbers pop up out of the grass on independent staggered timers
+// (random delay across `spread` seconds, then a quick eased grow-in) instead
+// of an instant mass visibility toggle — self-removing animator, same
+// pattern tossFoodToBbak()'s flight step uses.
+function startGroundCucumberGrowth(cukes, spread){
+  const GROW_DUR = 0.5;
+  const entries = cukes.map((f) => ({ f, delay: Math.random()*spread, grown:false }));
+  for (const e of entries){ e.f.holder.visible = true; e.f.holder.scale.setScalar(0.001); }
+  let elapsed = 0;
+  function anim(_, dt){
+    elapsed += dt;
+    let allDone = true;
+    for (const e of entries){
+      if (e.grown) continue;
+      const local = elapsed - e.delay;
+      if (local <= 0){ allDone = false; continue; }
+      const k2 = Math.min(1, local/GROW_DUR);
+      e.f.holder.scale.setScalar(Math.max(0.001, 1 - Math.pow(1-k2, 3)));   // easeOutCubic pop
+      if (k2 >= 1) e.grown = true; else allDone = false;
+    }
+    if (allDone) animators.splice(animators.indexOf(anim), 1);
+  }
+  animators.push(anim);
 }
 function finishCukeReveal(){
   cukeReveal = null;
@@ -2835,6 +2975,76 @@ function doReunion(){
   beginPercyFlight();
 }
 refreshPlazaGuide();
+// QA shortcut only (press P): instantly gives whatever the CURRENT world's
+// quest needs next, one step per press — a book for Chippy, a wrong-guess
+// food (then eventually the cucumber) for bbak, one pigeon "met" for Percy —
+// so testing later quest states doesn't require replaying every pickup/walk
+// each time. Silently mutates state (no toss/dialogue playback) since the
+// whole point is skipping the legwork; a toast just confirms what happened.
+function qaGiveNext(){
+  if (curI === 1){                                   // Main Stacks: a book for Chippy
+    if (booksQuest.phase === 0){
+      meetFriend('chippy'); booksQuest.phase = 1; refreshBooksGuide(); setMission(bodies[1].mission);
+      showToast('📖 QA: met Chippy', 'mission revealed'); return;
+    }
+    if (booksQuest.got < booksQuest.need){
+      const gb = worldRefs.books.giftBooks.find((b) => !b.taken);
+      if (gb) pickupBook(gb);
+      showToast(`📖 QA: gave Chippy a book`, `${booksQuest.got}/${booksQuest.need}`); return;
+    }
+    if (booksQuest.phase < 2){
+      booksQuest.phase = 2; bodies[1].missionDone = true;
+      setMission('<b>MISSION:</b> aim past the tallest stack and <b>leap</b> to the next world!');
+      showToast('📖 QA: quest complete', 'jump unlocked');
+    }
+    return;
+  }
+  if (curI === 2){                                   // Emerald Meadow: food for bbak
+    if (bbakQuest.phase === 0){
+      meetFriend('bbak'); bbakQuest.phase = 1; refreshBbakGuide(); setMission(bodies[2].mission);
+      showToast('🐻‍❄️ QA: met bbak', 'mission revealed'); return;
+    }
+    if (bbakQuest.phase >= 2) return;
+    if (bbakQuest.cukeRevealed){
+      bbakQuest.phase = 2; bodies[2].missionDone = true;
+      bbakQuest.holding = null; refreshFoodPocket();   // in case she was already holding something else
+      setMission('<b>MISSION:</b> aim at the next world and <b>leap</b>!');
+      refreshBbakGuide();
+      showToast('🥒 QA: gave bbak the cucumber', 'quest complete'); return;
+    }
+    bbakQuest.tries++;
+    const justRevealed = bbakQuest.tries >= bbakQuest.need;
+    if (justRevealed){ bbakQuest.cukeRevealed = true; worldRefs.cucumber.cuke.visible = true; refreshBbakGuide(); startCukeRevealCutscene(); }
+    showToast(`🍨 QA: gave bbak a wrong food (try ${bbakQuest.tries}/${bbakQuest.need})`,
+      justRevealed ? 'cucumber revealed!' : 'try again');
+    return;
+  }
+  if (curI === PIGEON_I){                            // Pigeon Plaza: "meet" the current pigeon
+    if (plazaQuest.phase === 'intro'){
+      meetFriend('percy'); plazaQuest.step = 0; spawnNextDecoy(); setMission(bodies[PIGEON_I].mission);
+      showToast('🕊️ QA: met Percy', 'mission revealed'); return;
+    }
+    if (plazaQuest.phase === 'searching' && plazaQuest.active){
+      meetFriend(plazaQuest.active.userData.cfg.name); plazaQuest.step++; spawnNextDecoy();
+      showToast('🕊️ QA: met a pigeon', `${plazaQuest.step}/${PLAZA_DECOYS.length}`); return;
+    }
+    if (plazaQuest.phase === 'giveup'){
+      plazaQuest.phase = 'seek-doodles'; plazaQuest.doodles = spawnStoryPigeon(DOODLES_CFG); refreshPlazaGuide();
+      showToast('🕊️ QA: back to Percy', 'now seeking Doodles'); return;
+    }
+    if (plazaQuest.phase === 'seek-doodles'){
+      meetFriend(DOODLES_CFG.name); plazaQuest.phase = 'bring-doodles'; refreshPlazaGuide();
+      showToast('🦤 QA: met Doodles', 'bring back to Percy'); return;
+    }
+    if (plazaQuest.phase === 'bring-doodles'){
+      plazaQuest.phase = 'done'; bodies[PIGEON_I].missionDone = true; doReunion();
+      showToast('🕊️ QA: reunion!', 'quest complete');
+    }
+  }
+}
+addEventListener('keydown', (e) => {
+  if ((e.key === 'p' || e.key === 'P') && state === 'walk') qaGiveNext();
+});
 
 /* ---------- beanie: real rigged Blender model (game-assets/beanie/beanie.glb) ----------
    Loaded async into a placeholder Group, same pattern as the other real models.
@@ -3297,10 +3507,17 @@ function updateAim(t){
     document.body.dataset.aimAngle = ang.toFixed(3);
     document.body.dataset.aimThreshold = th.toFixed(3);
     document.body.dataset.targetDistance = surf.toFixed(2);
-    // 800 (was 250) — world positions were doubled again for spacing, so the
-    // real inter-world surf gaps now run up to ~670 (Cucumber->Pigeon); the
-    // old 250 cap would have made every hop past Chicago un-lockable.
-    if (surf < 800 && ang < th && cur.missionDone) target = b;   // gated: finish the mission first
+    // 1000 (was 800, before that 250) — that comment's own "~670" number was
+    // already stale by the time it was written: repositioning Cucumber
+    // Meadow to fix its angular overlap with Main Stacks (see WORLD_DEFS)
+    // pushed Cucumber->Pigeon to ~936, quietly exceeding the 800 cap. That's
+    // not "hard to aim", it's IMPOSSIBLE to ever lock at any camera angle —
+    // confirmed live (aimAtBody's full pitch/yaw sweep failed entirely, even
+    // though her raw facing was within 2° of dead-on) — a real softlock at
+    // Cucumber Meadow, since the aim-lock is the only way past it. Current
+    // chain-hop surf gaps: Chicago->Books ~282, Books->Cucumber ~680,
+    // Cucumber->Pigeon ~936; 1000 clears all three with real margin.
+    if (surf < 1000 && ang < th && cur.missionDone) target = b;   // gated: finish the mission first
   } else {
     delete document.body.dataset.nextBody;
     delete document.body.dataset.aimAngle;
@@ -3487,9 +3704,25 @@ function updateLanding(dt){
     // bottom-left, the way a real camera would tumble with an impact.
     const fwd = herFwd(new THREE.Vector3());
     const side = new THREE.Vector3().crossVectors(up, fwd).normalize();
-    const dist = 4.0;
+    // The dust burst (spawnLandingDustBurst) erupts from this exact spot at
+    // t=0 and, per its own "much bigger cloud" sizing, is easily wide enough
+    // to fully engulf a camera sitting at a fixed close distance for the
+    // first couple seconds — verified live: at dist 4.0 fixed, she was still
+    // almost entirely hidden behind dust puffs at landing.t=1.6s. Instead of
+    // shrinking the cloud back down (it was sized this big on request), ease
+    // the camera in from a wide establishing distance (reads as "the big
+    // dust cloud swallows her on impact") down to the close diagonal shot
+    // over DUST_CLEAR_EASE seconds, arriving right around when the puffs
+    // have traveled clear of her.
+    const DUST_CLEAR_EASE = 1.6;
+    const easeT = Math.min(1, landing.t / DUST_CLEAR_EASE);
+    const easeOut = 1 - Math.pow(1 - easeT, 3);
+    const dist = 9.0 - (9.0 - 4.0) * easeOut;
+    // Camera sits BEHIND her (-fwd), matching followCam's convention —
+    // using +fwd here previously put the camera in front of her face,
+    // clipping straight into her own head instead of framing her body.
     const camPos2 = new THREE.Vector3().copy(her.position)
-      .addScaledVector(side, dist*0.55).addScaledVector(fwd, dist*0.75).addScaledVector(up, dist*0.5);
+      .addScaledVector(side, dist*0.55).addScaledVector(fwd, -dist*0.75).addScaledVector(up, dist*0.5);
     camera.position.copy(camPos2);
     camera.up.copy(new THREE.Vector3().copy(up).addScaledVector(side, -0.6).normalize());
     camera.lookAt(new THREE.Vector3().copy(her.position).addScaledVector(up, 1.2));
@@ -3570,13 +3803,14 @@ function arrive(bi){
   curI = bi;
   state = 'walk';
   camYaw = 0;
-  // Main Stacks sits fairly high in Chicago's sky relative to how far this
-  // camera looks down by default (0.3) — she now faces it correctly (see the
-  // Chicago-letter completion callback above), but the standard resting pitch
-  // still left it entirely out of frame, needing a big blind drag upward to
-  // ever find it. -0.55 brings it clearly into view without fully locking the
-  // aim for her, so "drag/swipe to aim" still means something.
-  camPitch = bi === 0 ? -0.55 : 0.3;
+  // Same class of fix as Chicago's Main Stacks (above): the standard resting
+  // pitch (0.3) looks too far down for the next world's actual elevation, so
+  // the default view leaves it out of frame — confirmed live for Cucumber
+  // Meadow -> Pigeon Plaza specifically (needed camPitch ~-0.45 to lock,
+  // despite her raw body FACING already being within ~2° of dead-on — the
+  // follow-camera's own fixed downward offset, not her facing, is what's off).
+  // -0.25 brings it clearly into view without fully locking the aim for her.
+  camPitch = bi === 0 ? -0.55 : bi === 2 ? -0.25 : 0.3;
   updatePose();
   restoreObstacles();   // un-hide whatever startLandingSequence() cleared for the fall/get-up + orbit/title beat
   hudEl.classList.remove('hidden');   // re-reveal after showPlanetTitle() hid it for the title card
@@ -4086,7 +4320,8 @@ function updateWalk(dt){
       : '🕊️ press SPACE to talk to Percy';
     promptEl.classList.add('show');
   } else if (pickTarget){
-    promptEl.textContent = pickTarget.cuke ? '🥒 press A to pick the cucumber' : '📖 press A to pick up';
+    promptEl.textContent = (pickTarget.cuke || pickTarget.name === 'cucumber')
+      ? '🥒 press A to pick the cucumber' : '📖 press A to pick up';
     promptEl.classList.add('show');
   } else if (target){
     promptEl.textContent = '✨ press SPACE to leap! ✨';
@@ -4522,6 +4757,16 @@ function step(dt){
   updateAim(t);
   updateLocator(t);
 
+  // General backstop, not just a per-cutscene special case: the mission box
+  // must NEVER show during any cutscene-like state, full stop. Individual
+  // cutscene-starting functions already hide it explicitly (harmless
+  // redundancy), but that approach is exactly what missed the cukeReveal
+  // state the first time around — a blanket rule keyed on `state` itself
+  // can't be forgotten for whatever cutscene gets added next.
+  const isCutsceneState = state === 'intro' || state === 'fly' || state === 'landing'
+    || state === 'percyfly' || state === 'finale' || state === 'cukeReveal';
+  missionEl.classList.toggle('hidden', isCutsceneState);
+
   if (state === 'intro'){
     // Same close, local tangent-plane orbit the Chicago title cutscene uses
     // (see updateLanding's 'orbit' phase / startChicagoTitleCutscene) — she
@@ -4595,6 +4840,17 @@ window.__world = {
   },
   chippyLoaded(){ return worldRefs.books ? worldRefs.books.chippy.children.length > 0 : false; },
   mazeDebug(){ return worldRefs.books ? worldRefs.books.mazeDebug : null; },
+  chippySeatDebug(){
+    if (!worldRefs.books) return null;
+    const chippy = worldRefs.books.chippy;
+    const b = bodies[1];
+    return {
+      chippyOwnChildCount: chippy.children.length,   // should be >=1 (the seat) even before the glb model loads
+      chippyIsDirectChildOfBody: b.group.children.some((c) => c === chippy),
+      anyOtherDirectChildIsGroupNearChippy: b.group.children.filter((c, i) => i !== 0 && c !== chippy)
+        .some((c) => c.position.distanceTo(chippy.position) < 3),
+    };
+  },
   beanieBoneDebug(){
     const model = her.children[0];
     if (!model) return null;
@@ -4616,6 +4872,57 @@ window.__world = {
     out.summerWalkWeight = herSummerWalkAction ? +herSummerWalkAction.getEffectiveWeight().toFixed(3) : null;
     out.showingSummer = !!(herSummerGroup && herSummerGroup.visible);
     return out;
+  },
+  herBoundsDebug(){
+    const box = new THREE.Box3().setFromObject(her);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    return { size: size.toArray(), center: center.toArray(), herPos: her.position.toArray() };
+  },
+  herMixerDebug(){
+    if (!herMixer) return { herMixer: null };
+    const clipNames = (herMixer._actions || []).map((a) => a.getClip().name);
+    return { herTalkActionIsNull: herTalkAction === null, clipNames };
+  },
+  curBodyDebug(){ const b = bodies[curI]; return { center: b.center.toArray(), r: b.r }; },
+  walkTowardWorldPos(worldPos, seconds){
+    const b = bodies[curI];
+    const n = new THREE.Vector3(...worldPos).sub(b.center).normalize();
+    return this.walkToward(n.toArray(), seconds);
+  },
+  findByGeoDebug(geoType, maxResults){
+    const out = [];
+    const wp = new THREE.Vector3();
+    scene.traverse((o) => {
+      if (out.length >= maxResults) return;
+      if (!o.isMesh || !o.geometry || o.geometry.type !== geoType) return;
+      o.getWorldPosition(wp);
+      out.push({ pos: wp.toArray().map(v => +v.toFixed(2)), color: o.material?.color ? '#'+o.material.color.getHexString() : null });
+    });
+    return out;
+  },
+  nearbyObjectsDebug(maxDist){
+    const out = [];
+    const wp = new THREE.Vector3();
+    scene.traverse((o) => {
+      if (!o.isMesh || o === her) return;
+      o.getWorldPosition(wp);
+      const d = wp.distanceTo(her.position);
+      if (d < maxDist){
+        let isDescendantOfHer = false, p = o.parent, chain = [];
+        while (p){ chain.push(p.name || p.type); if (p === her){ isDescendantOfHer = true; break; } p = p.parent; }
+        out.push({
+          name: o.name || o.parent?.name || '(unnamed)',
+          dist: +d.toFixed(2),
+          pos: wp.toArray().map(v => +v.toFixed(2)),
+          geo: o.geometry ? o.geometry.type : null,
+          color: o.material && o.material.color ? '#' + o.material.color.getHexString() : null,
+          isDescendantOfHer, chain,
+        });
+      }
+    });
+    out.sort((a, b) => a.dist - b.dist);
+    return out.slice(0, 15);
   },
   couchWorldPos(){
     return worldRefs.garden ? worldRefs.garden.couch.getWorldPosition(new THREE.Vector3()).toArray() : null;
@@ -4774,8 +5081,11 @@ window.__world = {
   ringDebug(){ const wr = worldRefs.cucumber; if (!wr) return null;
     const b = bodies[2];
     return { solidVisible: wr.solidRing.visible, cukeRingVisible: wr.cukeRingGroups.map(r=>r.visible),
-      groundCukeVisible: wr.groundCucumberHolders[0].visible, bodyName: b.name, bodyEmoji: b.emoji,
-      bodyR: b.r }; },
+      groundCukeVisible: wr.groundCucumberHolders[0].holder.visible, bodyName: b.name, bodyEmoji: b.emoji,
+      bodyR: b.r, solidOpacity: +wr.solidMat.opacity.toFixed(3),
+      cucumberMatOpacity: cucumberMat ? +cucumberMat.opacity.toFixed(3) : null,
+      cukeRevealState: cukeReveal ? { t:+cukeReveal.t.toFixed(2), fadeStarted:!!cukeReveal.fadeStarted, solidHidden:!!cukeReveal.solidHidden } : null,
+      groundCukeScale: +wr.groundCucumberHolders[0].holder.scale.x.toFixed(3) }; },
   triggerCukeReveal(){ startCukeRevealCutscene(); },
   jumpChain(){ const n = bodies[curI].chainNext; if (n != null) jumpTo(bodies[n]); },
   get chainNext(){ return bodies[curI].chainNext; },
@@ -4814,7 +5124,12 @@ window.__world = {
     updatePose();
     followCam(1, her.position, herUp(tmpV), herFwd(tmpV2), 9, true);
   },
-  talk(){ startTalk(); },
+  talk(){
+    if (chippyNear) talkChippy();
+    else if (bbakNear) talkBbak();
+    else if (plazaNear) talkActivePigeon();
+    else if (percyNear) talkPercy();
+  },
   advance(){ advanceDialog(); },
   gotoCouch(){
     this.goto(GARDEN_I);
