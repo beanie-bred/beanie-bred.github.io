@@ -3426,7 +3426,13 @@ function arrive(bi){
   curI = bi;
   state = 'walk';
   camYaw = 0;
-  camPitch = 0.3;
+  // Main Stacks sits fairly high in Chicago's sky relative to how far this
+  // camera looks down by default (0.3) — she now faces it correctly (see the
+  // Chicago-letter completion callback above), but the standard resting pitch
+  // still left it entirely out of frame, needing a big blind drag upward to
+  // ever find it. -0.55 brings it clearly into view without fully locking the
+  // aim for her, so "drag/swipe to aim" still means something.
+  camPitch = bi === 0 ? -0.55 : 0.3;
   updatePose();
   hudEl.classList.remove('hidden');   // re-reveal after showPlanetTitle() hid it for the title card
   refreshFoodPocket();   // the held-food chip only ever makes sense on the cucumber/bbak world
@@ -4440,6 +4446,7 @@ window.__world = {
     return worldRefs.garden ? worldRefs.garden[who].getWorldPosition(new THREE.Vector3()).toArray() : null;
   },
   camDebug(){ return { camYaw, camPitch, camDist, moving: her.userData.moving, locked: cameraLookLocked(), dragging, idleTime, hintShowing: !hintEl.classList.contains('hidden'), state, introLocked, curI }; },
+  setCam(yaw, pitch){ camYaw = yaw; camPitch = pitch; followCam(1, her.position, herUp(new THREE.Vector3()), herFwd(new THREE.Vector3()), camDist, true); renderer.render(scene, camera); },
   talkDebug(){
     const npc = dialog && dialog.npcPos ? dialog.npcPos() : null;
     let extra = {};
