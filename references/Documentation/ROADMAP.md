@@ -1,4 +1,49 @@
 # ROADMAP
+- [x] Talking pose "scarecrow arms" fix (2026-07-15, later still same day):
+      user saw the newly-wired Talking animation live and said her arms bend
+      "a bit forward" was needed — "shes standing like a scarecrow."
+      - **Root cause: the gesture was authored as a few-degree wiggle around
+        the rig's raw T-pose bind pose, not around her relaxed standing
+        pose.** At full animation weight that reads as arms held straight
+        out to the sides — a real scarecrow/T-pose silhouette — since the
+        "gesture" was only ever a small perturbation on top of a pose she
+        never actually holds during normal gameplay.
+      - **Found the correct fix axis by measuring, not guessing**: rotated
+        `UpperArm.L` a test angle around each of its 3 local axes and
+        measured which one actually moved `Hand.L`'s world position toward
+        her facing direction (-Y, per the established Winter-faces- -Y
+        convention) — local Z turned out to be the forward-swing axis
+        (negative = forward), local X the up/down swing, local Y just a
+        twist/roll with no effect on hand position. Repeated for the elbow
+        (`LowerArm.L`) with the shoulder already swung forward, since a
+        child bone's effective bend direction depends on its parent's
+        current orientation.
+      - **Composed a forward-and-down offset onto every existing keyframe**
+        of both arms (shoulder swing + elbow bend, mirrored L/R matching
+        the rig's established sign convention) rather than replacing the
+        animation — this preserves the original gesture's timing and subtle
+        wiggle, just repositioned so it reads as talking with her hands
+        instead of holding a T-pose. Verified via direct render at 4 points
+        across the clip (early gesture, mid, late, and the settle-to-idle
+        tail) — arms clearly bent forward with a visible gap from the
+        torso at every one, no self-clipping.
+      - **Two more Blender export mechanics discovered while re-shipping
+        this**: (1) after hiding two objects to isolate a render, forgot to
+        un-hide them before the SUBSEQUENT export — `hide_render` silently
+        drops an object from `use_selection=True` export even while
+        `select_set(True)`, producing a valid-looking but nearly-empty
+        132-byte glb with zero warning; (2) this export's node names came
+        out WITH dots (`UpperArm.L`) instead of the previous export's
+        sanitized no-dot names (`UpperArmL`) — confirmed harmless (glTF
+        animation channels bind by node INDEX, not name string, and
+        `grep`-confirmed the game's own code never references a bone by
+        exact name string anywhere), but worth knowing this can vary
+        between export sessions.
+      - Re-verified live end-to-end via the local dev server (bbak
+        conversation, real screenshot) and via direct parsing of the
+        exported glb's own animation sampler data. Zero console errors
+        related to Beanie/animation (one unrelated pre-existing pigeon-
+        asset fetch error noted, out of scope for this fix).
 - [x] Winter Beanie's Talking pose wired into real conversations (2026-07-15,
       later still same day): user asked to have the Talking animation (built
       earlier this session, previously only shown in Blender preview GIFs)
