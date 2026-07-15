@@ -1471,35 +1471,82 @@ function buildBooks(g, R){
   const landN = V().subVectors(bodies[0].center, bodies[1].center).normalize();
   bodies[1].landN = landN.clone();
   const LAND_CLEAR = 9;
-  // A real labyrinth of shelving rings around Chippy instead of pure random
-  // scatter. Random placement (even with a minimum-separation constraint)
-  // could still wall her in with no way through, and only a sparse subset
-  // of stacks ever actually collided anyway — so the "obstacles" you could
-  // just walk through weren't real obstacles, they just looked cluttered.
-  // Concentric rings of book-stack "shelf segments" centered on chippyN,
-  // each ring with several gaps left open for passage; every wall segment
-  // DOES collide this time (that's the point of a maze), but gap density
-  // per ring (~30-45%) keeps a way through always findable rather than
-  // needing exact navigation. tiltDir(n, angle, azimuth) is deterministic
-  // for a given chippyN (arbitraryPerp has no randomness in it), so calling
-  // it repeatedly for different azimuths lays out a stable ring.
-  const MAZE_RINGS = [
-    { rad:0.55, segments:12, gaps:4 },
-    { rad:0.85, segments:16, gaps:5 },
-    { rad:1.15, segments:20, gaps:6 },
-    { rad:1.45, segments:24, gaps:7 },
-  ];
-  for (const ring of MAZE_RINGS){
-    const gapIdx = new Set();
-    while (gapIdx.size < ring.gaps) gapIdx.add(Math.floor(Math.random()*ring.segments));
-    for (let i = 0; i < ring.segments; i++){
-      if (gapIdx.has(i)) continue;
-      const azimuth = (i/ring.segments)*Math.PI*2;
-      const n = tiltDir(chippyN, ring.rad + (Math.random()-0.5)*0.04, azimuth);
-      if (n.angleTo(landN) < LAND_CLEAR/R) continue;   // never wall off her actual landing spot
-      const s = 1.0 + Math.random()*0.35;
-      placeOn(g, makeStack(3 + Math.floor(Math.random()*3), s), n, R);
-      addCollider(colliders, n, 0.85*s, R);
+  // A real labyrinth of shelving around Chippy instead of pure random scatter
+  // (only a sparse subset of a 420-stack scatter ever actually collided, so
+  // it read as cluttered without being a real obstacle) — but independent
+  // per-ring random gaps (the previous version of this maze) leave big,
+  // completely bare "moat" bands between rings, since nothing ever gets
+  // placed there at all: sparse-looking, and only PROBABLY solvable (gaps
+  // have to happen to line up; verifying this needed an actual wall-
+  // following test, see beanie-web-game-gotchas memory).
+  //
+  // This version is a proper polar maze: an (ring x sector) grid of cells
+  // around chippyN, connected via randomized depth-first search — the same
+  // recursive-backtracking algorithm any textbook maze generator uses,
+  // just in polar instead of Cartesian coordinates. That guarantees, BY
+  // CONSTRUCTION, that every cell (all the way in to the one right next to
+  // Chippy) is reachable from every other cell — no probability involved,
+  // and walls can fill nearly every remaining boundary (dense, "many tall
+  // piles") without any risk of sealing off a path, since only exactly the
+  // carved spanning-tree edges are ever left open.
+  const MAZE_RING_MIN = 0.45, MAZE_RING_MAX = 1.6;
+  const MAZE_N_RINGS = 8, MAZE_N_SECTORS = 16;
+  function mazeRingRad(r){ return MAZE_RING_MIN + (MAZE_RING_MAX-MAZE_RING_MIN)*(r/(MAZE_N_RINGS-1)); }
+  // angularOpen[r][i] = true -> passage open between sector i and sector
+  // (i+1)%N within ring r. radialOpen[r][i] = true -> passage open between
+  // ring r and ring r+1 at sector i. Both default false (wall present);
+  // the DFS below flips exactly the ones it actually carves through.
+  const mazeVisited = Array.from({length:MAZE_N_RINGS}, () => new Array(MAZE_N_SECTORS).fill(false));
+  const mazeAngularOpen = Array.from({length:MAZE_N_RINGS}, () => new Array(MAZE_N_SECTORS).fill(false));
+  const mazeRadialOpen = Array.from({length:MAZE_N_RINGS-1}, () => new Array(MAZE_N_SECTORS).fill(false));
+  (function generateMaze(){
+    const startR = MAZE_N_RINGS - 1, startS = Math.floor(Math.random()*MAZE_N_SECTORS);
+    mazeVisited[startR][startS] = true;
+    const stack = [[startR, startS]];
+    while (stack.length){
+      const [r, s] = stack[stack.length-1];
+      const sPrev = (s - 1 + MAZE_N_SECTORS) % MAZE_N_SECTORS, sNext = (s + 1) % MAZE_N_SECTORS;
+      const options = [];
+      if (!mazeVisited[r][sPrev]) options.push(() => { mazeAngularOpen[r][sPrev] = true; return [r, sPrev]; });
+      if (!mazeVisited[r][sNext]) options.push(() => { mazeAngularOpen[r][s] = true; return [r, sNext]; });
+      if (r > 0 && !mazeVisited[r-1][s]) options.push(() => { mazeRadialOpen[r-1][s] = true; return [r-1, s]; });
+      if (r < MAZE_N_RINGS-1 && !mazeVisited[r+1][s]) options.push(() => { mazeRadialOpen[r][s] = true; return [r+1, s]; });
+      if (!options.length){ stack.pop(); continue; }
+      const next = options[Math.floor(Math.random()*options.length)]();
+      mazeVisited[next[0]][next[1]] = true;
+      stack.push(next);
+    }
+  })();
+  // Footprint sized against the tightest (innermost-ring) angular spacing,
+  // WITH her own footprint buffer included (isBlocked() adds HER_FOOTPRINT/R
+  // on top of every collider's own angRadius — missing that the first time
+  // left ~0 margin at the innermost ring, effectively sealing her into a
+  // trap: every direction fully blocked, not just one clipped corner).
+  // At MAZE_RING_MIN/MAZE_N_SECTORS above, half the gap between adjacent
+  // wall positions is ~0.077 rad; wall angRadius (worst case, s=1.3) is
+  // 0.35*1.3/R=~0.0256, plus her own ~0.0225, totals ~0.048 — comfortable
+  // margin (~35%) instead of the ~0 the previous 0.5 footprint left.
+  const MAZE_WALL_FOOTPRINT = 0.35;
+  function placeMazeWall(n){
+    if (n.angleTo(landN) < LAND_CLEAR/R) return;   // never wall off her actual landing spot
+    const s = 1.0 + Math.random()*0.3;
+    placeOn(g, makeStack(6 + Math.floor(Math.random()*5), s), n, R);   // tall: 6-10 books per pile
+    addCollider(colliders, n, MAZE_WALL_FOOTPRINT*s, R);
+  }
+  for (let r = 0; r < MAZE_N_RINGS; r++){
+    const rad = mazeRingRad(r);
+    for (let i = 0; i < MAZE_N_SECTORS; i++){
+      if (mazeAngularOpen[r][i]) continue;
+      const azimuth = ((i+1)/MAZE_N_SECTORS)*Math.PI*2;   // boundary between sector i and i+1
+      placeMazeWall(tiltDir(chippyN, rad + (Math.random()-0.5)*0.03, azimuth));
+    }
+  }
+  for (let r = 0; r < MAZE_N_RINGS-1; r++){
+    const rad = (mazeRingRad(r) + mazeRingRad(r+1))/2;
+    for (let i = 0; i < MAZE_N_SECTORS; i++){
+      if (mazeRadialOpen[r][i]) continue;
+      const azimuth = ((i+0.5)/MAZE_N_SECTORS)*Math.PI*2;   // sector center
+      placeMazeWall(tiltDir(chippyN, rad, azimuth));
     }
   }
   const grand = makeStack(6, 1.5, 0.25);          // the landmark tower of books
@@ -1618,7 +1665,9 @@ function buildBooks(g, R){
     });
     giftBooks.push({ holder, dir: n.clone(), taken:false, color: GIFT_COLORS[i], title: GIFT_TITLES[i] });
   }
-  return { chippy, chippyN, giftBooks, colliders };
+  return { chippy, chippyN, giftBooks, colliders,
+    mazeDebug: { nRings:MAZE_N_RINGS, nSectors:MAZE_N_SECTORS, ringMin:MAZE_RING_MIN, ringMax:MAZE_RING_MAX,
+      angularOpen:mazeAngularOpen, radialOpen:mazeRadialOpen } };
 }
 
 function grassField(g, R, count, color, skipN=null, skipAng=0){
@@ -2211,7 +2260,11 @@ const WORLD_DEFS = [
     pos:[0,0,0], r:5.25,  col:0xe4e8f0, step:'stone' },
   { key:'books',    name:'Main Stacks',      emoji:'📚', tag:'the old library where you and Bred used to study',
     mission:'<b>MISSION:</b> find <b>Chippy</b>, then bring him <b>5 favourite books</b> (the glowy ones, press <b>A</b> to pick up).',
-    pos:[390,60,-180], r:17.8125, col:PALETTE.lightBeige, step:'book' },
+    // Pulled in to 65% of its old distance (434 -> ~282, same direction from
+    // Chicago) so it reads as noticeably bigger/closer from the very first
+    // view — it's the immediate next stop and was too small/easy to miss
+    // against Cucumber Meadow's much bigger, brighter ring nearby.
+    pos:[253,39,-117], r:17.8125, col:PALETTE.lightBeige, step:'book' },
   { key:'cucumber', name:'Emerald Meadow',  emoji:'🌱', tag:'a mysterious green ring circles overhead…',
     mission:'<b>MISSION:</b> find <b>bbak</b> the polar bear, he is overheating. Bring him something <b>cold</b> to cool him down!',
     // revealed after bbak's final hint — see startCukeRevealCutscene()
@@ -2767,7 +2820,7 @@ her.userData = {
   sit(v){ this.sitting = v; },
 };
 scene.add(her);
-let herMixer = null, herWalkAction = null, herRunAction = null, herIdleAction = null, herUsingFallback = false;
+let herMixer = null, herWalkAction = null, herRunAction = null, herIdleAction = null, herTalkAction = null, herUsingFallback = false;
 let herJumpLaunchAction = null, herJumpSoarAction = null, herJumpLandAction = null, herLandFallGetUpAction = null;
 let herWinterGroup = null;
 loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
@@ -2782,6 +2835,7 @@ loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
   const soarClip = gltf.animations.find((a) => a.name === 'JumpSoar');
   const landClip = gltf.animations.find((a) => a.name === 'JumpLand');
   const landFallGetUpClip = gltf.animations.find((a) => a.name === 'LandFallGetUp');
+  const talkClip = gltf.animations.find((a) => a.name === 'Talking');
   // The planet-arrival cutscene (fall on her face, hold, push up to standing) —
   // extracted from winter-beanie-jump.blend. Plays once per arrival, then
   // crossfades into Idle; see updateLandingAnim().
@@ -2812,6 +2866,15 @@ loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
     herRunAction.setLoop(THREE.LoopRepeat);
     herRunAction.play();
     herRunAction.setEffectiveWeight(0);
+  }
+  // Plays once whenever a conversation starts (state='talk'), then holds its
+  // own settled-to-idle final pose — see startDialog() and animBeanieSkinned().
+  if (talkClip){
+    herTalkAction = herMixer.clipAction(talkClip);
+    herTalkAction.setLoop(THREE.LoopOnce);
+    herTalkAction.clampWhenFinished = true;
+    herTalkAction.play();
+    herTalkAction.setEffectiveWeight(0);
   }
   // Extracted + retimed from winter-beanie-jump.blend's cinematic (same rig,
   // no retargeting needed) — see ART_BIBLE.md. Crossfaded by updateJumpAnim()
@@ -2880,12 +2943,15 @@ function animBeanieSkinned(dt){
   if (herJumpSoarAction) herJumpSoarAction.setEffectiveWeight(0);
   if (herJumpLandAction) herJumpLandAction.setEffectiveWeight(0);
   const u = her.userData;
-  // She only "moves" while actually walking — so she holds the Idle pose while
-  // standing still AND while talking to a character (any non-walk state).
+  // She only "moves" while actually walking. While talking (state='talk') she
+  // plays the Talking gesture instead of a static Idle hold — Winter only for
+  // now, since Summer's model has no Talking clip exported yet.
   const moving = (state === 'walk') && u.moving && !u.sitting;
+  const talking = (state === 'talk') && !showSummer && !!herTalkAction;
   const run = moving && u.running;
   if (moving) u.walkP += dt*(run ? 31.5 : 21);   // footstep cadence follows walk/run
   const walkTarget = moving ? 1 : 0;
+  const talkTarget = talking ? 1 : 0;
   const walkAction = showSummer ? herSummerWalkAction : herWalkAction;
   const idleAction = showSummer ? herSummerIdleAction : herIdleAction;
   // Always the walk clip, just sped up while running (Shift) — the separate
@@ -2901,9 +2967,13 @@ function animBeanieSkinned(dt){
     walkAction.setEffectiveWeight(w + (walkTarget - w) * Math.min(1, dt*8));
     walkAction.timeScale = (u.movingBackward ? -1 : 1) * (run ? 1.6 : 1);
   }
+  if (herTalkAction){
+    const w = herTalkAction.getEffectiveWeight();
+    herTalkAction.setEffectiveWeight(w + (talkTarget - w) * Math.min(1, dt*8));
+  }
   if (idleAction){
     const w = idleAction.getEffectiveWeight();
-    idleAction.setEffectiveWeight(w + ((1 - walkTarget) - w) * Math.min(1, dt*8));
+    idleAction.setEffectiveWeight(w + ((1 - walkTarget - talkTarget) - w) * Math.min(1, dt*8));
   }
 }
 function updateJumpAnim(e){        // e: 0..1 flight progress — crossfade the leap pose
@@ -3525,6 +3595,7 @@ function ensureTalkDistance(npcPos, minDist=MIN_TALK_DIST){
 }
 function startDialog(lines, onDone, opts={}){
   state = 'talk';
+  if (herTalkAction){ herTalkAction.reset(); herTalkAction.play(); }   // fresh gesture each time a conversation begins
   ensureTalkDistance(opts.npcPos ? opts.npcPos() : null);
   promptEl.classList.remove('show');
   guideEl.classList.remove('show');
@@ -3913,6 +3984,23 @@ function updateWalk(dt){
       noticedGuides.add(noticeKey);
       startNotice(npc.clone());   // clone: npc is the shared tmpV3 scratch vector
     }
+  } else if (bg.missionDone && bg.chainNext != null){
+    // Once the current world's mission is done, the next task is "find and
+    // jump to the next world" — but nothing ever pointed that out before
+    // (the NPC guide above only covers on-planet tasks), leaving her to
+    // blindly drag the camera around hoping to spot it. Reuses the exact
+    // same compass-arrow mechanism, just aimed at the next body's center
+    // instead of an NPC, with no distance countdown (inter-world "steps"
+    // isn't a meaningful number the way on-planet walking distance is —
+    // the aim-lock reticle already signals "you're precisely aimed now").
+    const nextBody = bodies[bg.chainNext];
+    const gUp = herUp(V()), gFwd = herFwd(V());
+    const gToward = tangentToward(her.position, gUp, nextBody.center);
+    const bearing = Math.atan2(V().crossVectors(gFwd, gToward).dot(gUp), gFwd.dot(gToward));
+    guideArrowEl.style.opacity = 1;
+    guideArrowEl.style.transform = `rotate(${-bearing}rad)`;
+    guideLabelEl.innerHTML = `🚀 jump to ${nextBody.emoji} ${nextBody.name}`;
+    guideEl.classList.add('show');
   } else {
     guideEl.classList.remove('show');
   }
@@ -4452,6 +4540,7 @@ window.__world = {
     return worldRefs.books ? worldRefs.books.chippy.getWorldPosition(new THREE.Vector3()).toArray() : null;
   },
   chippyLoaded(){ return worldRefs.books ? worldRefs.books.chippy.children.length > 0 : false; },
+  mazeDebug(){ return worldRefs.books ? worldRefs.books.mazeDebug : null; },
   beanieBoneDebug(){
     const model = her.children[0];
     if (!model) return null;
@@ -4466,6 +4555,7 @@ window.__world = {
     });
     out.idleWeight = herIdleAction ? +herIdleAction.getEffectiveWeight().toFixed(3) : null;
     out.walkWeight = herWalkAction ? +herWalkAction.getEffectiveWeight().toFixed(3) : null;
+    out.talkWeight = herTalkAction ? +herTalkAction.getEffectiveWeight().toFixed(3) : null;
     out.summerIdleWeight = herSummerIdleAction ? +herSummerIdleAction.getEffectiveWeight().toFixed(3) : null;
     out.summerWalkWeight = herSummerWalkAction ? +herSummerWalkAction.getEffectiveWeight().toFixed(3) : null;
     out.showingSummer = !!(herSummerGroup && herSummerGroup.visible);
