@@ -3854,7 +3854,12 @@ const PERCY_LINES = [
   'There is one more world out there, and somebody set it up just for you.',
   'Hop on my back and hold tight! 🕊️',
 ];
-let dialog = null, dialogTyping = null;   // dialog = { lines, idx, onDone, coo }
+let dialog = null;   // dialog = { lines, idx, onDone, coo, lineT }
+// Driven by the main render loop's dt (see updateDialogTyping) instead of a
+// setInterval — a per-character setInterval competes with the rAF loop for
+// the JS thread and reveals characters in uneven bursts under any load,
+// which read as laggy/stuttery rather than a smooth type-on. was 0.022.
+const DIALOG_CHAR_SECONDS = 0.011;
 const MIN_TALK_DIST = 4.0;
 // However close she was standing when SPACE was pressed, nudge her backward
 // along the sphere surface (away from the NPC) so the two-shot camera never
@@ -3897,21 +3902,26 @@ function percyWorldPos(out){
 }
 function showDialogLine(){
   if (dialog.coo) playCoo();
-  const line = dialog.lines[dialog.idx];
   dialogTextEl.textContent = '';
-  let i = 0;
-  clearInterval(dialogTyping);
-  dialogTyping = setInterval(() => {
-    dialogTextEl.textContent = line.slice(0, ++i);
-    if (i >= line.length) clearInterval(dialogTyping);
-  }, 22);
+  dialog.lineT = 0;
+}
+// Called every frame while state==='talk' (see step()) — reveals characters
+// at a rate derived from simulated dt rather than a wall-clock setInterval.
+function updateDialogTyping(dt){
+  if (!dialog) return;
+  const line = dialog.lines[dialog.idx];
+  const fullT = line.length * DIALOG_CHAR_SECONDS;
+  if (dialog.lineT >= fullT) return;   // already fully revealed, nothing to do
+  dialog.lineT = Math.min(fullT, dialog.lineT + dt);
+  const revealCount = Math.min(line.length, Math.floor(dialog.lineT / DIALOG_CHAR_SECONDS));
+  dialogTextEl.textContent = line.slice(0, revealCount);
 }
 function advanceDialog(){
   if (!dialog) return;
   const line = dialog.lines[dialog.idx];
   if (dialogTextEl.textContent.length < line.length){   // still typing → reveal all first
-    clearInterval(dialogTyping);
     dialogTextEl.textContent = line;
+    dialog.lineT = line.length * DIALOG_CHAR_SECONDS;   // mark fully revealed so the per-frame update doesn't fight it
     return;
   }
   dialog.idx++;
@@ -4138,7 +4148,7 @@ addEventListener('keydown', (e) => {
 });
 function qaWarp(i){
   if (state === 'intro') startJourney();                // reveal HUD / start audio first
-  if (dialog){ clearInterval(dialogTyping); dialogEl.classList.add('hidden'); dialog = null; restoreObstacles(); }
+  if (dialog){ dialogEl.classList.add('hidden'); dialog = null; restoreObstacles(); }
   if (chicagoMessenger) dismissChicagoMessenger();
   if (landing){ planetTitleEl.classList.remove('show'); landing = null; }
   bodies.forEach((b) => { b.missionDone = true; });     // QA: skip every mission/gate
@@ -4791,7 +4801,7 @@ function step(dt){
   else if (state === 'walk')     updateWalk(dt);
   else if (state === 'fly')      updateFlight(dt);
   else if (state === 'landing')  updateLanding(dt);
-  else if (state === 'talk')     updateTalkCam(dt);
+  else if (state === 'talk')     { updateTalkCam(dt); updateDialogTyping(dt); }
   else if (state === 'percyfly') updatePercyFlight(dt, t);
   else if (state === 'finale')   updateFinale(dt, t);
   else if (state === 'cukeReveal') updateCukeReveal(dt, t);
