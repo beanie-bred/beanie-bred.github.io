@@ -40,10 +40,10 @@
     border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:9px 18px;font-size:14px}
   #hud{position:fixed;top:16px;left:16px;z-index:20;display:flex;gap:10px;align-items:center}
   #planetName{font-weight:600;color:#ffe9c9}
-  #mission{position:fixed;bottom:118px;left:50%;transform:translateX(-50%);z-index:20;max-width:72vw;
-    text-align:center;font-size:13.5px;line-height:1.45;padding:10px 22px;border-radius:16px;
-    background:rgba(30,32,64,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,224,138,.35);
-    color:#ffeccf;transition:opacity .6s}
+  #mission{position:fixed;bottom:130px;left:50%;transform:translateX(-50%);z-index:20;max-width:78vw;
+    text-align:center;font-size:clamp(14px,2vw,18px);line-height:1.5;padding:14px 26px;border-radius:18px;
+    background:rgba(30,32,64,.65);backdrop-filter:blur(10px);border:1.5px solid rgba(255,224,138,.5);
+    box-shadow:0 0 30px rgba(255,200,120,.14);color:#ffeccf;transition:opacity .6s}
   #mission b{color:var(--gold)}
   #mission.mission-hide{opacity:0;pointer-events:none}
   #guide{position:fixed;top:122px;left:50%;transform:translateX(-50%) translateY(-6px);z-index:20;
@@ -58,6 +58,17 @@
      shows which way to turn regardless of 3D line-of-sight. */
   #guideArrow{display:inline-block;margin-right:6px;color:#ffd166;
     transition:transform .25s ease;transform-origin:50% 55%}
+  /* a little "thought bubble" that pops up the first time she gets close
+     enough to spot the next required character in the distance. */
+  #noticeBubble{position:fixed;top:30%;left:50%;transform:translateX(-50%) translateY(8px) scale(.92);
+    z-index:23;font-size:clamp(15px,2.4vw,21px);font-weight:600;padding:12px 22px;border-radius:22px;
+    max-width:80vw;width:max-content;text-align:center;
+    background:rgba(255,255,255,.92);color:#3a3048;
+    box-shadow:0 8px 26px rgba(0,0,0,.25);
+    opacity:0;transition:opacity .35s,transform .35s;pointer-events:none}
+  #noticeBubble.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+  #noticeBubble::after{content:'';position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);
+    border-width:10px 9px 0 9px;border-style:solid;border-color:rgba(255,255,255,.92) transparent transparent transparent}
   #bookpop{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-14px) scale(.96);
     z-index:24;display:flex;gap:14px;align-items:center;padding:12px 20px 12px 14px;border-radius:16px;
     background:rgba(30,32,64,.72);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.22);
@@ -250,6 +261,7 @@
 <div id="hud" class="hidden"><div class="chip" id="planetName">…</div></div>
 <div id="mission" class="hidden"></div>
 <div id="guide" class="hidden"><span id="guideArrow">▲</span><span id="guideLabel"></span></div>
+<div id="noticeBubble" class="hidden">💭 Hmm… I should go talk to that character!</div>
 <div id="bookpop"><div id="bookpopCover"><span id="bookpopSpine"></span></div>
   <div id="bookpopMeta"><div id="bookpopKicker">📖 collected</div><div id="bookpopTitle"></div><div id="bookpopCount"></div></div></div>
 <div id="foodPocket"><div id="foodPocketIcon"></div><div id="foodPocketLabel"></div></div>
@@ -1403,14 +1415,22 @@ function buildBooks(g, R){
   const landN = V().subVectors(bodies[0].center, bodies[1].center).normalize();
   bodies[1].landN = landN.clone();
   const CHIPPY_CLEAR = 7, LAND_CLEAR = 9;
-  for (let i = 0; i < 700; i++){
+  // Cut from 700 -> 420 stacks: at the old density she kept getting boxed in
+  // with no way around a cluster, even though only a sparse subset collide —
+  // visually it still read as "no path through". A meaningfully lower count
+  // opens real walkable gaps while still reading as a cluttered book world.
+  const placedDirs = [];
+  const STACK_SEP = 0.1;   // radians between stack centers — keeps a walkable gap between neighbors
+  for (let i = 0; i < 420; i++){
     const n = randDir();
     // keep Chippy's own spot AND the landing zone open — he was getting
     // buried under piles, and she'd sometimes touch down right on one.
     if (n.angleTo(chippyN) < CHIPPY_CLEAR/R || n.angleTo(landN) < LAND_CLEAR/R){ i--; continue; }
+    if (placedDirs.some((p) => n.angleTo(p) < STACK_SEP)){ i--; continue; }
+    placedDirs.push(n.clone());
     const s = 0.9 + Math.random()*0.5;
     placeOn(g, makeStack(2 + Math.floor(Math.random()*4), s), n, R);
-    // Only a sparse subset block movement — colliding on all 700 would fence
+    // Only a sparse subset block movement — colliding on all of them would fence
     // her in and make the book-collecting quest impossible to walk.
     if (i % 22 === 0) addCollider(colliders, n, 0.9*s, R);
   }
@@ -1440,7 +1460,10 @@ function buildBooks(g, R){
     chippy.add(makeChippy());
   });
   animators.push((t) => {
-    if (chippyModel) chippyModel.scale.setScalar(1 + 0.03*Math.sin(t*1.6));   // gentle breathing
+    if (!chippyModel) return;
+    chippyModel.scale.setScalar(1 + 0.03*Math.sin(t*1.6));   // gentle breathing
+    // little happy bounce on his book pile while he's actually talking
+    chippyModel.position.y = (dialog && dialog.npcObj === chippy) ? Math.abs(Math.sin(t*5))*0.18 : 0;
   });
   // a few floating loose pages
   for (let i = 0; i < 9; i++){
@@ -2270,6 +2293,7 @@ function nearestFood(){
 }
 function nearestFoodPickup(){
   if (!worldRefs.cucumber) return null;
+  if (bbakQuest.phase < 1) return null;   // nothing to pick up until bbak actually asks for something cold
   const R = 3.0, cuke = worldRefs.cucumber.cuke;
   if (cuke.visible && her.position.distanceTo(cuke.getWorldPosition(new THREE.Vector3())) < R) return { cuke:true };
   let best=null, bd=R;
@@ -2299,7 +2323,7 @@ const foodPocketIconEl = document.getElementById('foodPocketIcon');
 const foodPocketLabelEl = document.getElementById('foodPocketLabel');
 function refreshFoodPocket(){
   const h = bbakQuest.holding;
-  if (!h){ foodPocketEl.classList.remove('show'); return; }
+  if (!h || curI !== 2){ foodPocketEl.classList.remove('show'); return; }   // only meaningful on the cucumber/bbak world
   foodPocketIconEl.textContent = FOOD_ICONS[h] || '🍽️';
   foodPocketLabelEl.textContent = h;
   foodPocketEl.classList.add('show');
@@ -2423,41 +2447,41 @@ function finishCukeReveal(){
 
 /* ---------- World 4: Pigeon Plaza — find Percy's long-lost friend ---------- */
 const PLAZA_DECOYS = [
-  { name:'vanessa', glb:'vanessa', speaker:'👑 Vanessa', scale:1.5, rotY:0, bounce:false, lines:[
+  { name:'vanessa', glb:'vanessa', speaker:'👑 Vanessa the Victoria Crowned Pigeon', scale:1.5, rotY:0, bounce:false, lines:[
     `Ahem. I am Vanessa, the Victoria Crowned Pigeon, the largest pigeon in all the world. 👑`,
     `Do admire the crest, won't you? It fans out like a royal crown.`,
     `Percy's dear old friend? *sniff* That is not me. I don't do "old friends". Move along.` ] },
-  { name:'nibbles', glb:'nibbles', speaker:'🌈 Nibbles', scale:1.5, rotY:0, bounce:true, lines:[
+  { name:'nibbles', glb:'nibbles', speaker:'🌈 Nibbles the Nicobar Pigeon', scale:1.5, rotY:0, bounce:true, lines:[
     `Hihi! Nibbles here, a Nicobar Pigeon. 🌈`,
     `These metallic rainbow feathers? I'm the dodo's closest living cousin, you know!`,
     `Am I Percy's lost friend? Nope, not me, but you're close in spirit! 💫` ] },
-  { name:'alfred', glb:'alfred', speaker:'🫒 Alfred', scale:1.5, rotY:0, bounce:true, lines:[
+  { name:'alfred', glb:'alfred', speaker:'🫒 Alfred the African Green Pigeon', scale:1.5, rotY:0, bounce:true, lines:[
     `…hello. Down here. Alfred, African Green Pigeon. 🫒`,
     `Wait, a parrot? No, no, NO. I am not a parrot in disguise. I'm a PIGEON, thank you.`,
     `My green feathers hide me so well most folk hear me before they see me.`,
     `Percy's friend? Afraid not, dear. Onward!` ] },
-  { name:'sam', glb:'sam', speaker:'🌾 Sam', scale:1.0, rotY:0, bounce:true, lines:[
+  { name:'sam', glb:'sam', speaker:'🌾 Sam the Spinifex Pigeon', scale:1.0, rotY:0, bounce:true, lines:[
     `G'day! Sam here, a Spinifex Pigeon, all the way from the outback. 🌾`,
     `The little crest and the black mask? Built for hot, dry, spiky country.`,
     `Percy's long-lost friend? Nah, not me, mate, but good luck out there!` ] },
-  { name:'sunny', glb:'sunny', speaker:'🎨 Sunny', scale:1.0, rotY:0, bounce:true, lines:[
+  { name:'sunny', glb:'sunny', speaker:'🎨 Sunny the Superb Fruit Dove', scale:1.0, rotY:0, bounce:true, lines:[
     `Hey hey! Sunny the Superb Fruit Dove! 🎨`,
     `Folks say I look hand-painted. I don't disagree, honestly.`,
     `Percy's missing friend? Ha, not me, but good luck!` ] },
-  { name:'otto', glb:'otto', speaker:'🍊 Otto', scale:1.0, rotY:0, bounce:true, lines:[
+  { name:'otto', glb:'otto', speaker:'🍊 Otto the Orange Dove', scale:1.0, rotY:0, bounce:true, lines:[
     `Bula! Otto, the Orange Dove, all the way from Fiji. 🍊`,
     `I glow like a little ember in the forest, if I do say so myself.`,
     `Percy's long-lost pal? Nope, sorry friend. Keep at it!` ] },
-  { name:'mochi', glb:'mochi', speaker:'🌈 Mochi', scale:1.0, rotY:0, bounce:true, lines:[
+  { name:'mochi', glb:'mochi', speaker:'🌈 Mochi the Many-colored Fruit Dove', scale:1.0, rotY:0, bounce:true, lines:[
     `Hi! I'm Mochi, a Many-colored Fruit Dove. 🌈`,
     `Every one of us is a different little rainbow. I'm one of a kind!`,
     `Am I who Percy misses? Aw, no, but you'll find them. 🩷` ] },
-  { name:'buckle', glb:'buckle', speaker:'❤️ Buckle', scale:1.0, rotY:0, bounce:true, lines:[
+  { name:'buckle', glb:'buckle', speaker:'❤️ Buckle the Bleeding-heart Dove', scale:1.0, rotY:0, bounce:true, lines:[
     `Oh, hello. Buckle, a Bleeding-heart Dove. ❤️`,
     `See the crimson patch on my chest? Looks just like a tiny heart.`,
     `Percy's friend? …no, not me either. That's everyone, isn't it? Maybe ask Percy again.` ] },
 ];
-const DOODLES_CFG = { name:'doodles', glb:'doodles', speaker:'🦤 Doodles', scale:1.15, rotY:0, bounce:true, lines:[
+const DOODLES_CFG = { name:'doodles', glb:'doodles', speaker:'🦤 Doodles the Dodo', scale:1.15, rotY:0, bounce:true, lines:[
   `Oh! …hello there. I'm Doodles. A dodo. 🦤`,
   `Everyone thinks we were clumsy. We weren't. We just never needed to fly. No predators. It was peaceful.`,
   `…but it does get lonely now. I miss my family so much.`,
@@ -2869,7 +2893,12 @@ function updateTalkCam(dt){
   orientation.copy(quatFromBasis(up, herFacing));
   updatePose();
   // The NPC (if it's a real Object3D, not just a position) turns to face Beanie directly.
-  if (dialog.npcObj && dialog.npcObj.isObject3D){
+  // Chippy is exempt: he's perched on a lumpy book pile at a hand-tuned seated
+  // orientation (orientToNormal + rotateY in buildBooks), and this generic
+  // face-Beanie override uses HER local up rather than the pile's own surface
+  // normal — reorienting him would make him look like he'd popped up off his seat.
+  const isChippy = worldRefs.books && dialog.npcObj === worldRefs.books.chippy;
+  if (dialog.npcObj && dialog.npcObj.isObject3D && !isChippy){
     const npcPos3 = dialog.npcObj.getWorldPosition(new THREE.Vector3());
     const toHer = tangentToward(npcPos3, up, her.position);
     dialog.npcObj.quaternion.copy(quatFromBasis(up, toHer));
@@ -2942,27 +2971,44 @@ const targetRing = new THREE.Mesh(new THREE.TorusGeometry(1, 0.035, 8, 40),
 targetRing.visible = false;
 scene.add(targetRing);
 
+// a flat N-pointed star outline, used for the locator below — built in the
+// local XY plane so it reads as a proper star silhouette (not just a blob)
+// when it's facing roughly toward the camera.
+function starGeometry(outerR, innerR, points){
+  const shape = new THREE.Shape();
+  const step = Math.PI/points;
+  for (let i = 0; i < points*2; i++){
+    const r = (i % 2 === 0) ? outerR : innerR;
+    const a = i*step - Math.PI/2;
+    const x = Math.cos(a)*r, y = Math.sin(a)*r;
+    if (i === 0) shape.moveTo(x, y); else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  return new THREE.ShapeGeometry(shape);
+}
 /* ---------- world-space "locator" marker floating over the current NPC/goal ---------- */
 const locator = new THREE.Group();
 {
-  // A cute spinning sparkle instead of a stark metallic arrow — two soft
-  // pastel-gold rays crossed around a bright core (reads like a twinkling
-  // star as it spins), using the same warm "lampAmber" glow as the game's
-  // lanterns/fireflies instead of a harsh saturated gold.
+  // A big glowing 5-point star, sized up further and given a crisp
+  // silhouette (the earlier crossed-sparkle shape read as a soft blob at
+  // real gameplay distances — a proper star silhouette is what actually
+  // catches the eye across a whole planet).
   const sparkle = new THREE.Group();
-  sparkle.position.y = 1.4; locator.add(sparkle);
-  const rayMat = mat(0xffe0ad, { emissive:0xffc978, emissiveIntensity:2.0, roughness:0.4 });
-  for (const rz of [0, Math.PI/2]){
-    const ray = new THREE.Mesh(new THREE.OctahedronGeometry(0.62), rayMat);
-    ray.scale.set(0.26, 1, 0.26);
-    ray.rotation.z = rz;
-    sparkle.add(ray);
-  }
-  const core = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10),
-    mat(0xfff6e6, { emissive:0xffe6b0, emissiveIntensity:2.8, roughness:0.25 }));
+  sparkle.position.y = 1.6; locator.add(sparkle);
+  const starMat = mat(0xffe6ad, { emissive:0xffc958, emissiveIntensity:2.6, roughness:0.35,
+    side: THREE.DoubleSide });
+  const starGeo = starGeometry(1.15, 0.46, 5);
+  const star = new THREE.Mesh(starGeo, starMat);
+  sparkle.add(star);
+  const starBack = new THREE.Mesh(starGeo, starMat);
+  starBack.rotation.y = Math.PI; starBack.rotation.z = Math.PI/5;   // faint depth so it isn't paper-thin from the side
+  starBack.position.z = -0.06;
+  sparkle.add(starBack);
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10),
+    mat(0xfff8ea, { emissive:0xffedc0, emissiveIntensity:3.2, roughness:0.2 }));
   sparkle.add(core);
-  const ballo = new THREE.Mesh(new THREE.SphereGeometry(1.05, 14, 12),
-    new THREE.MeshBasicMaterial({ color:0xffe6c0, transparent:true, opacity:0.16, depthWrite:false }));
+  const ballo = new THREE.Mesh(new THREE.SphereGeometry(1.5, 14, 12),
+    new THREE.MeshBasicMaterial({ color:0xffe6c0, transparent:true, opacity:0.18, depthWrite:false }));
   sparkle.add(ballo);
   locator.userData = { arrow: sparkle, ballo };
 }
@@ -3119,6 +3165,38 @@ function updateFlight(dt){
    orbit with the planet's title, gated by a click to continue ---------- */
 let landing = null;   // { bi, phase:'fallgetup'|'orbit', t, orbitBasisA, orbitBasisB }
 const LAND_ORBIT_DURATION = 15;   // seconds for a full slow 360
+// A brief "spotted them!" beat: the first time she gets close enough to see
+// the world's current required character in the distance (but not yet at
+// talk range), pause into a closer view with a thought-bubble reaction
+// instead of just silently letting the guide chip count down. Each distinct
+// guide label (a quest can point at several characters in turn, e.g. Percy
+// then each Plaza pigeon) only ever triggers this once.
+let notice = null;   // { t }
+const noticedGuides = new Set();
+const NOTICE_DURATION = 1.8;
+function startNotice(targetPos){
+  notice = { t: 0 };
+  her.userData.moving = false;
+  // bias the camera yaw toward the target's bearing so it's visible bouncing
+  // past her shoulder for the pause, same signed convention updateWalk's
+  // turn-peek uses (camYaw feeds followCam's 3D orbit directly, unlike the
+  // 2D guide-arrow compass which needs the bearing negated for CSS rotate()).
+  const up = herUp(tmpV), fwd = herFwd(tmpV2);
+  const toward = tangentToward(her.position, up, targetPos);
+  camYaw = Math.atan2(V().crossVectors(fwd, toward).dot(up), fwd.dot(toward));
+  camPitch = 0.22;
+  state = 'notice';
+  noticeBubbleEl.classList.add('show');
+}
+function updateNotice(dt){
+  notice.t += dt;
+  followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 4.2);
+  if (notice.t > NOTICE_DURATION){
+    noticeBubbleEl.classList.remove('show');
+    notice = null;
+    state = 'walk';
+  }
+}
 function startLandingSequence(bi){
   curI = bi;
   updatePose();
@@ -3203,6 +3281,7 @@ function arrive(bi){
   camPitch = 0.3;
   updatePose();
   hudEl.classList.remove('hidden');   // re-reveal after showPlanetTitle() hid it for the title card
+  refreshFoodPocket();   // the held-food chip only ever makes sense on the cucumber/bbak world
   const b = bodies[bi];
   planetNameEl.textContent = `${b.emoji} ${b.name}`;
   // no arrival toast here — the big planetTitle card already announces the
@@ -3620,6 +3699,18 @@ function updateWalk(dt){
       guideArrowEl.style.transform = `rotate(${-bearing}rad)`;
     }
     guideEl.classList.add('show');
+    // The first time she's close enough to have actually spotted this
+    // particular target in the distance (well past "right here" range, but
+    // not so far it's just an abstract compass bearing), pause on a closer
+    // view with a "should go talk to them" reaction — once per distinct
+    // guide label, so re-approaching the same character later doesn't
+    // retrigger it.
+    const noticeKey = `${curI}:${bg.guideLabel}`;
+    const noticeRange = (bg.guideNear || 4) * 6;
+    if (!near && d < noticeRange && !noticedGuides.has(noticeKey)){
+      noticedGuides.add(noticeKey);
+      startNotice(npc.clone());   // clone: npc is the shared tmpV3 scratch vector
+    }
   } else {
     guideEl.classList.remove('show');
   }
@@ -3677,6 +3768,7 @@ const missionEl = document.getElementById('mission');
 const guideEl = document.getElementById('guide');
 const guideArrowEl = document.getElementById('guideArrow');
 const guideLabelEl = document.getElementById('guideLabel');
+const noticeBubbleEl = document.getElementById('noticeBubble');
 const dotsEl = document.getElementById('dots');
 const hintEl = document.getElementById('hint');
 const promptEl = document.getElementById('prompt');
@@ -3858,6 +3950,7 @@ function startJourney(){
   // (find bbak, find Percy, find Chippy, etc.) has been invisible this
   // whole time as a result.
   guideEl.classList.remove('hidden');
+  noticeBubbleEl.classList.remove('hidden');
   her.userData.sit(false);
   ensureAudio();
   playMelody(MELODY_CUTE);
@@ -4058,6 +4151,7 @@ function step(dt){
   else if (state === 'percyfly') updatePercyFlight(dt, t);
   else if (state === 'finale')   updateFinale(dt, t);
   else if (state === 'cukeReveal') updateCukeReveal(dt, t);
+  else if (state === 'notice')   updateNotice(dt);
 }
 let debugFreeze = false;      // when true, the loop stops stepping/rendering so a
                                // one-off debug camera shot (framePoint/lookAt) survives
