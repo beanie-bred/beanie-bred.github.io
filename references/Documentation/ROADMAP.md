@@ -1,4 +1,56 @@
 # ROADMAP
+- [x] Landing-cover bug, title screen cleanup, journal reset + book redesign
+      (2026-07-15, later still same day): user sent two screenshots — a large
+      gift book floating directly over Beanie's head during the Main Stacks
+      landing cutscene, and the title screen with its subtitle/controls text.
+      Four requests:
+      - **Gift book covering her during landing, root-caused and fixed the
+        same way as the earlier grand-stack softlock**: gift books placed
+        via `dirNear(chippyN, spread)` with no clearance check against
+        `landN` — `dirNear` doesn't reliably control angular distance at
+        this spread, so a book could land right on her own landing spot.
+        Switched to `tiltDir(chippyN, giftAngle, randomAzimuth)` with a
+        reroll-until-clear-of-landN loop, matching the grand stack's fix
+        exactly. **Also added a general safeguard**, not just a one-off
+        patch: `startLandingSequence()` now calls the same
+        `hideNearbyObstacles(null)` conversations already use to declutter
+        props near her, restored in `arrive()` once the cutscene concludes —
+        so no future decorative object placed near any world's landing spot
+        can ever cover her during a fall/get-up + orbit/title beat again.
+        Verified clean across 3 fresh reloads (gift book placement is
+        randomized each load) by pumping into the landing sequence and
+        screenshotting the close-up fall/get-up frames directly.
+      - **Title screen simplified**: removed the "a tiny journey…" subtitle
+        and the "arrow keys walk…" controls line entirely (that control hint
+        is already re-taught in-game via the idle `#hint` chip) — kept only
+        "press SPACE to start", enlarged (16-21px → 22-34px clamp, weight
+        600→700) and switched its pulse animation from a plain opacity fade
+        to an actual glow pulse (animating `text-shadow` blur/spread between
+        two states) for real prominence.
+      - **Journal/sticker diary no longer persists across reloads.** It was
+        the only `localStorage` usage in the entire file
+        (`beanieMetFriends`) — removed both the read-on-load and the
+        write-on-meet entirely (not just disabled) so a fresh page load
+        always starts at 0/12 friends met, confirmed live by earning
+        Chippy's sticker then reloading and checking the count reset.
+      - **Journal rebuilt to open like a book** (two pages hinged at a
+        central spine) instead of a single flat modal card: `#journalPage`
+        left/right each start folded flat against the spine
+        (`rotateY(±100deg)`, `transform-origin` on the spine-side edge) and
+        swing open to `rotateY(0)` when `.show` is added, with `perspective`
+        on the book container making the rotation read as a real page-turn
+        in 3D. Title/count/first 6 stickers on the left page, remaining 6
+        stickers + close button on the right. Hit and fixed two follow-on
+        layout bugs during verification: the right page's flex-column
+        parent (needed to pin the close button to the bottom) used
+        `align-items:center`, which shrank its sticker grid to almost
+        nothing next to the left page's normally-sized one — fixed via
+        `align-items:stretch` + explicit `width:100%` on the grid; and the
+        sticker cells themselves were sized by `1fr` columns filling a full
+        page width (~168px each), which made 3 rows overflow the book's
+        height entirely, hiding the close button below an invisible
+        scroll — fixed by capping cell size with
+        `clamp(64px,9vw,92px)` columns instead of `1fr`.
 - [x] Main Stacks findable from Chicago by default (2026-07-15, later still
       same day): user reported "why can't i find mainstacks from chicago???
       where is beanie supposed to go??? it should be the planet that looks
