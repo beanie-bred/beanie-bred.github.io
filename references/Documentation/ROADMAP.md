@@ -1,4 +1,57 @@
 # ROADMAP
+- [x] Landing polish, title-timing, left-side compass, melted snow, sticker
+      fix (2026-07-15, later still same day):
+      - **Fall pose sink reduced 0.6→0.22** (`updateLandingAnim()`) — the
+        prior pass's fix for "floating above the ground" overshot into
+        visibly burying her face-down pose most of the way into the surface.
+      - **Landing dust burst slowed** (`spawnLandingDustBurst()`): speed
+        4-10→1.5-4 units/sec, life 0.7-1.3s→1.4-2.3s, spin 1.1→0.5 — read as
+        a sharp explosion before, now settles like real dust.
+      - **New: camera rumble on impact.** `updateLanding()`'s 'fallgetup'
+        branch jitters `camera.position` by a magnitude that decays linearly
+        over the first 0.4s of `landing.t` (pure function of elapsed time —
+        no extra persistent state, works under `pump()` for testing).
+      - **Fall-cutscene camera pulled in**: `followCam` distance during
+        'fallgetup' 11→5.5, so the fall itself reads as a close, legible
+        beat instead of a distant wide shot.
+      - **Title-card minimum display time.** No code bug in the hide/reveal
+        itself (`showPlanetTitle()`/`arrive()` were already correct — traced
+        through and confirmed live), but `finalizeLanding()` had no cooldown
+        after entering the 'orbit' phase, so a reflexive SPACE press (dialogue
+        trains her to mash it to advance) landing right as 'fallgetup'
+        finished could dismiss the title before it had even finished its own
+        1.5s reveal animation — reading as "the HUD/mission chip come back
+        too soon". Added a `landing.t < 1.5` guard; verified live that an
+        early press during that window is ignored and a later one works.
+      - **New: mission text typewriter.** Dialogue's existing typewriter
+        (`showDialogLine()`) does a plain `textContent.slice()`, which would
+        mangle the mission string's `<b>` gold-keyword tags mid-reveal.
+        Added `typewriterHTML()` — walks a scratch DOM tree into a flat
+        per-character list tagged bold/not, so a partial reveal always
+        re-wraps in a balanced `<b>`. `setMission()` now drives text through
+        it instead of setting `innerHTML` directly. Verified live: bold
+        spans render correctly at every point mid-type, including with two
+        separate `<b>` runs in the same string.
+      - **Guide/compass moved to the left edge of the screen** (was a
+        top-center banner) — now a narrow vertical badge (compass arrow
+        above the distance text) at `left:18px`, vertically centered.
+      - **New: melted-snow ground patches in Cucumber Meadow** — 70 flat,
+        irregular, near-white (`0xf3faff`, 78-96% opacity) circles scattered
+        across the grass, a quiet nod to the world previously being bbak's
+        icy home before it thawed. First pass at 50-75% opacity barely
+        registered against the muted sage-green grass; bumped whiter/more
+        opaque and re-verified visually.
+      - **Root-caused "why aren't the stickers showing": GitHub Pages
+        cannot serve Git LFS pointers, and `stickers/*.png` was never
+        exempted from the blanket `*.png filter=lfs` rule the way
+        `game-assets/**/*.glb` and `logo.png` already were** — confirmed by
+        curling the live URL directly: it returned a 132-byte LFS pointer
+        text file, not the real ~2-4MB image, for every sticker. Added
+        `stickers/**/*.png -filter -diff -merge -text` to `.gitattributes`
+        and `git add --renormalize`'d the 17 sticker files so they're
+        committed as plain blobs instead.
+      - Not done: Talking.fbx retargeting, still blocked on the Blender MCP
+        connection from the previous round.
 - [x] Cucumber ring scale-down + ground-cucumber reveal re-verify (2026-07-15,
       later same day): user screenshot from the aim-and-leap view (standing on
       Chicago, aiming toward Main Stacks) showed the ring so large it visually

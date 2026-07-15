@@ -1679,14 +1679,17 @@ function buildCucumber(g, R){
   // few pale, patchy, faintly wet-looking remnants of snow are scattered
   // around as a quiet visual nod to that backstory, always visible (not
   // gated by the cucumber reveal, unlike the ring/ground-cucumbers above).
-  for (let i = 0; i < 55; i++){
-    const patch = new THREE.Mesh(new THREE.CircleGeometry(0.55 + Math.random()*0.6, 10),
-      mat(0xe9f2f5, { roughness:0.35, transparent:true, opacity:0.5 + Math.random()*0.25 }));
+  for (let i = 0; i < 70; i++){
+    // bumped whiter/more opaque than the first pass — against the sage-green
+    // grass (PALETTE.moss, itself fairly pale/muted) a 50-75%-opacity patch
+    // barely registered; a near-solid, cooler white reads clearly as snow.
+    const patch = new THREE.Mesh(new THREE.CircleGeometry(0.6 + Math.random()*0.7, 10),
+      mat(0xf3faff, { roughness:0.3, transparent:true, opacity:0.78 + Math.random()*0.18 }));
     patch.rotation.x = -Math.PI/2;
     patch.scale.set(1, 0.6 + Math.random()*0.5, 1);
     patch.rotation.z = Math.random()*Math.PI;
     const holder = new THREE.Group(); holder.add(patch);
-    placeOn(g, holder, randDir(), R, 0.03);
+    placeOn(g, holder, randDir(), R, 0.04);
   }
   // bbak (sleeping polar-bear plush) lounging on the grass — the NPC
   const bbakN = V().set(-0.25, 1, 0.35).normalize();
