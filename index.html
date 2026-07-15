@@ -46,17 +46,20 @@
     box-shadow:0 0 30px rgba(255,200,120,.14);color:#ffeccf;transition:opacity .6s}
   #mission b{color:var(--gold)}
   #mission.mission-hide{opacity:0;pointer-events:none}
-  #guide{position:fixed;top:122px;left:50%;transform:translateX(-50%) translateY(-6px);z-index:20;
-    font-size:clamp(16px,2.6vw,24px);font-weight:700;padding:11px 24px;border-radius:24px;
-    max-width:92vw;width:max-content;text-align:center;white-space:normal;
+  #guide{position:fixed;left:18px;top:50%;transform:translateY(-50%) translateX(-16px);z-index:20;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+    font-size:clamp(12.5px,1.5vw,15.5px);font-weight:700;padding:14px 12px;border-radius:20px;
+    width:112px;text-align:center;white-space:normal;line-height:1.35;
     background:rgba(30,32,64,.55);backdrop-filter:blur(8px);border:1px solid rgba(150,200,255,.4);
     color:#dbe7ff;opacity:0;transition:opacity .4s,transform .4s;pointer-events:none}
-  #guide.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #guide.show{opacity:1;transform:translateY(-50%) translateX(0)}
   #guide .near{color:#a8f0c0}
   /* screen-space compass fallback: the 3D glowing beacon can be hidden behind
      a big planet's own curvature when the target is far away, so this always
-     shows which way to turn regardless of 3D line-of-sight. */
-  #guideArrow{display:inline-block;margin-right:6px;color:#ffd166;
+     shows which way to turn regardless of 3D line-of-sight. Lives as a
+     compass badge on the left edge of the screen, arrow above the distance
+     text, rather than a top-center banner. */
+  #guideArrow{display:block;font-size:1.5em;color:#ffd166;
     transition:transform .25s ease;transform-origin:50% 55%}
   /* a little "thought bubble" that pops up the first time she gets close
      enough to spot the next required character in the distance. */
@@ -545,8 +548,10 @@ function spawnLandingDustBurst(pos, up){
     const puff = new THREE.Mesh(dustGeo, mat(0xd6cdbc, { roughness:1, transparent:true, opacity:0.7 }));
     puff.scale.setScalar(1.1 + Math.random()*2.0);
     const dir = randDir().addScaledVector(up, 0.5 + Math.random()*0.4).normalize();
-    const speed = 4 + Math.random()*6;
-    spawnEphemeral(puff, pos, dir.multiplyScalar(speed), 0.7 + Math.random()*0.6, 1.1);
+    // slowed way down (was 4-10) and given more hang time (was 0.7-1.3s) —
+    // a fast sharp burst read more like an explosion than settling dust.
+    const speed = 1.5 + Math.random()*2.5;
+    spawnEphemeral(puff, pos, dir.multiplyScalar(speed), 1.4 + Math.random()*0.9, 0.5);
   }
 }
 
@@ -1669,6 +1674,19 @@ function buildCucumber(g, R){
       mat([0xf2c0d0, 0xf6e0a8, 0xc8d8f4][i%3], { roughness:0.8 }));
     const holder = new THREE.Group(); holder.add(f); f.position.y = 0.12;
     placeOn(g, holder, randDir(), R, 0.1);
+  }
+  // this meadow used to be bbak's icy home before it thawed into grass — a
+  // few pale, patchy, faintly wet-looking remnants of snow are scattered
+  // around as a quiet visual nod to that backstory, always visible (not
+  // gated by the cucumber reveal, unlike the ring/ground-cucumbers above).
+  for (let i = 0; i < 55; i++){
+    const patch = new THREE.Mesh(new THREE.CircleGeometry(0.55 + Math.random()*0.6, 10),
+      mat(0xe9f2f5, { roughness:0.35, transparent:true, opacity:0.5 + Math.random()*0.25 }));
+    patch.rotation.x = -Math.PI/2;
+    patch.scale.set(1, 0.6 + Math.random()*0.5, 1);
+    patch.rotation.z = Math.random()*Math.PI;
+    const holder = new THREE.Group(); holder.add(patch);
+    placeOn(g, holder, randDir(), R, 0.03);
   }
   // bbak (sleeping polar-bear plush) lounging on the grass — the NPC
   const bbakN = V().set(-0.25, 1, 0.35).normalize();
@@ -2809,7 +2827,9 @@ function updateLandingAnim(){
   // dominates (this weight peaks mid-cutscene, at the flattest point, and
   // eases back to 0 as she stands — HER_MODEL_LIFT's normal idle height —
   // by the time the cutscene ends) so her body visibly touches down.
-  if (herWinterGroup) herWinterGroup.position.y = HER_MODEL_LIFT - 0.6*w;
+  // (0.6 overshot into visibly burying her face-down pose — 0.22 still reads
+  // as touching the ground without her sinking most of the way in.)
+  if (herWinterGroup) herWinterGroup.position.y = HER_MODEL_LIFT - 0.22*w;
 }
 
 /* ---------- movement / state ---------- */
@@ -3224,7 +3244,18 @@ function updateLanding(dt){
   updateLandingAnim();
   const up = herUp(tmpV);
   if (landing.phase === 'fallgetup'){
-    followCam(dt, her.position, up, herFwd(tmpV2), 11);
+    // pulled way in (was 11) so the fall itself actually reads up close
+    // instead of a distant wide shot — she's the whole point of this beat.
+    followCam(dt, her.position, up, herFwd(tmpV2), 5.5);
+    // a quick decaying shake right on impact — landing.t resets to 0 at the
+    // start of this phase, so this is purely a function of elapsed time,
+    // no separate persistent state needed (and it's pump()-testable).
+    const shakeMag = Math.max(0, 1 - landing.t/0.4) * 0.32;
+    if (shakeMag > 0){
+      camera.position.x += (Math.random()-0.5)*shakeMag;
+      camera.position.y += (Math.random()-0.5)*shakeMag;
+      camera.position.z += (Math.random()-0.5)*shakeMag;
+    }
     if (landing.t >= landingClipDuration() + 0.5){
       landing.phase = 'orbit'; landing.t = 0;
       landing.orbitBasisA = arbitraryPerp(up);
@@ -3276,7 +3307,13 @@ function updateLanding(dt){
   }
 }
 function finalizeLanding(){
-  if (!landing || landing.phase !== 'orbit') return;   // ignore clicks during the fall/get-up beat
+  // Ignore clicks during the fall/get-up beat, AND for the title's own 1.5s
+  // reveal animation once 'orbit' starts — dialogue trains her to mash SPACE
+  // to advance, so a reflexive press right as landing transitions into orbit
+  // could dismiss the title before it had even finished revealing, which is
+  // why the HUD/mission chip (only re-shown once she actually clicks past
+  // the title, in arrive()) could seem to pop back on almost immediately.
+  if (!landing || landing.phase !== 'orbit' || landing.t < 1.5) return;
   planetTitleEl.classList.remove('show');
   const bi = landing.bi;
   landing = null;
@@ -3869,9 +3906,51 @@ function showToast(title, tag){
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toastEl.classList.remove('show'), 4000);
 }
+// Same per-character typewriter feel as the dialogue box, but HTML-aware:
+// mission strings use <b> to gold-highlight keywords, and the dialogue
+// typewriter's plain textContent.slice() approach would leave a raw,
+// unbalanced "<b>MISSI" mid-reveal instead of real markup. Walks a scratch
+// DOM tree into a flat per-character list (tagged bold/not) so a partial
+// reveal can always re-wrap whatever's been revealed so far in a balanced
+// <b>...</b>.
+let missionTyping = null;
+function typewriterHTML(el, html, speed){
+  const scratch = document.createElement('div');
+  scratch.innerHTML = html;
+  const chars = [];
+  (function walk(node, bold){
+    for (const child of node.childNodes){
+      if (child.nodeType === Node.TEXT_NODE){
+        for (const ch of child.textContent) chars.push({ ch, bold });
+      } else if (child.nodeType === Node.ELEMENT_NODE){
+        walk(child, bold || child.tagName === 'B');
+      }
+    }
+  })(scratch, false);
+  const esc = (c) => c === '<' ? '&lt;' : c === '>' ? '&gt;' : c;
+  let i = 0;
+  const render = () => {
+    let out = '', open = false;
+    for (let k = 0; k < i; k++){
+      const c = chars[k];
+      if (c.bold && !open){ out += '<b>'; open = true; }
+      if (!c.bold && open){ out += '</b>'; open = false; }
+      out += esc(c.ch);
+    }
+    if (open) out += '</b>';
+    el.innerHTML = out;
+  };
+  clearInterval(missionTyping);
+  render();
+  missionTyping = setInterval(() => {
+    i++;
+    render();
+    if (i >= chars.length) clearInterval(missionTyping);
+  }, speed);
+}
 function setMission(html){
-  missionEl.innerHTML = html;
   missionEl.classList.remove('hidden');
+  typewriterHTML(missionEl, html, 22);
 }
 const bookpopEl = document.getElementById('bookpop');
 let bookpopTimer = null;

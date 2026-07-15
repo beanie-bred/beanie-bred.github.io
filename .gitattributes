@@ -10,3 +10,4 @@
 game-assets/**/*.glb -filter -diff -merge -text
 game-assets/**/*.gltf -filter -diff -merge -text
 logo.png -filter -diff -merge -text
+stickers/**/*.png -filter -diff -merge -text
