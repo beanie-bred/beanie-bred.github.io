@@ -1,4 +1,35 @@
 # ROADMAP
+- [x] Talking pose re-tuned: relaxed shoulders, straight forward reach
+      (2026-07-15, later still same day): the scarecrow-arms fix above still
+      wasn't quite right — user said her shoulders looked "awkwardly lifted"
+      and her elbows were bent more than they needed to be; wanted arms kept
+      straight while still reaching forward.
+      - **Recomputed the SAME gesture's timing/wiggle, re-targeted to a new
+        base pose**, rather than re-authoring from scratch: mathematically
+        undid the previous offset and applied a new one in one step (`net =
+        new_offset @ old_offset.inverted()`, composed directly onto the
+        already-once-offset keyframes) — avoids any risk of drifting back
+        toward the original raw-bind-pose wiggle by mistake.
+      - **Shoulder height brought back down close to her actual Idle hang
+        angle** (was noticeably more raised than Idle in the first pass —
+        that's exactly what read as "awkwardly lifted"), while the forward
+        swing increased so the reach itself stays strong. **Elbow bend cut
+        way down**, from a real bend to barely more than Idle's own natural
+        slight bend — reads as a straight arm now, not a curled one.
+      - Verified via renders at 4 points through the gesture (all
+        consistent: relaxed shoulder, straight-ish arm, hand out front) and
+        a live in-game screenshot at a larger resolution than the previous
+        round's check, which made the silhouette much easier to judge.
+      - **Deployment-verification gotcha hit while confirming this shipped**:
+        this export happened to come out the exact same byte SIZE as the
+        previous (different) export, so the usual "does local size match
+        remote size" poll gave a false positive before GitHub Pages had
+        actually updated. Switched to comparing a SHA-256 hash of the full
+        file content instead of just size — caught that the CDN was still
+        serving the previous version for ~60s longer than the size-only
+        check would have reported. Worth using a content hash instead of
+        size for this kind of check going forward whenever two consecutive
+        exports could plausibly land on the same byte count.
 - [x] Talking pose "scarecrow arms" fix (2026-07-15, later still same day):
       user saw the newly-wired Talking animation live and said her arms bend
       "a bit forward" was needed — "shes standing like a scarecrow."
