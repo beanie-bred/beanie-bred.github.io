@@ -4185,12 +4185,44 @@ function updateIdleHint(dt, moving){
   if (idleTime > 5.0) hintEl.classList.remove('hidden');
 }
 
+// Short cutscene camera for Chicago's messenger: before the letter dialogue
+// (which gets its own two-shot via updateTalkCam/dialog.npcPos), the pigeon
+// spends ~950ms not yet visible, then ~1.15s visibly swooping down from high
+// overhead — previously the camera just held its very first static snapshot
+// through all of that, so the swoop-in either wasn't framed at all or drifted
+// out of shot. Same side-offset two-shot approach as updateTalkCam, just with
+// a taller/farther-back floor since the pigeon starts far higher above the
+// surface than any normal conversation partner ever stands.
+function updateMessengerCutsceneCam(dt){
+  const m = chicagoMessenger;
+  const up = herUp(new THREE.Vector3());
+  const pgPos = m.pg.position;
+  const toPg = tangentToward(her.position, up, pgPos);
+  const side = new THREE.Vector3().crossVectors(up, toPg).normalize();
+  const mid = new THREE.Vector3().addVectors(her.position, pgPos).multiplyScalar(0.5);
+  const gap = Math.max(9, her.position.distanceTo(pgPos));
+  const goal = new THREE.Vector3().copy(mid)
+    .addScaledVector(side, gap*0.5 + 2)
+    .addScaledVector(up,   gap*0.32 + 2)
+    .addScaledVector(toPg, -gap*0.22 - 1);
+  const look = new THREE.Vector3().copy(mid).addScaledVector(up, 1.1);
+  camPos.lerp(goal, 1 - Math.exp(-3*dt));
+  camUp.lerp(up, 1 - Math.exp(-3*dt)).normalize();
+  camera.position.copy(camPos);
+  camera.up.copy(camUp);
+  camera.lookAt(look);
+}
 function updateWalk(dt){
   const b = bodies[curI];
   const u = her.userData;
   if (introLocked){   // frozen until the messenger's letter dialogue finishes
     u.moving = false;
     updateIdleHint(dt, false);
+    // Once the messenger has actually spawned (it doesn't right away — see
+    // the 950ms setTimeout in startJourney()), keep her and its swoop-in
+    // both in frame instead of holding the very first static camera snapshot
+    // for this whole beat.
+    if (chicagoMessenger && !chicagoMessenger.landed) updateMessengerCutsceneCam(dt);
     return;
   }
   const ix = (keys['ArrowRight'] ? 1 : 0) - (keys['ArrowLeft'] ? 1 : 0);
@@ -4511,11 +4543,29 @@ const CHICAGO_LETTER_LINES = [
   `Oh — almost forgot! He also sent this tiny notebook. 📔 Somewhere to keep records of things, he said, for whatever you find along the way.`,
   `So don't stop, okay? Aim at the next little world and leap. Off you go!`,
 ];
+// A small folded letter, clamped in the messenger's beak — this pigeon is
+// the only one carrying anything, so it's built here rather than as a
+// generic plushPigeon() option.
+function makeLetterProp(){
+  const g = new THREE.Group();
+  const paper = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.02, 0.11),
+    mat(0xfaf3e2, { roughness:0.9 }));
+  g.add(paper);
+  const seal = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.014, 10),
+    mat(0xc0392b, { roughness:0.55, emissive:0xc0392b, emissiveIntensity:0.15 }));
+  seal.rotation.x = Math.PI/2; seal.position.y = 0.017; g.add(seal);
+  return g;
+}
 let chicagoMessenger = null;
 function spawnChicagoMessenger(onLanded){
   const b0 = bodies[0];
   const pg = plushPigeon(PIGEON_VARIANTS ? PIGEON_VARIANTS[0] : {});
   pg.scale.setScalar(0.9);
+  // clamped just past the beak tip, tilted like she's gripping/carrying it
+  const letter = makeLetterProp();
+  letter.position.set(0, -0.01, 0.29);
+  letter.rotation.x = -0.2;
+  pg.userData.head.add(letter);
   const fwd = herFwd(V());
   // landing spot: ON the surface, a little in front of her
   const groundN = V().copy(her.position).addScaledVector(fwd, 3.2).sub(b0.center).normalize();
@@ -4773,9 +4823,22 @@ function step(dt){
   // redundancy), but that approach is exactly what missed the cukeReveal
   // state the first time around — a blanket rule keyed on `state` itself
   // can't be forgotten for whatever cutscene gets added next.
+  // IMPORTANT: only ever ADD 'hidden' here, never remove it — this used to
+  // be an unconditional toggle(hidden, isCutsceneState), which forced the
+  // class OFF every single frame outside a cutscene, including during
+  // state==='talk'. That fought Chicago's own "keep the mission hidden
+  // until the letter is done" gate (startJourney() explicitly hides it,
+  // then the messenger's letter conversation runs in state==='talk') —
+  // the very next frame after the conversation started, this rule silently
+  // un-hid the mission again since 'talk' isn't a cutscene state, so the
+  // mission chip popped up as soon as she started talking to the pigeon
+  // instead of only after the whole intro (letter + orbit/title) finishes.
+  // Revealing the mission is each caller's own job (setMission() already
+  // does it); this rule's only job is guaranteeing it can't stay/become
+  // visible during an actual cutscene.
   const isCutsceneState = state === 'intro' || state === 'fly' || state === 'landing'
     || state === 'percyfly' || state === 'finale' || state === 'cukeReveal';
-  missionEl.classList.toggle('hidden', isCutsceneState);
+  if (isCutsceneState) missionEl.classList.add('hidden');
 
   if (state === 'intro'){
     // Same close, local tangent-plane orbit the Chicago title cutscene uses
