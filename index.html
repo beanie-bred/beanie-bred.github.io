@@ -3700,14 +3700,18 @@ function updateWalk(dt){
     }
     guideEl.classList.add('show');
     // The first time she's close enough to have actually spotted this
-    // particular target in the distance (well past "right here" range, but
-    // not so far it's just an abstract compass bearing), pause on a closer
-    // view with a "should go talk to them" reaction — once per distinct
-    // guide label, so re-approaching the same character later doesn't
-    // retrigger it.
+    // particular CHARACTER in the distance (well past "right here" range,
+    // but not so far it's just an abstract compass bearing), pause on a
+    // closer view with a "should go talk to them" reaction — once per
+    // distinct guide label, so re-approaching the same character later
+    // doesn't retrigger it. Only fires for "go meet someone" labels (every
+    // one of those happens to read "find <x>" / "say hello…" in this game),
+    // not for "bring/take/fetch it back" item-errand labels — there's no
+    // character to react to when the guide is just pointing at a snack.
     const noticeKey = `${curI}:${bg.guideLabel}`;
     const noticeRange = (bg.guideNear || 4) * 6;
-    if (!near && d < noticeRange && !noticedGuides.has(noticeKey)){
+    const isCharacterSeek = /find |say hello/i.test(bg.guideLabel);
+    if (isCharacterSeek && !near && d < noticeRange && !noticedGuides.has(noticeKey)){
       noticedGuides.add(noticeKey);
       startNotice(npc.clone());   // clone: npc is the shared tmpV3 scratch vector
     }
