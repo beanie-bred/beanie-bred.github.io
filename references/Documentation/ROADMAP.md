@@ -1,4 +1,43 @@
 # ROADMAP
+- [x] Main Stacks findable from Chicago by default (2026-07-15, later still
+      same day): user reported "why can't i find mainstacks from chicago???
+      where is beanie supposed to go??? it should be the planet that looks
+      closest to chicago." The parallel session's re-facing fix (see the
+      Summer Beanie entry below — Beanie now faces `chainNext` again after
+      the letter dialogue) fixed HER raw body orientation, but live-testing
+      the full intro→letter→cutscene flow afterward still showed the
+      default settled view containing Cucumber Meadow prominently and NO
+      trace of Main Stacks anywhere in frame.
+      - **Root cause: `arrive()`'s generic post-cutscene `camPitch = 0.3`
+        reset.** Confirmed via `updateAim()`'s own dataset (`aimAngle`):
+        even with her body facing Main Stacks to within ~14°, the actual
+        rendered camera direction (`aimDir`) was over a full radian (~57°)
+        off — the standard follow-camera has a baseline downward tilt
+        (positions itself behind-and-above her, looking back down near her
+        feet, by design, for normal walking) that works fine for regular
+        gameplay but put a world sitting fairly high in Chicago's sky
+        completely out of frame.
+      - **Fixed with a Chicago-specific resting pitch**: `arrive()` now sets
+        `camPitch = bi===0 ? -0.55 : 0.3` — tilts the settled view up enough
+        that Main Stacks reads clearly as the one nearby, obviously-reachable
+        world (no competing Cucumber Meadow in the same shot), while still
+        leaving a small additional drag needed to fully lock the aim, so the
+        mission text's own "drag/swipe to aim" instruction still applies.
+        Verified via `aimAtBody(1)` before and after (false → true) and by
+        actually completing the leap to Main Stacks end-to-end from this
+        resting view.
+      - **Testing gotcha found along the way**: a loop that presses SPACE
+        and exits once `state==='walk'` is not sufficient to get through
+        Chicago's intro — `state` reads `'walk'` briefly *before* the
+        messenger pigeon even arrives (950ms setTimeout gate), so the loop
+        can exit having done nothing, leaving `introLocked` stuck `true`
+        and the letter/mission/camera never actually initialized. Confirmed
+        via `camDebug().introLocked` staying `true` despite `state==='walk'`;
+        fixed by waiting past the 950ms gate first, then advancing through
+        all 7 real dialogue lines before checking `introLocked === false`.
+      - Added a `setCam(yaw, pitch)` debug helper (`window.__world`) for
+        directly tuning/probing camera angles in future testing, alongside
+        the existing `camDebug()`/`aimAtBody()`.
 - [x] Summer Beanie mesh-deformation root-cause fix, file reorganization, LFS
       re-fix (2026-07-15, later still same day): a GitHub Desktop screenshot
       showed the user's own push rejected (`GH008: ...52 unknown Git LFS
