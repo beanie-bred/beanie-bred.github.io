@@ -1,4 +1,127 @@
 # ROADMAP
+- [x] Landing camera: close diagonal shot, fixed clipping into her own face,
+      and stopped the bigger dust cloud from hiding her the whole time
+      (2026-07-15): user sent a reference screenshot asking for the
+      just-landed camera to be "this close and her body shown diagonally
+      with her head facing bottom left," alongside a separate ask to make
+      the landing dust cloud "slower, smoother, and a much bigger cloud
+      that rumbles more."
+      - The first diagonal-camera attempt used `+fwd` to offset the camera
+        from her position, which put the camera directly in front of her
+        face — the codebase's own `followCam` always negates `fwd` first
+        (`cA.copy(fwd).multiplyScalar(-1)`) to sit behind her; using the
+        opposite sign here is what caused the clipping. Fixed by matching
+        that convention.
+      - With that fixed, a live screenshot at the moment of impact still
+        showed nothing but a wall of pale round shapes — traced via a
+        temporary scene-traversal debug accessor to `spawnLandingDustBurst`'s
+        own puffs (confirmed by exact color match, `0xd6cdbc`), not snow or
+        any other decor. The dust cloud's own sizing was bumped way up this
+        same round (up to 5.6x scale, 42-56 puffs) per the "much bigger
+        cloud" ask, and a camera sitting only ~4 units from her spawn point
+        was consistently inside that cloud for the first 1-2+ seconds of its
+        life — confirmed live that she was still almost entirely hidden
+        behind puffs at landing.t=1.6s.
+      - Rather than shrinking the cloud back down (it was sized that way on
+        request), eased the camera in from a wide establishing distance
+        (~9 units, reads as "the big dust cloud swallows her on impact")
+        down to the close diagonal framing (~4 units) over 1.6s — timed to
+        land right around when the puffs have traveled clear of her.
+        Verified via screenshots across the whole fallgetup phase (impact,
+        mid-ease, settled-close, standing-up, transition to orbit): dust
+        reads as an atmospheric settling cloud in the background instead of
+        an opaque wall, and she's clearly visible in the diagonal pose
+        throughout.
+      - Also gave Cucumber Meadow's decorative snow piles (separately made
+        much bigger/wider this round, up to radius 3) a keep-clear zone
+        around her actual fixed landing spot, same pattern as the Book
+        Stacks maze's `LAND_CLEAR` — 70 of them scattered fully at random
+        on a small planet made a pile landing on top of her arrival point
+        a real (if intermittent) risk, independent of the dust issue above.
+- [x] Cucumber Meadow feeding quest polish: fixed pizza model, added more
+      food variety, wider snow mounds, and a proper cucumber-ring reveal
+      cutscene (2026-07-15): several related asks in the same batch — pizza
+      "all separated again," not enough food options ("makes the gameplay
+      take too long"), snow piles should be bigger and not flat circles, and
+      the cucumber-ring reveal should show the ring actually turning into
+      ground cucumbers over ~3 seconds, with cucumbers then pickable nearby
+      and a cutscene of them forming on the ground.
+      - Pizza: the crust `TorusGeometry` used `rotation.x = Math.PI/2` while
+        the slice `CircleGeometry` used the opposite sign — a mirror-image
+        azimuth mapping that put the crust arc on the wrong side of the
+        wedge. Fixed by matching signs; confirmed live (walked her up to a
+        spawned slice, screenshotted) that it now reads as one continuous
+        piece, and that its existing spin animation plays correctly on the
+        fixed geometry.
+      - Added popsicle/watermelon/hotdog/sushi to the pickup-food rotation
+        (was 6 types/6 instances, now 10 types/14 instances) so a wrong-food
+        try is never far away.
+      - Snow patches are now lumpy squashed-sphere mounds instead of flat
+        circles, sized up (background patches 1.3-3.0 radius, bbak's own
+        patch 3.4) — see the landing-camera entry above for the keep-clear
+        fix this required.
+      - Cucumber reveal: rewrote as a genuine crossfade — the always-present
+        solid ring fades out while the real cucumber-band ring (sharing the
+        same material, so animating its opacity affects every instance at
+        once) fades in over 3 seconds, then ground cucumbers individually
+        grow in with a per-cucumber random delay + ease-out scale-in. She
+        can pick up any ground cucumber near her once revealed, not just a
+        single designated one.
+      - Picking up any food now immediately redirects the "next" guide/
+        locator to bbak ("take it back to bbak") regardless of which food
+        she grabbed — confirmed this was already wired correctly
+        (`refreshBbakGuide`'s `bbakQuest.holding` branch runs on every
+        pickup), so no change needed there, just verified it holds for the
+        new food types too.
+- [x] Cutscene and conversation polish: mission box hidden during every
+      cutscene, Chippy's book pile now part of him, bigger achievement-stamp
+      sticker toast, bbak toss happens in conversation mode
+      (2026-07-15): batch of smaller asks — Chippy's book pile still showing
+      disconnected behind him mid-conversation, the Meadow mission box
+      revealing the exact objective before meeting bbak instead of just
+      pointing to him, the friend-sticker toast cropping the sticker image,
+      and the food-toss-to-bbak not being staged as part of the conversation.
+      - Chippy's seat was a sibling object in the world group, not a child
+        of Chippy's own Object3D, so `hideNearbyObstacles()` (which only
+        exempts the NPC object itself, not nearby-but-unrelated objects) was
+        hiding it during talk. Fixed by truly re-parenting the seat onto
+        Chippy with compensating local rotation/position so its world
+        transform is unchanged.
+      - Broadened the existing cutscene mission-hiding rule to cover every
+        cutscene state (`intro`, `fly`, `landing`, `percyfly`, `finale`,
+        `cukeReveal`) in one place, and gated the Meadow's landing mission
+        text behind actually meeting bbak, showing only "find bbak" first.
+      - Sticker toast image grew 40px -> 70px with `object-fit: contain` (was
+        cropping) and a forced-reflow-restarted "stamp" keyframe animation
+        (scale/rotate overshoot settling in) so it reads as an achievement
+        stamp landing on the notification.
+      - `talkBbak()` now enters `state='talk'` (camera + hidden obstacles)
+        before playing the toss animation, so the whole exchange reads as
+        one continuous conversation instead of a walk-up toss followed by a
+        separate dialogue cut.
+- [x] Pigeon Plaza density, aim-lock softlock, and QA shortcuts
+      (2026-07-15): asked for roughly double the pigeons with more flying
+      continuously, plus a QA shortcut to progressively hand off quest items
+      (press P: book to Chippy, another book, food to bbak, etc.) for faster
+      testing, and separately that jumping from Cucumber Meadow onward was
+      "hard to find."
+      - Pigeon count 260 -> 520, continuously-flying subset 18 -> 42.
+      - Added a `P` keydown handler (`qaGiveNext()`) that advances whichever
+        of the books/bbak quests is currently active by one step per press.
+      - The Cucumber Meadow -> Pigeon Plaza jump turned out to be not just
+        "hard" but genuinely unlockable at any camera angle: `updateAim()`'s
+        aim-lock had a hardcoded `surf < 800` distance cap left over from
+        before an earlier repositioning of Cucumber Meadow this same
+        session, and the actual inter-world distance had since grown past
+        it (~936-903 depending on approach angle, confirmed live via the
+        aim debug's `targetDistance`). Raised the cap to 1000 — verified via
+        a full pitch/yaw aim sweep that it now locks on.
+      - Also found and fixed an unrelated bridge-command bug while verifying
+        the new talking-pose animation (a separate in-progress effort this
+        session): the QA `talk()` shortcut called a nonexistent
+        `startTalk()`; it now mirrors the real keydown handler's NPC-
+        proximity dispatch (Chippy -> bbak -> plaza pigeon -> Percy) so it
+        actually engages a conversation with whichever NPC she's near.
 - [x] Talking pose: fixed the actually-broken elbow, raised into a real
       explaining gesture (2026-07-15, later still same day): user sent 3
       reference images (an in-game screenshot plus a robot-figure render and
