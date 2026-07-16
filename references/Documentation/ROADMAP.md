@@ -1,4 +1,26 @@
 # ROADMAP
+- [x] Journal: Pigeon Plaza stickers reworked into a uniform circular badge
+      treatment (2026-07-16): Bred sent a screenshot of the locked Pigeon
+      Plaza page looking "ugly" - a scatter of irregular gray blobs with
+      random spiky bits - and pointed out the actual pigeon sticker art is
+      all badge-style, so they should render consistently. Each pigeon
+      sticker turned out to be a genuinely gorgeous but wildly different
+      ornate patch illustration (Percy: a simple circular patch with a name
+      banner; Nibbles: an elaborate scalloped forest crest with antlers) -
+      the existing plain alpha-silhouette treatment (fine for the OTHER
+      pages' simpler art) took each one's own irregular outline at 13%
+      opacity, which is exactly what read as "random spiky blobs," and 10
+      of them together with zero shape consistency compounded it. Fixed by
+      pinning every Pigeon Plaza sticker to a uniform circular disc instead
+      (`.jsticker.badge`): a plain gray-blue token while locked (no image at
+      all, just a soft gradient disc), the real ornate patch art sitting on
+      a matching white disc via `object-fit:contain` once met - so instead
+      of forcing a crop that would've cut into Nibbles' antlers or Percy's
+      banner, each badge's own outline just shows through in full on a
+      same-sized circular "pinned to a board" backing. Suppressed the
+      washi-tape decoration for these specifically (a pin doesn't need
+      tape). Verified live with 0 and 3 friends met - reads as one cohesive
+      badge collection either way now, not a chaotic pile.
 - [x] Conversation camera pulled back, BGM ducked during dialogue, 2x
       typewriter, Chippy sways instead of bouncing (2026-07-16): follow-up
       to the glare/choice-button round below - Bred sent screenshots showing
