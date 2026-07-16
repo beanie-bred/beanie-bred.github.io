@@ -7010,32 +7010,53 @@ function showFriendToast(key){
 }
 // deterministic pseudo-random so a page's collage is stable across re-renders
 function jrand(s){ const x = Math.sin(s*127.1 + 31.7) * 43758.5453; return x - Math.floor(x); }
-// scatter n items over the collage as {x%, y%, size%, rot}. A single hero
-// sticker sits big and centred; a crowd lays out on a jittered grid with
-// varied sizes so it reads as a hand-stuck collage, not a tidy table. When
-// `o.hero` is set AND there's a crowd too (n>1) - the friend met on that
-// world plus their collectible mementos (books, foods) - item 0 keeps its
-// normal grid cell but at the hero size, so it still reads as the "main"
-// sticker of the page without needing its own separate placement.
-function collagePlace(n, seed, o){
-  if (n === 1) return [{ x:50, y:53, size:o.hero || 60, rot:(jrand(seed)-0.5)*14 }];
-  const cols = Math.ceil(Math.sqrt(n * (o.wide || 1.15)));
-  const rows = Math.ceil(n / cols);
-  const cw = 100/cols, ch = 100/rows, out = [];
-  for (let i = 0; i < n; i++){
+// Tile `count` items into a grid over the region [left, left+width] x
+// [0,100] as {x%, y%, size%, rot}. Jitter is a fraction of each item's own
+// LEFTOVER room in its cell (cellSize - itemSize), not a fixed fraction of
+// the cell itself - so as long as sizeMax <= the smaller of the cell's
+// width/height and jitter <= 1, an item can never be pushed past its own
+// cell's edges, which structurally guarantees it never overlaps a neighbor
+// or runs off the page, at any size. This replaced an earlier version whose
+// jitter was a fixed fraction of cell size regardless of item size, which
+// looked fine at the small, cautious sizes it shipped with but silently
+// allowed overlap/edge-clipping the moment sizes were pushed bigger to
+// reduce collage whitespace - caught by literally computing every pair's
+// gap in a scratch Node script across several seeds before touching this
+// file, not by eyeballing a screenshot.
+function crowdLayout(seed, left, width, cols, sizeMin, sizeMax, rotMax, jitter, count){
+  const rows = Math.ceil(count / cols);
+  const cw = width/cols, ch = 100/rows, out = [];
+  for (let i = 0; i < count; i++){
     const c = i % cols, r = Math.floor(i / cols);
-    const x = cw*(c+0.5) + (jrand(seed+i*1.7)-0.5)*cw*0.55;
-    const y = ch*(r+0.5) + (jrand(seed+i*2.3)-0.5)*ch*0.5;
-    const size = (i === 0 && o.hero) ? o.hero
-      : (o.sizeMin||18) + jrand(seed+i*3.1)*((o.sizeMax||30)-(o.sizeMin||18));
-    out.push({ x, y, size, rot:(jrand(seed+i*4.7)-0.5)*(o.rotMax||22) });
+    const cx = left + cw*(c+0.5), cy = ch*(r+0.5);
+    const size = sizeMin + jrand(seed+i*3.1)*(sizeMax-sizeMin);
+    const slackX = Math.max(0, cw-size), slackY = Math.max(0, ch-size);
+    const x = cx + (jrand(seed+i*1.7)-0.5)*slackX*jitter;
+    const y = cy + (jrand(seed+i*2.3)-0.5)*slackY*jitter;
+    out.push({ x, y, size, rot:(jrand(seed+i*4.7)-0.5)*rotMax });
   }
   return out;
 }
+// A single hero sticker sits big and centred; with a crowd too (n>1) - the
+// friend met on that world plus their collectible mementos (books, foods) -
+// the hero gets its own fixed spot in a left-hand column (`heroX`/`crowdLeft`
+// chosen so the hero's footprint never reaches into the crowd's region
+// either), and the crowd tiles the remaining region on its own grid.
+function collagePlace(n, seed, o){
+  if (n === 1) return [{ x:50, y:53, size:o.hero || 60, rot:(jrand(seed)-0.5)*14 }];
+  const jitter = o.jitter ?? 0.8;
+  if (o.hero){
+    const out = [{ x:o.heroX, y:o.heroY ?? 50, size:o.hero, rot:(jrand(seed+99)-0.5)*10 }];
+    out.push(...crowdLayout(seed, o.crowdLeft, 100-o.crowdLeft, o.cols,
+      o.sizeMin||18, o.sizeMax||30, o.rotMax||22, jitter, n-1));
+    return out;
+  }
+  return crowdLayout(seed, 0, 100, o.cols, o.sizeMin||18, o.sizeMax||30, o.rotMax||22, jitter, n);
+}
 const JOURNAL_LAYOUT = {
-  books:    { hero:44, sizeMin:15, sizeMax:21, rotMax:20, wide:1.3 },
-  cucumber: { hero:40, sizeMin:14, sizeMax:19, rotMax:22, wide:1.3 },
-  pigeon:   { sizeMin:15, sizeMax:26, rotMax:24, wide:1.25 },
+  books:    { hero:46, heroX:23, crowdLeft:48, cols:2, sizeMin:22, sizeMax:25, rotMax:16 },
+  cucumber: { hero:42, heroX:21, crowdLeft:44, cols:2, sizeMin:19, sizeMax:22, rotMax:18 },
+  pigeon:   { cols:3, sizeMin:19, sizeMax:23, rotMax:20 },
   garden:   { hero:64 },
 };
 function renderJournalPage(){
