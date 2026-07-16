@@ -1,4 +1,43 @@
 # ROADMAP
+- [x] Summer Beanie's walk-cycle arm swing fixed — hand was landing on her own
+      back (2026-07-16): user sent an in-game screenshot from behind her
+      showing a round shape in the middle of her back while walking in the
+      Garden, asked to "fix summer beanie's skeleton and movements."
+      - **Root cause: the walk cycle's arm swing was never authored around
+        her actual rest pose.** Summer's bind pose already IS a natural
+        relaxed-arms-at-sides stance (unlike Winter's T-pose bind, where
+        every pose needs a correction to look relaxed) — confirmed by
+        checking her Idle action, which holds the arms at exactly (0,0,0)
+        rotation, i.e. untouched rest. The walk cycle's `UpperArm.L/R`
+        channels instead held a large, nearly-constant ~70° rotation away
+        from that rest, which — given how this specific rig's local axes
+        are oriented — swept the hand inward and up behind her torso at
+        the extreme of the swing. The actual cycling component (on a
+        different axis) moved the hand almost nowhere, which is why the
+        pose read as "stuck" rather than a normal alternating swing.
+      - **Diagnosed by rendering the walk cycle directly in Blender** (the
+        live game's own camera/UI made it hard to catch the exact swing
+        phase) — rendering the peak-swing frame reproduced the user's
+        screenshot exactly, both hands landing on her back.
+      - **Found and fixed a real gap in the diagnostic tooling itself**:
+        `window.__world.beanieBoneDebug()` always read `her.children[0]`
+        — which is permanently Winter's model, added first, regardless of
+        `showingSummer`. Every earlier check of "Summer's" pose this
+        session was silently reading Winter's static bones instead,
+        which is what made the frozen-looking values so confusing to
+        debug at first. Fixed to select the actually-visible model.
+      - **Rebuilt only the two `UpperArm` channels** (legs, forearms, and
+        hands were already correct and untouched) as a modest ±18° swing
+        on the empirically-confirmed correct axis, perfectly synced to
+        the existing leg-stepping keyframe timing. First attempt swung the
+        arm in phase with the same-side leg (both forward together) —
+        still visibly wrong, caught it from a side-view render and
+        flipped the sign so arm and same-side leg move in true
+        opposition, matching a real walking gait.
+      - Verified live in-game across multiple points in the cycle (zoomed
+        screenshots from behind, matching the original bug report's
+        angle) and via direct inspection of the exported glb's animation
+        data. Zero console errors.
 - [x] Garden daytime haze: the other worlds barely visible in the day sky
       (2026-07-16): Bred asked to make the other planets "barely visible from
       the garden because it's daytime." The other four worlds hang 840–1500
