@@ -921,7 +921,7 @@ function playMelody(mel){
   if (mel.score){
     clearTimeout(melodyTimer);
     if (bgmRecording) bgmRecording.pause();
-    bgmRecording = new Audio('audio/popo-upbeat-cafe-v9.m4a');
+    bgmRecording = new Audio('audio/popo-upbeat-cafe-v10.m4a');
     bgmRecording.loop = true;
     bgmRecording.volume = .62;
     bgmRecording.muted = muted;
@@ -4028,6 +4028,7 @@ loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
 // curI reaches GARDEN_I. Only Idle/Walk exist for her there (no jump clips
 // needed — nothing launches her onward again from the very last world).
 let herSummerGroup = null, herSummerMixer = null, herSummerIdleAction = null, herSummerWalkAction = null;
+let herSummerRunAction = null;
 let herSummerLandFallGetUpAction = null;
 loadModelFull('./game-assets/beanie/beanie_summer.glb').then((gltf) => {
   her.add(gltf.scene);
@@ -4037,6 +4038,7 @@ loadModelFull('./game-assets/beanie/beanie_summer.glb').then((gltf) => {
   herSummerMixer = new THREE.AnimationMixer(gltf.scene);
   const idleClip = gltf.animations.find((a) => a.name === 'Idle');
   const walkClip = gltf.animations.find((a) => a.name === 'Walk');
+  const runClip = gltf.animations.find((a) => a.name === 'Run');
   const landFallGetUpClip = gltf.animations.find((a) => a.name === 'LandFallGetUp');
   if (idleClip){
     herSummerIdleAction = herSummerMixer.clipAction(idleClip);
@@ -4049,6 +4051,14 @@ loadModelFull('./game-assets/beanie/beanie_summer.glb').then((gltf) => {
     herSummerWalkAction.setLoop(THREE.LoopRepeat);
     herSummerWalkAction.play();
     herSummerWalkAction.setEffectiveWeight(0);
+  }
+  // Mirrors herRunAction below: loaded and ready, weight held at 0 since
+  // there's no run-trigger input yet — same dormant-until-wired pattern.
+  if (runClip){
+    herSummerRunAction = herSummerMixer.clipAction(runClip);
+    herSummerRunAction.setLoop(THREE.LoopRepeat);
+    herSummerRunAction.play();
+    herSummerRunAction.setEffectiveWeight(0);
   }
   // Retargeted from Winter's own LandFallGetUp (same fall-on-face, hold,
   // push-up-to-standing beat) — plays during arriveGarden()'s landing
@@ -4157,6 +4167,7 @@ function updateLandingAnim(){
   if (herRunAction) herRunAction.setEffectiveWeight(0);
   if (herTalkAction) herTalkAction.setEffectiveWeight(0);
   if (herSummerWalkAction) herSummerWalkAction.setEffectiveWeight(0);
+  if (herSummerRunAction) herSummerRunAction.setEffectiveWeight(0);
   const fallAction = showSummer ? herSummerLandFallGetUpAction : herLandFallGetUpAction;
   const idleAction = showSummer ? herSummerIdleAction : herIdleAction;
   const modelGroup = showSummer ? herSummerGroup : herWinterGroup;

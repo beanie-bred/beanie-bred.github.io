@@ -14,15 +14,23 @@ let engine = AVAudioEngine()
 let piano = AVAudioUnitSampler()
 let bass = AVAudioUnitSampler()
 let drums = AVAudioUnitSampler()
+let ensemble = AVAudioMixerNode()
 let room = AVAudioUnitReverb()
-engine.attach(piano); engine.attach(bass); engine.attach(drums); engine.attach(room)
+let mastering = AVAudioUnitEQ(numberOfBands: 0)
+engine.attach(piano); engine.attach(bass); engine.attach(drums); engine.attach(ensemble); engine.attach(room); engine.attach(mastering)
 let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2)!
 room.loadFactoryPreset(.mediumRoom)
 room.wetDryMix = 14
-engine.connect(piano, to: room, format: format)
-engine.connect(bass, to: room, format: format)
-engine.connect(drums, to: room, format: format)
-engine.connect(room, to: engine.mainMixerNode, format: format)
+piano.masterGain = 10
+bass.masterGain = 11
+drums.masterGain = 11
+mastering.globalGain = 20
+engine.connect(piano, to: ensemble, fromBus: 0, toBus: 0, format: format)
+engine.connect(bass, to: ensemble, fromBus: 0, toBus: 1, format: format)
+engine.connect(drums, to: ensemble, fromBus: 0, toBus: 2, format: format)
+engine.connect(ensemble, to: room, format: format)
+engine.connect(room, to: mastering, format: format)
+engine.connect(mastering, to: engine.mainMixerNode, format: format)
 if FileManager.default.fileExists(atPath: sampledPianoURL.path) {
   try piano.loadInstrument(at: sampledPianoURL)
   print("Using sampled Yamaha C5: \(sampledPianoURL.path)")
