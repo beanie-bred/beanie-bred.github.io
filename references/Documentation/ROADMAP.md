@@ -1,4 +1,49 @@
 # ROADMAP
+- [x] Fall-landing camera flipped to a front view + a big performance pass
+      (2026-07-16): Bred asked for the fall/landing POV to be "the opposite
+      view (so when she stands up, the player can see her face side)," and
+      reported the game "is still laggy."
+      - **Landing camera → front**: the fall/get-up camera sat BEHIND her
+        (a deliberate 3/4-back angle from the reference-matching pass), so as
+        the get-up clip finished she rose facing AWAY from the camera and you
+        saw her back. Flipped the camera's forward offset from `-0.8` to
+        `+0.8` so it now sits in FRONT of her looking back — verified live at
+        the end of the get-up clip: she rises to face the camera and her face
+        is clearly visible. (At the ~4-7 unit landing distance the camera is
+        well clear of her head, so the old "+fwd clips into her head" concern
+        from a much closer framing doesn't apply.)
+      - **Performance — measured, not guessed**: temporarily exposed the
+        renderer + scene and read `renderer.info.render` after a single
+        non-composer render per world (the bloom EffectComposer resets
+        `info` to its 1-call final pass, which is why the existing `info()`
+        debug always reported ~1 draw call). The picture was damning:
+        **the Garden rendered 13.6M triangles, and Emerald Meadow AFTER the
+        cucumber reveal hit ~48M triangles / 9,000+ draw calls** — by far the
+        worst spots, and both mid-gameplay. A per-mesh triangle census
+        pinned the two root causes:
+        - **The cucumber model is ~5,600 triangles each**, and the planetary
+          RING instances it ~4,000 times = **~22M triangles** just for the
+          ring. Fixed by driving the ring off a low-poly capsule (~70 tris)
+          while keeping the model's material — at ring distance (tiny,
+          distant, tumbling) it's indistinguishable, confirmed by screenshot.
+          The individually-cloned hero + ground cucumbers she actually walks
+          up to and picks up still use the full-detail model, so nothing she
+          sees up close changed. Emerald post-reveal dropped 48M → ~2M tris,
+          9,000+ → ~700 draw calls.
+        - **The grass "velvet tuft" was a 156-triangle capsule**, instanced
+          60,000× in the Garden + 11,000× on Emerald = **~11M triangles**.
+          Dropped the capsule to (1,4) subdivisions (~40 tris) and trimmed
+          counts (Garden 60k→40k, Emerald 11k→8k) — still reads as a dense
+          fleecy meadow, confirmed by screenshot. Garden grass 9.36M → 1.6M.
+        - Also trimmed the flower-head sphere segments (tulips 8×8→6×5, daisy
+          centres 8×6→6×5, etc.). Garden overall 13.6M → ~5M triangles.
+        Net: the whole-scene triangle budget fell from ~40M+ to ~8M — roughly
+        a 5× cut concentrated exactly on the two heaviest worlds. Verified a
+        clean pass through all five worlds afterward with zero console errors,
+        and that the low-poly cucumber ring + trimmed grass/flowers still look
+        right. (Pigeon Plaza's ~980 draw calls from 520 un-instanced pigeons
+        is a separate, lower-impact CPU cost left for a future instancing
+        pass — the triangle bottlenecks above were the dominant lag source.)
 - [x] Summer Beanie's walk arms retargeted from Winter's proven motion,
       full arm chain (2026-07-16): the hand-on-back fix above worked, but
       user said the arms still didn't look right — "always fold back and

@@ -512,7 +512,6 @@ composer.addPass(new RenderPass(scene, camera));
 const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.35, 0.6, 0.82);
 composer.addPass(bloomPass);
 function renderScene(){ composer.render(); }
-window.__perf = { scene, renderer, camera };   // TEMP perf-measurement hook
 
 /* ---------- lights: soft, warm, no black shadows anywhere ----------
    Hemisphere ground bounce is a warm cream (not a cold/purple tint) so the
@@ -1391,6 +1390,15 @@ function fillCucumber(g, scale){
 // THREE.InstancedMesh per band. Falls back to a plain capsule if the model
 // never loads, so the ring is never silently empty.
 let cucumberGeo = null, cucumberMat = null;
+// The planetary RING is THOUSANDS of tiny, distant, tumbling cucumbers in a
+// Saturn-style band. The loaded cucumber model is ~5,600 triangles EACH —
+// across the ~4,000-instance ring that was ~22M triangles, by far the single
+// biggest GPU cost in the whole game. At ring distance a low-poly capsule is
+// completely indistinguishable, so the ring is driven off THIS (a ~70-tri
+// capsule) while keeping the model's real material for the right cucumber
+// colour/finish. The individually-cloned hero + ground cucumbers she actually
+// walks up to and picks up still use the full-detail model (see makeCucumber).
+function makeRingCukeGeo(){ return new THREE.CapsuleGeometry(0.3, 1.5, 2, 6); }
 const pendingRingBuilds = [];
 function runPendingRingBuilds(){
   for (const build of pendingRingBuilds) build();
@@ -1398,16 +1406,11 @@ function runPendingRingBuilds(){
 }
 loadModel('./game-assets/cucumber/cucumber.glb').then((model) => {
   cucumberModel = model;
-  // Bake each mesh's full transform chain (relative to the model root) into
-  // the geometry itself — the individually-cloned cucumbers elsewhere get
-  // this for free via the Group hierarchy, but a bare InstancedMesh using
-  // the raw geometry would otherwise drop any offset/rotation baked into the
-  // glTF's own node hierarchy and render every ring cucumber mis-oriented.
-  model.updateMatrixWorld(true);
-  model.traverse((o) => { if (o.isMesh && !cucumberGeo){
-    cucumberGeo = o.geometry.clone().applyMatrix4(o.matrixWorld);
-    cucumberMat = o.material;
-  } });
+  // Take only the material from the model; the ring uses the low-poly capsule
+  // above (a Y-aligned capsule, which the ring layout already assumes — it's
+  // exactly what the procedural fallback below has always used).
+  model.traverse((o) => { if (o.isMesh && !cucumberMat){ cucumberMat = o.material; } });
+  cucumberGeo = makeRingCukeGeo();
   for (const { group, scale } of pendingCucumbers) fillCucumber(group, scale);
   pendingCucumbers.length = 0;
   runPendingRingBuilds();
@@ -1416,7 +1419,7 @@ loadModel('./game-assets/cucumber/cucumber.glb').then((model) => {
   for (const { group, scale } of pendingCucumbers) group.add(makeCucumberProc(scale));
   pendingCucumbers.length = 0;
   cucumberModel = false; // mark failed so later calls fall back too
-  cucumberGeo = new THREE.CapsuleGeometry(0.3, 1.5, 6, 14);
+  cucumberGeo = makeRingCukeGeo();
   cucumberMat = mat(0x3a7a3a, { roughness:0.7 });
   runPendingRingBuilds();
 });
@@ -1955,8 +1958,12 @@ function buildBooks(g, R){
 
 function grassField(g, R, count, color, skipN=null, skipAng=0){
   // soft rounded "velvet tuft" instead of a spiky blade — reads like short
-  // brushed fleece rather than individual grass blades (see ART_BIBLE.md)
-  const blade = new THREE.CapsuleGeometry(0.1, 0.22, 3, 6);
+  // brushed fleece rather than individual grass blades (see ART_BIBLE.md).
+  // Capsule subdivisions dropped from (3,6)=~156 tris to (1,4)=~30: at these
+  // instance counts (tens of thousands) the blade's own poly count was a
+  // multi-million-triangle GPU cost, and a tiny ground tuft reads identically
+  // at a far lower resolution.
+  const blade = new THREE.CapsuleGeometry(0.1, 0.22, 1, 4);
   blade.translate(0, 0.21, 0);
   const im = new THREE.InstancedMesh(blade, mat(color, { roughness:0.97 }), count);
   const dummy = new THREE.Object3D();
@@ -1977,7 +1984,7 @@ function grassField(g, R, count, color, skipN=null, skipAng=0){
 }
 
 function buildCucumber(g, R){
-  grassField(g, R, 11000, PALETTE.moss);
+  grassField(g, R, 8000, PALETTE.moss);
   // ---- the mystery: a SOLID green ring circles the planet from the start —
   // she has no idea yet that it (and the ground cucumbers) are cucumbers.
   // The real cucumber-built ring exists the whole time too, just hidden,
@@ -2473,7 +2480,7 @@ function spawnPigeonFleeOnLanding(landPos){
 }
 
 function buildGarden(g, R, ctx){
-  grassField(g, R, 60000, PALETTE.sageGreen);
+  grassField(g, R, 40000, PALETTE.sageGreen);
   const couchN = V().set(0.2, 1, 0.1).normalize();
   const landN = ctx.gardenLandN;
   const dummy = new THREE.Object3D();
@@ -2551,12 +2558,12 @@ function buildGarden(g, R, ctx){
     }
     if (im.instanceColor) im.instanceColor.needsUpdate = true;
   }
-  // tulips
-  const tulipGeo = new THREE.SphereGeometry(0.16, 8, 8); tulipGeo.scale(1, 1.25, 1);
+  // tulips (sphere segments trimmed 8x8 -> 6x5: ~112 tris to ~40, x9500 heads)
+  const tulipGeo = new THREE.SphereGeometry(0.16, 6, 5); tulipGeo.scale(1, 1.25, 1);
   heads(instanced(tulipGeo, 0xffffff, 9500, TULIP), 9500, 0.56, 1, TULIP);
   // daisies: white petal disc + yellow center
-  const discGeo = new THREE.CylinderGeometry(0.17, 0.17, 0.03, 9);
-  const centGeo = new THREE.SphereGeometry(0.07, 8, 6);
+  const discGeo = new THREE.CylinderGeometry(0.17, 0.17, 0.03, 8);
+  const centGeo = new THREE.SphereGeometry(0.07, 6, 5);
   const dDisc = instanced(discGeo, 0xfdfaf2, 8750);
   const dCent = instanced(centGeo, 0xf2c94a, 8750);
   heads(dDisc, 8750, 0.52, 1, null, dCent, 0.56, 1);
