@@ -249,29 +249,34 @@
   #dialogText{font-size:clamp(15px,1.8vw,17px);line-height:1.55;min-height:26px;color:#f4f1ff}
   #dialogNext{text-align:right;font-size:12px;color:#c9c3ea;margin-top:8px;
     animation:pulseTxt 1.4s ease-in-out infinite}
-  #dialogChoices{position:fixed;right:clamp(24px,5vw,78px);top:50%;transform:translateY(-50%);z-index:34;
-    width:min(440px,45vw);display:flex;flex-direction:column;gap:13px;pointer-events:auto}
-  .dialogChoice{position:relative;min-height:66px;border:2px solid rgba(255,225,239,.76);border-radius:22px;
-    padding:14px 48px 14px 58px;background:linear-gradient(135deg,rgba(91,78,139,.97),rgba(154,91,139,.95));
+  /* Anchored to the dialogue box's own right edge (same 50%-centered,
+     min(680px,90vw)-wide formula as #dialog) so it always sits flush above
+     the box's right side. Vertical placement (bottom) is set in JS, from
+     the box's actual on-screen height, each time choices are shown - see
+     positionDialogChoices(). */
+  #dialogChoices{position:fixed;right:calc(50vw - min(680px,90vw)/2);z-index:34;
+    width:min(300px,34vw);display:flex;flex-direction:column;gap:8px;pointer-events:auto}
+  .dialogChoice{position:relative;min-height:40px;border:1.5px solid rgba(255,225,239,.76);border-radius:14px;
+    padding:8px 30px 8px 34px;background:linear-gradient(135deg,rgba(91,78,139,.97),rgba(154,91,139,.95));
     color:#fffafd;text-align:left;font-family:'Comfortaa','Arial Rounded MT Bold','Segoe UI Rounded',sans-serif;
-    font-size:clamp(15px,1.55vw,18px);font-weight:700;line-height:1.38;letter-spacing:.005em;cursor:pointer;
+    font-size:clamp(12px,1.05vw,13px);font-weight:700;line-height:1.32;letter-spacing:.005em;cursor:pointer;
     text-shadow:0 2px 8px rgba(35,20,60,.42);
-    box-shadow:0 11px 32px rgba(18,12,38,.42),inset 0 2px 0 rgba(255,255,255,.25),inset 0 -2px 0 rgba(40,24,72,.2);
+    box-shadow:0 8px 22px rgba(18,12,38,.4),inset 0 2px 0 rgba(255,255,255,.25),inset 0 -2px 0 rgba(40,24,72,.2);
     transition:transform .2s cubic-bezier(.2,1.25,.35,1),background .2s,border-color .2s,box-shadow .2s}
-  .dialogChoice::before{content:'♡';position:absolute;left:17px;top:50%;transform:translateY(-52%);
-    width:29px;height:29px;border-radius:50%;display:grid;place-items:center;
-    color:#ffe6f1;background:rgba(255,255,255,.16);font-size:21px;line-height:1;
+  .dialogChoice::before{content:'♡';position:absolute;left:10px;top:50%;transform:translateY(-52%);
+    width:19px;height:19px;border-radius:50%;display:grid;place-items:center;
+    color:#ffe6f1;background:rgba(255,255,255,.16);font-size:13px;line-height:1;
     box-shadow:inset 0 1px 0 rgba(255,255,255,.2)}
-  .dialogChoice::after{content:'✦';position:absolute;right:18px;top:50%;transform:translateY(-50%);
-    color:#ffe5a8;font-size:16px;opacity:.9}
-  .dialogChoice:hover,.dialogChoice:focus{outline:none;transform:translateX(-12px) scale(1.035);
+  .dialogChoice::after{content:'✦';position:absolute;right:11px;top:50%;transform:translateY(-50%);
+    color:#ffe5a8;font-size:11px;opacity:.9}
+  .dialogChoice:hover,.dialogChoice:focus{outline:none;transform:translateX(-8px) scale(1.035);
     background:linear-gradient(135deg,rgba(119,101,171,.99),rgba(184,108,156,.98));
-    border-color:#fff0bc;box-shadow:0 14px 38px rgba(35,20,60,.52),0 0 28px rgba(255,188,218,.36)}
-  @media(max-width:700px){#dialogChoices{left:5vw;right:auto;top:50%;bottom:auto;width:90vw}
-    .dialogChoice{min-height:62px;padding:13px 42px 13px 54px;border-radius:20px;
-      font-size:clamp(15px,4vw,18px);line-height:1.34}
-    .dialogChoice::before{left:16px;width:27px;height:27px;font-size:20px}
-    .dialogChoice::after{right:17px;font-size:17px}}
+    border-color:#fff0bc;box-shadow:0 10px 26px rgba(35,20,60,.52),0 0 20px rgba(255,188,218,.36)}
+  @media(max-width:700px){#dialogChoices{width:60vw}
+    .dialogChoice{min-height:38px;padding:7px 26px 7px 32px;border-radius:13px;
+      font-size:clamp(11px,3vw,13px);line-height:1.28}
+    .dialogChoice::before{left:9px;width:18px;height:18px;font-size:12px}
+    .dialogChoice::after{right:10px;font-size:11px}}
 
   /* ---------- planet-arrival title card (wide establishing orbit shot) ---------- */
   #planetTitle{position:fixed;inset:0;z-index:26;display:flex;flex-direction:column;
@@ -563,6 +568,7 @@ addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   composer.setSize(innerWidth, innerHeight);
+  if (dialog && dialog.awaitingChoice) positionDialogChoices();
 });
 
 /* ---------- tiny warm bloom (lanterns, fireflies, stars, gate glow only) ----------
@@ -587,6 +593,12 @@ scene.add(camera);
 const camFill = new THREE.PointLight(PALETTE.lampAmber, 95, 110, 2);
 camFill.position.set(0, 2.5, 3);
 camera.add(camFill);
+// camFill's fixed intensity above is tuned for normal gameplay follow distance
+// (camDist, default 9) - talk-cam pulls the camera in to just 1.9-4.3 units for
+// close conversation framing, and at that range the same intensity blows out
+// via inverse-square falloff (decay=2). updateTalkCam rescales against these
+// so close-ups land at the same brightness normal play was tuned for.
+const CAMFILL_BASE_INTENSITY = 95, CAMFILL_BASE_DIST = 9;
 
 /* ---------- helpers ---------- */
 const V = () => new THREE.Vector3();
@@ -4835,7 +4847,7 @@ function dialogueSubjectFrame(obj, fallbackPos, up, fallbackHeight, faceFraction
 }
 function updateTalkCam(dt){
   const npc = (dialog && dialog.npcPos) ? dialog.npcPos() : null;
-  if (!npc){ followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 3.3); return; }
+  if (!npc){ camFill.intensity = CAMFILL_BASE_INTENSITY * (3.3/CAMFILL_BASE_DIST)**2; followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 3.3); return; }
   const up = herUp(new THREE.Vector3());
   const toNpc = tangentToward(her.position, up, npc);   // along-surface dir Beanie -> NPC
   // Never cross the conversation line: even as the speaker changes, this
@@ -4849,6 +4861,11 @@ function updateTalkCam(dt){
   // Genshin-like upper-body framing. Small characters such as pigeons get an
   // actually close camera rather than inheriting Beanie's much larger scale.
   const closeDistance = Math.max(1.9, Math.min(4.3, subjectHeight*0.72 + 0.55));
+  // Rescale camFill for this frame's actual shooting distance - see the
+  // constants' comment above. Small subjects (pigeons) sit at the 1.9 floor,
+  // furthest from camFill's tuned range, so they're what gets hit hardest
+  // by the falloff and what this correction matters most for.
+  camFill.intensity = CAMFILL_BASE_INTENSITY * (closeDistance/CAMFILL_BASE_DIST)**2;
   const towardPartner = beanieFocus ? toNpc : toNpc.clone().negate();
   const goal = new THREE.Vector3().copy(frame.focus)
     .addScaledVector(side, closeDistance)
@@ -5699,6 +5716,13 @@ function currentDialogText(){
   if (!dialog) return '';
   return dialog.chosenResponses.get(dialog.idx) || lineText(dialog.lines[dialog.idx]);
 }
+// #dialog's height varies with its (already-settled, see showResponseChoices'
+// caller) text content, so the gap above it can't be a fixed CSS value -
+// read its actual rendered top edge each time choices appear.
+function positionDialogChoices(){
+  const r = dialogEl.getBoundingClientRect();
+  dialogChoicesEl.style.bottom = (innerHeight - r.top + 14) + 'px';
+}
 function showResponseChoices(line){
   dialog.awaitingChoice = true;
   const options = [line.text, line.alt || `I think… ${line.text}`];
@@ -5712,6 +5736,7 @@ function showResponseChoices(line){
     dialogChoicesEl.appendChild(button);
   });
   dialogChoicesEl.classList.remove('hidden');
+  positionDialogChoices();
 }
 function chooseDialogResponse(text){
   if (!dialog || !dialog.awaitingChoice) return;
@@ -5806,6 +5831,7 @@ function advanceDialog(){
   const cb = dialog.onDone;
   dialog = null;
   state = 'walk';
+  camFill.intensity = CAMFILL_BASE_INTENSITY;   // restore - talk-cam dimmed it for the close conversation shot
   exitConversationStage();
   restoreObstacles();
   if (cb) cb();
@@ -6154,6 +6180,7 @@ function qaWarp(i){
   dialogEl.classList.add('hidden');
   dialogChoicesEl.classList.add('hidden');
   if (dialog){ dialog = null; restoreObstacles(); }
+  camFill.intensity = CAMFILL_BASE_INTENSITY;   // in case this warp interrupts mid-conversation
   exitConversationStage();
   if (chicagoMessenger) dismissChicagoMessenger();
   if (landing){ planetTitleEl.classList.remove('show'); landing = null; }
@@ -7174,6 +7201,7 @@ window.__world = {
     return { herTalkActionIsNull: herTalkAction === null, clipNames };
   },
   curBodyDebug(){ const b = bodies[curI]; return { center: b.center.toArray(), r: b.r }; },
+  camFillDebug(){ return { intensity: +camFill.intensity.toFixed(2), base: CAMFILL_BASE_INTENSITY, baseDist: CAMFILL_BASE_DIST }; },
   herMaterialsDebug(){
     const out = [];
     const model = her.children[0];
