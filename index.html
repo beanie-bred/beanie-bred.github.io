@@ -2490,11 +2490,13 @@ function buildGarden(g, R, ctx){
   // soft glow so she can find it
   const glow = new THREE.PointLight(0xfff4dd, 60, 30, 2);
   glow.position.set(0, 4, 0); couch.add(glow);
-  // bred: real Blender/Rodin model. No rig, so (like Chippy/Percy) he stands
-  // on the cushion top (y=1.03 = cush.position.y 0.9 + half cush height 0.13)
-  // rather than attempting an unrigged "sitting" pose.
+  // bred: real Blender/Rodin model, standing on the ground beside the couch
+  // (not sitting on it — Percy and Chippy still sit; Bred stands so he can
+  // turn and wave at Rachel as she approaches). No rig, so "standing" is
+  // just his one static mesh at ground level (y=0 in couch-local space,
+  // same convention as the couch group itself sitting flush on the planet).
   const bred = new THREE.Group();
-  bred.position.set(-0.15, 1.03, 0.1);
+  bred.position.set(2.5, 0, 1.15);
   couch.add(bred);
   let bredModel = null;
   loadModel('./game-assets/bred/bred.glb').then((model) => {
@@ -2528,10 +2530,26 @@ function buildGarden(g, R, ctx){
     const fb = makeChippy(); fb.scale.setScalar(1.35);
     chippyPlush.add(fb);
   });
-  animators.push((t) => {
+  animators.push((t, dt) => {
     percy.position.y = 0.9 + Math.abs(Math.sin(t*1.9))*0.02;
     if (chippyPlush.children[0]) chippyPlush.children[0].scale.setScalar(1 + 0.03*Math.sin(t*1.5));
-    if (bredModel) bredModel.scale.setScalar(1 + 0.02*Math.sin(t*1.3));
+    if (bredModel){
+      bredModel.scale.setScalar(1 + 0.02*Math.sin(t*1.3));
+      // Happy wave for the "notice" cutscene when Rachel gets close, set off
+      // by startBredGreet() (bredWaveT >= 0 while it plays). No rig on this
+      // model — the whole mesh rocks side to side (eased in/out) instead of
+      // a real arm-wave, since there's no separate hand/arm node to isolate.
+      if (bredWaveT >= 0){
+        bredWaveT += dt;
+        if (bredWaveT < BRED_WAVE_DUR){
+          const env = Math.sin(Math.PI * bredWaveT/BRED_WAVE_DUR);
+          bredModel.rotation.z = Math.sin(bredWaveT*9) * 0.22 * env;
+        } else {
+          bredModel.rotation.z = 0;
+          bredWaveT = -1;
+        }
+      }
+    }
   });
   // butterflies + floating petals
   for (let i = 0; i < 12; i++){
@@ -3981,6 +3999,37 @@ function updateNotice(dt){
     state = 'walk';
   }
 }
+// A dedicated beat for Bred specifically, closer-range than the generic
+// notice above (which just fires the shared "spotted them" glance for
+// EVERY required character, Bred included, via bodies[GARDEN_I].guideFn).
+// Once she's properly close, he turns and happily waves — a separate pause
+// from the generic notice since it needs its own animation trigger
+// (bredWaveT, read by the animator registered in buildGarden) rather than
+// just a camera glance.
+let bredGreet = null;   // { t }
+let bredGreeted = false;
+let bredWaveT = -1;
+const BRED_WAVE_DUR = 1.8;
+const BRED_GREET_DIST = 9;
+function startBredGreet(){
+  bredGreeted = true;
+  bredGreet = { t: 0 };
+  her.userData.moving = false;
+  const up = herUp(tmpV), fwd = herFwd(tmpV2);
+  const toward = tangentToward(her.position, up, bredWorldPos(V()));
+  camYaw = Math.atan2(V().crossVectors(fwd, toward).dot(up), fwd.dot(toward));
+  camPitch = 0.22;
+  state = 'bredgreet';
+  bredWaveT = 0;
+}
+function updateBredGreet(dt){
+  bredGreet.t += dt;
+  followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 6.5);
+  if (bredGreet.t > BRED_WAVE_DUR + 0.5){
+    bredGreet = null;
+    state = 'walk';
+  }
+}
 function startLandingSequence(bi){
   curI = bi;
   updatePose();
@@ -4730,8 +4779,14 @@ function updateWalk(dt){
   } else {
     promptEl.classList.remove('show');
   }
-  // reaching bred on the garden
-  if (curI === GARDEN_I && her.position.distanceTo(bredWorldPos(tmpV3)) < 5.5) startFinale();
+  // reaching bred on the garden — the wave beat (further out) fires once on
+  // the way in; the finale embrace threshold is untouched from before so a
+  // debug teleport straight inside 5.5 still triggers it same as always.
+  if (curI === GARDEN_I){
+    const bredDist = her.position.distanceTo(bredWorldPos(tmpV3));
+    if (bredDist < 5.5) startFinale();
+    else if (!bredGreeted && bredDist < BRED_GREET_DIST) startBredGreet();
+  }
   followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), camDist);
 }
 
@@ -5232,6 +5287,7 @@ function step(dt){
   else if (state === 'talk')     { updateTalkCam(dt); updateDialogTyping(dt); }
   else if (state === 'percyfly') updatePercyFlight(dt, t);
   else if (state === 'finale')   updateFinale(dt, t);
+  else if (state === 'bredgreet') updateBredGreet(dt);
   else if (state === 'cukeReveal') updateCukeReveal(dt, t);
   else if (state === 'notice')   updateNotice(dt);
 }
