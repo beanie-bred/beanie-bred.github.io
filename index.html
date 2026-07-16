@@ -559,7 +559,7 @@ function renderScene(){ composer.render(); }
    directional "sun" is a low-contrast warm peach rather than a hard key. */
 const hemi = new THREE.HemisphereLight(PALETTE.warmWhite, PALETTE.lightBeige, 1.55);
 scene.add(hemi);
-const sun = new THREE.DirectionalLight(PALETTE.warmPeach, 1.05);
+const sun = new THREE.DirectionalLight(PALETTE.warmPeach, 0.72);
 sun.position.set(80, 120, 60);
 scene.add(sun);
 scene.add(camera);
@@ -5808,7 +5808,7 @@ function arriveGarden(){
   const landPos = V().copy(g.center).addScaledVector(g.landN, g.r);
   const couchPos = V().copy(g.center).addScaledVector(worldRefs.garden.couchN, g.r);
   orientation.copy(quatFromBasis(g.landN, tangentToward(landPos, g.landN, couchPos)));
-  hemi.intensity = 1.85; sun.intensity = 1.25;   // golden-hour warmth, still low-contrast
+  hemi.intensity = 1.85; sun.intensity = 0.90;   // softer golden-hour warmth without harsh highlights
   // Garden music is handled by arrive(GARDEN_I), which crossfades to Pixeltown.
   // Same fall-on-face / impact / get-up / orbit / title beat every other
   // world gets (startLandingSequence() picks Summer's own retargeted
