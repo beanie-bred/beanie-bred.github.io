@@ -3369,12 +3369,25 @@ let cukeReveal = null;
 function startCukeRevealCutscene(){
   state = 'cukeReveal';
   guideEl.classList.remove('show'); promptEl.classList.remove('show');
-  cukeReveal = { t:0, basisA:null, basisB:null };
+  cukeReveal = { t:0, basisA:null, basisB:null, surpriseShown:false };
   const up = herUp(new THREE.Vector3());
   cukeReveal.basisA = arbitraryPerp(up);
   cukeReveal.basisB = new THREE.Vector3().crossVectors(up, cukeReveal.basisA).normalize();
+  // Stage a foreground circle specifically around Beanie. The meadow still
+  // has cucumbers scattered across the rest of the planet, but these nearby
+  // ones make the 360 reveal readable as something happening TO/around her.
+  const wr = worldRefs.cucumber, b = bodies[2];
+  wr.groundCucumberHolders.slice(0, 24).forEach((entry, i) => {
+    const a = (i/24)*Math.PI*2 + (i%3)*0.11;
+    const tangent = new THREE.Vector3().copy(cukeReveal.basisA).multiplyScalar(Math.cos(a))
+      .addScaledVector(cukeReveal.basisB, Math.sin(a));
+    const groundDist = 2.0 + (i%4)*0.72;
+    const n = new THREE.Vector3().copy(up).multiplyScalar(Math.cos(groundDist/b.r))
+      .addScaledVector(tangent, Math.sin(groundDist/b.r)).normalize();
+    placeOn(b.group, entry.holder, n, b.r, 0.3);
+  });
 }
-// Two acts, 16s total. Act 1 (0-7s): a close,
+// Two acts, 20s total. Act 1 (0-9s): a close,
 // ground-level shot — a real change of POV from every other cutscene's wide
 // establishing orbit — watching the cucumbers actually form. The ring's own
 // solid->cucumber crossfade runs inside this act too, kept coupled to the
@@ -3383,9 +3396,9 @@ function startCukeRevealCutscene(){
 // model), so starting them at the same moment reads as one "materializing"
 // event — starting them at DIFFERENT times would make whichever finishes
 // first blink as the other's opacity ramp reset the shared material out from
-// under it. Act 2 (7-16s): a slow push along the ring band itself — not the
+// under it. Act 2 (9-20s): a slow push along the ring band itself — not the
 // whole planet — ending close enough to read the individual cucumbers.
-const ACT1_DUR = 7.0, ACT2_DUR = 9.0;
+const ACT1_DUR = 9.0, ACT2_DUR = 11.0;
 const RING_FADE_START = 1.7, RING_FADE_DUR = 5.0;
 function updateCukeReveal(dt, t){
   const cr = cukeReveal, wr = worldRefs.cucumber, b = bodies[2];
@@ -3394,14 +3407,26 @@ function updateCukeReveal(dt, t){
   if (cr.t < ACT1_DUR){
     const k1 = cr.t / ACT1_DUR;
     const smooth1 = k1*k1*(3-2*k1);
-    const dist = 11 - 4.2*smooth1, height = 2.8 - 1.1*smooth1;
-    const angle = cr.t*0.095;
+    // One complete, slow planet-hugging 360. Keeping the lens low and aiming
+    // slightly down preserves the meadow/curved horizon instead of filling
+    // most of the composition with empty sky.
+    const dist = 8.8 - 1.9*smooth1, height = 1.65 - 0.35*smooth1;
+    const angle = smooth1*Math.PI*2;
     const dir = tmpV3.copy(cr.basisA).multiplyScalar(Math.cos(angle)).addScaledVector(cr.basisB, Math.sin(angle));
     camPos.copy(her.position).addScaledVector(up, height).addScaledVector(dir, dist);
     camUp.copy(up);
     camera.position.copy(camPos);
     camera.up.copy(camUp);
-    camera.lookAt(tmpV2.copy(her.position).addScaledVector(dir, -1.6*smooth1).addScaledVector(up, 0.55));
+    camera.lookAt(tmpV2.copy(her.position).addScaledVector(up, 0.62));
+    if (cr.t >= 0.9 && cr.t < 4.2){
+      if (!cr.surpriseShown){
+        cr.surpriseShown = true;
+        noticeBubbleEl.textContent = '❗';
+        noticeBubbleEl.classList.add('show');
+      }
+    } else if (cr.surpriseShown){
+      noticeBubbleEl.classList.remove('show');
+    }
     // the solid ring's spin winds down to a stop before the transformation begins…
     wr.setSolidSpinScale(Math.max(0, 1 - k1*2.2));
     // …then it visibly DISSOLVES over RING_FADE_DUR seconds while the real
@@ -3428,25 +3453,21 @@ function updateCukeReveal(dt, t){
       }
     }
   } else if (cr.t < ACT1_DUR + ACT2_DUR){
-    // Close pass alongside the ring band. Its own tilt/squash (RING_TILT_X/Z,
-    // RING_ELLIPSE_SQUASH) is shallow enough that treating it as roughly
-    // equatorial to her local up — rather than replicating that exact local
-    // transform here — still reads convincingly as "close to the ring."
+    // Slow reveal pass from OUTSIDE the ring looking back toward the planet:
+    // individual cucumbers fill the foreground while the meadow remains in
+    // the background. The old tangential lookAt pointed mostly into open sky.
     const k2 = (cr.t - ACT1_DUR) / ACT2_DUR;
     const smooth2 = k2*k2*(3-2*k2);
     const ringR = wr.ringMidR || (b.r + 100);
     const angle2 = -0.48 + smooth2*0.82;
     const ringDir = tmpV3.copy(cr.basisA).multiplyScalar(Math.cos(angle2)).addScaledVector(cr.basisB, Math.sin(angle2));
     const ringPoint = tmpV2.copy(b.center).addScaledVector(ringDir, ringR);
-    const nextAngle = angle2 + 0.035;
-    const nextDir = new THREE.Vector3().copy(cr.basisA).multiplyScalar(Math.cos(nextAngle)).addScaledVector(cr.basisB, Math.sin(nextAngle));
-    const nextPoint = new THREE.Vector3().copy(b.center).addScaledVector(nextDir, ringR);
-    camPos.copy(ringPoint).addScaledVector(up, 5.5 - smooth2*2.2)
-      .addScaledVector(ringDir, 12 - smooth2*7.2);
+    camPos.copy(ringPoint).addScaledVector(up, 7.0 - smooth2*3.0)
+      .addScaledVector(ringDir, 15 - smooth2*8.0);
     camUp.copy(up);
     camera.position.copy(camPos);
     camera.up.copy(camUp);
-    camera.lookAt(nextPoint);
+    camera.lookAt(tmpV3.copy(ringPoint).lerp(b.center, 0.16).addScaledVector(up, -1.0));
   } else {
     finishCukeReveal();
   }
@@ -3473,6 +3494,7 @@ function startGroundCucumberGrowth(cukes, spread){
     }
     if (allDone) animators.splice(animators.indexOf(anim), 1);
   }
+  anim.cucumberGrowth = true;
   animators.push(anim);
 }
 function finishCukeReveal(){
@@ -5201,6 +5223,14 @@ addEventListener('keydown', (e) => {
       else pickupBook(pickTarget);
     }
   }
+  // QA contract: 3 is an unconditional fresh Emerald Meadow trial, even if
+  // it is pressed during dialogue or a cutscene. Unlike the other number
+  // warps, it deliberately resets this world's quest/reveal scene first.
+  if (e.key === '3'){
+    resetEmeraldMeadowForQA();
+    qaWarp(2);
+    return;
+  }
   // QA shortcut: 1-5 instantly warps to that world. Earlier worlds are
   // treated as complete, but the destination's own story still starts
   // normally so its NPC mission and navigation cannot be skipped by mistake.
@@ -5236,6 +5266,33 @@ function qaWarp(i){
   orientation.copy(quatFromBasis(n, tangentToward(p, n, faceTo)));
   startLandingSequence(i);
   landing.autoContinue = true;
+}
+
+function resetEmeraldMeadowForQA(){
+  const b = bodies[2], def = WORLD_DEFS[2], wr = worldRefs.cucumber;
+  // Cancel whichever cinematic/input state was active so repeated presses
+  // always converge on exactly one clean Emerald landing sequence.
+  flight = null; cukeReveal = null; notice = null; percyFly = null; bredGreet = null;
+  noticeBubbleEl.classList.remove('show');
+  planetTitleEl.classList.remove('show');
+  restoreObstacles();
+  // Remove any staggered sprouts left running by an interrupted reveal.
+  for (let i = animators.length-1; i >= 0; i--){
+    if (animators[i].cucumberGrowth) animators.splice(i, 1);
+  }
+  Object.assign(bbakQuest, { phase:0, tries:0, holding:null, cukeRevealed:false });
+  b.name = def.name; b.emoji = def.emoji; b.tag = def.tag; b.missionDone = false;
+  wr.solidRing.visible = true;
+  wr.solidMat.opacity = 1;
+  wr.setSolidSpinScale(1);
+  for (const ring of wr.cukeRingGroups) ring.visible = false;
+  if (cucumberMat){ cucumberMat.opacity = 1; cucumberMat.transparent = false; }
+  for (const f of wr.groundCucumberHolders){
+    f.taken = false; f.holder.visible = false; f.holder.scale.setScalar(1);
+  }
+  for (const f of wr.foods){ f.taken = false; f.holder.visible = true; }
+  wr.cuke.visible = false;
+  refreshBbakGuide(); refreshFoodPocket();
 }
 addEventListener('keyup', (e) => { keys[e.key] = false; });
 
