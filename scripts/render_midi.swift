@@ -20,7 +20,7 @@ try sax.loadSoundBankInstrument(at: bankURL, program: 66, bankMSB: UInt8(kAUSamp
 
 let sequencer = AVAudioSequencer(audioEngine: engine)
 try sequencer.load(from: midiURL, options: [])
-let musicTracks = sequencer.tracks.filter { !$0.isTempoTrack }
+let musicTracks = sequencer.tracks
 if musicTracks.count >= 2 {
   musicTracks[0].destinationAudioUnit = piano
   musicTracks[1].destinationAudioUnit = sax
@@ -34,7 +34,7 @@ sequencer.currentPositionInBeats = 0
 try sequencer.start()
 
 let seconds = 8.0 * 4.0 * 60.0 / 82.0
-let totalFrames = AVAudioFramePosition((seconds + 0.08) * format.sampleRate)
+let totalFrames = AVAudioFramePosition(seconds * format.sampleRate)
 let buffer = AVAudioPCMBuffer(pcmFormat: engine.manualRenderingFormat, frameCapacity: 4096)!
 while engine.manualRenderingSampleTime < totalFrames {
   let remaining = totalFrames - engine.manualRenderingSampleTime

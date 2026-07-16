@@ -836,6 +836,7 @@ function applyWorldSky(bi){
 
 /* ═══════════════ AUDIO ═══════════════ */
 let audio = null, muted = false, melodyGain = null, melodyWet = null, melodyTimer = null;
+let bgmRecording = null;
 function ensureAudio(){
   if (audio) return true;
   try{
@@ -898,7 +899,20 @@ const MELODY_BDAY = { beat:0.48, notes:[
   [N.F5,.75],[N.F5,.25],[N.E5,1],[N.C5,1],[N.D5,1],[N.C5,3],
 ]};
 function playMelody(mel){
+  // The lead-sheet BGM is pre-rendered with macOS's sampled acoustic grand
+  // and tenor sax. Real samples sound much smoother than WebAudio oscillators.
+  if (mel.score){
+    clearTimeout(melodyTimer);
+    if (bgmRecording) bgmRecording.pause();
+    bgmRecording = new Audio('audio/popo-jazz-loop.m4a');
+    bgmRecording.loop = true;
+    bgmRecording.volume = .62;
+    bgmRecording.muted = muted;
+    bgmRecording.play().catch(() => {});
+    return;
+  }
   if (!ensureAudio()) return;
+  if (bgmRecording){ bgmRecording.pause(); bgmRecording = null; }
   clearTimeout(melodyTimer);
   if (melodyGain){ try{ melodyGain.disconnect(); }catch(e){} }
   if (melodyWet){ try{ melodyWet.disconnect(); }catch(e){} }
@@ -4294,7 +4308,9 @@ function jumpTo(body){
   const faceTo = body.chainNext != null ? bodies[body.chainNext].center
     : (body.worldIndex === PIGEON_I ? V().copy(bodies[PIGEON_I].center).addScaledVector(worldRefs.pigeon.percyN, body.r) : p0);
   const qEnd = quatFromBasis(n1, tangentToward(p3, n1, faceTo));
-  flight = { t:0, dur:Math.min(4.5, Math.max(2.2, dist/120)), p0, c1, c2, p2:p3,
+  // Give the camera and pose changes room to breathe: even the shortest leap
+  // now reads as a cinematic transition rather than a quick gameplay hop.
+  flight = { t:0, dur:Math.min(6.0, Math.max(3.0, dist/90)), p0, c1, c2, p2:p3,
     n0, n1, qStart:orientation.clone(), qEnd,
     to:bodies.indexOf(body), trail:0 };
   state = 'fly';
@@ -4356,7 +4372,7 @@ const LAND_ORBIT_DURATION = 15;   // seconds for a full slow 360
 // then each Plaza pigeon) only ever triggers this once.
 let notice = null;   // { t }
 const noticedGuides = new Set();
-const NOTICE_DURATION = 1.8;
+const NOTICE_DURATION = 2.4;
 function startNotice(targetPos){
   notice = { t: 0 };
   her.userData.moving = false;
@@ -4398,7 +4414,7 @@ const BRED_GREET_DIST = 9;
 function faceBredWorld(bredG, up, dir){
   return quatFromBasis(up, dir.clone().negate());
 }
-const BRED_GREET = { notice:1.4, turn:1.1, wave:1.7, walk:2.8, handoff:1.6 };
+const BRED_GREET = { notice:1.8, turn:1.5, wave:2.2, walk:3.6, handoff:2.0 };
 function startBredGreet(){
   bredGreeted = true;
   her.userData.moving = false;
@@ -4848,12 +4864,12 @@ function updatePercyFlight(dt, t){
   if (pf.percy.userData.wings)
     for (let w = 0; w < 2; w++)
       pf.percy.userData.wings[w].rotation.z = (w===0?1:-1)*Math.sin(t*10)*0.95;
-  if (pf.t < 1.6){                                     // percy grows!
-    const k = pf.t/1.6, s = k*k*(3-2*k);
+  if (pf.t < 2.2){                                     // percy grows!
+    const k = pf.t/2.2, s = k*k*(3-2*k);
     holder.scale.setScalar(1 + s*3.6);
     followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 10);
-  } else if (pf.t < 2.4){                              // beanie hops on
-    const k = (pf.t - 1.6)/0.8, s = k*k*(3-2*k);
+  } else if (pf.t < 3.4){                              // beanie hops on
+    const k = (pf.t - 2.2)/1.2, s = k*k*(3-2*k);
     const mount = tmpV3.set(0, 0.62, -0.05).applyMatrix4(holder.matrixWorld);
     her.position.lerpVectors(pf.herStart, mount, s);
     her.position.addScaledVector(pf.up0, Math.sin(s*Math.PI)*1.6);
@@ -4864,19 +4880,19 @@ function updatePercyFlight(dt, t){
     }
     followCam(dt, holder.position, pf.up0, tangentToward(holder.position, pf.up0, bodies[GARDEN_I].center), 12);
   } else {                                             // fly away together
-    const fk = Math.min((pf.t - 2.4)/5.2, 1);
-    const e = fk*fk;
+    const fk = Math.min((pf.t - 3.4)/7.0, 1);
+    const e = fk*fk*(3-2*fk);
     bezier(pf.p0, pf.p1, pf.p2, e, holder.position);
     const fwd = bezierTangent(pf.p0, pf.p1, pf.p2, e, tmpV2);
     const up = tmpV.copy(pf.up0);
     holder.quaternion.copy(quatFromBasis(up, fwd));
     holder.rotateX(0.25 + Math.sin(t*2)*0.06);
     followCam(dt, holder.position, up, fwd, 15);
-    if (pf.t > 6.2 && !pf.irisClosing){
+    if (pf.t > 8.8 && !pf.irisClosing){
       pf.irisClosing = true;
       irisEl.classList.add('closed');
     }
-    if (pf.t > 7.6 && !pf.irisDone){
+    if (pf.t > 10.4 && !pf.irisDone){
       pf.irisDone = true;
       arriveGarden();
     }
@@ -4923,7 +4939,7 @@ function startFinale(){
 }
 function updateFinale(dt, t){
   if (fin.phase === 'face'){
-    fin.t += dt/0.7;
+    fin.t += dt/1.1;
     const k = Math.min(fin.t, 1);
     orientation.slerpQuaternions(fin.qHer0, fin.qHer1, k);
     updatePose();
@@ -4959,7 +4975,7 @@ function updateFinale(dt, t){
     camUp.lerp(fin.up, 1 - Math.exp(-2*dt)).normalize();
     camera.up.copy(camUp);
     camera.lookAt(tmpV.copy(fin.mid).addScaledVector(fin.up, -0.5));
-    if (fin.t > 2.4 && !fin.cardShown){
+    if (fin.t > 3.2 && !fin.cardShown){
       fin.cardShown = true;
       cardOverlay.classList.remove('hidden');
     }
@@ -5685,6 +5701,7 @@ muteBtn.addEventListener('click', () => {
   muted = !muted;
   muteBtn.textContent = muted ? '🔇' : '🔊';
   if (audio) audio.master.gain.value = muted ? 0 : 0.55;
+  if (bgmRecording) bgmRecording.muted = muted;
 });
 
 /* ---------- journal / sticker collection ----------
