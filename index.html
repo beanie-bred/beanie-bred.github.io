@@ -1076,17 +1076,90 @@ function playChime(){
     o.connect(gn); gn.connect(master); o.start(w); o.stop(w + 0.9);
   });
 }
-function playCoo(){
+function playCoo(v = 1, vol = 0.07){
   if (!audio || muted) return;
   const { ctx, master } = audio, t0 = ctx.currentTime;
-  [[540, 0], [430, 0.14]].forEach(([f, off]) => {
+  // v = pitch multiplier so a crowd of pigeons doesn't all coo in unison
+  [[540*v, 0], [430*v, 0.14]].forEach(([f, off]) => {
     const o = ctx.createOscillator(), gn = ctx.createGain();
     o.type = 'sine'; o.frequency.setValueAtTime(f, t0+off);
     o.frequency.exponentialRampToValueAtTime(f*0.82, t0+off+0.12);
     gn.gain.setValueAtTime(0.0001, t0+off);
-    gn.gain.linearRampToValueAtTime(0.07, t0+off+0.02);
+    gn.gain.linearRampToValueAtTime(vol, t0+off+0.02);
     gn.gain.exponentialRampToValueAtTime(0.0001, t0+off+0.22);
     o.connect(gn); gn.connect(master); o.start(t0+off); o.stop(t0+off+0.3);
+  });
+}
+// A soft flurry of wing-flaps — filtered noise bursts, a few in quick
+// succession, for pigeons taking off / scattering.
+function playFlutter(vol = 0.05, flaps = 4){
+  if (!audio || muted) return;
+  const { ctx, master, noise } = audio, t0 = ctx.currentTime;
+  for (let i = 0; i < flaps; i++){
+    const when = t0 + i*0.075 + Math.random()*0.02;
+    const src = ctx.createBufferSource(); src.buffer = noise;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass';
+    bp.frequency.value = 900 + Math.random()*500; bp.Q.value = 0.7;
+    const gn = ctx.createGain();
+    gn.gain.setValueAtTime(0.0001, when);
+    gn.gain.linearRampToValueAtTime(vol*(1 - i*0.12), when + 0.01);
+    gn.gain.exponentialRampToValueAtTime(0.0001, when + 0.07);
+    src.connect(bp); bp.connect(gn); gn.connect(master);
+    src.start(when); src.stop(when + 0.08);
+  }
+}
+// Deep ground-shaking rumble for when she crash-lands on a planet — a low
+// sine "boom" plus a swelling, tremolo-wobbled band of low noise that fades
+// over ~1s, timed to ride under the landing camera shake.
+function playFallRumble(){
+  if (!audio || muted) return;
+  const { ctx, master, noise } = audio, t0 = ctx.currentTime;
+  // 1) the deep impact boom
+  const boom = ctx.createOscillator(), bg = ctx.createGain();
+  boom.type = 'sine'; boom.frequency.setValueAtTime(78, t0);
+  boom.frequency.exponentialRampToValueAtTime(34, t0 + 0.45);
+  bg.gain.setValueAtTime(0.0001, t0);
+  bg.gain.linearRampToValueAtTime(0.34, t0 + 0.02);
+  bg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.7);
+  boom.connect(bg); bg.connect(master); boom.start(t0); boom.stop(t0 + 0.75);
+  // 2) the rolling rumble: looped low noise through a lowpass, with a slow
+  //    tremolo LFO on its gain so it "rumbles" rather than hisses flatly
+  const src = ctx.createBufferSource(); src.buffer = noise; src.loop = true;
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 200; lp.Q.value = 0.9;
+  const rg = ctx.createGain();
+  rg.gain.setValueAtTime(0.0001, t0);
+  rg.gain.linearRampToValueAtTime(0.26, t0 + 0.08);
+  rg.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.05);
+  const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
+  lfo.type = 'sine'; lfo.frequency.value = 22; lfoGain.gain.value = 0.09;
+  lfo.connect(lfoGain); lfoGain.connect(rg.gain);   // wobble the rumble amplitude
+  src.connect(lp); lp.connect(rg); rg.connect(master);
+  src.start(t0); src.stop(t0 + 1.1); lfo.start(t0); lfo.stop(t0 + 1.1);
+}
+// A warm arrival sting for each planet's big title reveal — a soft rising
+// major arpeggio over a gentle low pad, so discovering a new world lands.
+function playTitleSound(){
+  if (!audio || muted) return;
+  const { ctx, master } = audio, t0 = ctx.currentTime;
+  const arp = [523.25, 659.25, 783.99, 1046.5];   // C5 E5 G5 C6
+  arp.forEach((f, i) => {
+    const o = ctx.createOscillator(), gn = ctx.createGain();
+    o.type = i === arp.length-1 ? 'triangle' : 'sine';
+    o.frequency.value = f;
+    const w = t0 + i*0.11;
+    gn.gain.setValueAtTime(0.0001, w);
+    gn.gain.linearRampToValueAtTime(0.07, w + 0.02);
+    gn.gain.exponentialRampToValueAtTime(0.0001, w + 0.75);
+    o.connect(gn); gn.connect(master); o.start(w); o.stop(w + 0.85);
+  });
+  // soft low pad under it for warmth
+  [130.81, 196].forEach((f) => {   // C3, G3
+    const o = ctx.createOscillator(), gn = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    gn.gain.setValueAtTime(0.0001, t0);
+    gn.gain.linearRampToValueAtTime(0.045, t0 + 0.25);
+    gn.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.5);
+    o.connect(gn); gn.connect(master); o.start(t0); o.stop(t0 + 1.6);
   });
 }
 function playStamp(){
@@ -3303,6 +3376,18 @@ bodies[3].missionDone = false;   // Pigeon Plaza - the Percy/Doodles quest (Perc
 
 // decorate: worlds get builders, moons get sprinkles
 const GARDEN_I = 4, PIGEON_I = 3;
+// Ambient pigeon life on Pigeon Plaza: a steady scatter of coos (varied pitch
+// so 500+ birds don't sound like one) and the occasional wing-flutter, only
+// while she's actually on the plaza. dt-driven via the animators clock so it's
+// consistent/testable, not a real-time timer.
+let nextCooT = 0;
+animators.push((t, dt) => {
+  if (curI !== PIGEON_I || muted || !audio) return;
+  if (t < nextCooT) return;
+  if (Math.random() < 0.28) playFlutter(0.035, 3);   // sometimes a takeoff flap
+  else playCoo(0.8 + Math.random()*0.55, 0.05 + Math.random()*0.025);
+  nextCooT = t + 0.9 + Math.random()*1.9;             // a coo every ~1-3s
+});
 {
   const gLandN = V().subVectors(bodies[PIGEON_I].center, bodies[GARDEN_I].center).normalize();
   const t0g = arbitraryPerp(gLandN);
@@ -5327,7 +5412,13 @@ function startLandingSequence(bi){
   if (fallAction) fallAction.reset().play();
   landing = { bi, phase:'fallgetup', t:0 };
   spawnLandingDustBurst(her.position, herUp(V()));
-  if (bi === PIGEON_I) spawnPigeonFleeOnLanding(her.position.clone());
+  playFallRumble();   // deep impact rumble, riding under the landing camera shake
+  if (bi === PIGEON_I){
+    spawnPigeonFleeOnLanding(her.position.clone());
+    // the whole flock erupts — a burst of wings + startled coos
+    playFlutter(0.06, 7);
+    for (let i = 0; i < 5; i++) setTimeout(() => playCoo(0.85 + Math.random()*0.5, 0.05), 80 + i*130 + Math.random()*90);
+  }
 }
 function updateLanding(dt){
   landing.t += dt;
@@ -6372,6 +6463,7 @@ function showPlanetTitle(b){
   planetTitleNameEl.textContent = b.name;   // no emoji in the big cinematic title
   planetTitleNameEl.className = WORLD_FONT_CLASS[b.key] || '';
   planetTitleEl.classList.add('show');
+  playTitleSound();   // warm arrival sting as the world's name reveals
   // The old planet-name chip and mission banner still show the PREVIOUS
   // world's stale info for as long as the title card is up (arrive(), which
   // refreshes them both, doesn't run until she clicks past it) - hide both
