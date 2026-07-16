@@ -1,4 +1,46 @@
 # ROADMAP
+- [x] Summer's idle/walk/run/get-up arms fixed properly — natural hang, smooth
+      swing, no more tucking behind (2026-07-16): user sent an in-game
+      screenshot showing her idle arms folded behind her back, plus "her
+      arms move weirdly and not smoothly when she moves." Three distinct
+      bugs, all now fixed:
+      - **Idle arms tucked behind the back.** The idle pose (untouched by
+        the earlier walk fix) hung the arms nearly straight but pulled
+        *inward and backward* (hand offset X-0.12, Y+0.06-behind), so the
+        hands vanished behind her hips. Winter's idle by contrast hangs
+        them slightly out and neutral. Re-solved a natural hang (hands just
+        outside the skirt, slightly forward, ~20° relaxed bend) and baked
+        it flat across the whole idle so it's perfectly steady, with the
+        torso's own breathing still carrying through.
+      - **"Not smooth when moving" = violent per-frame snaps.** The walk
+        arm bake had 158-174°/frame spikes at two frames per cycle (vs ~13°
+        average) — the forearm was snapping. Two causes: (a) the swing was
+        driven off *foot world-Y*, which for this in-place walk barely
+        moves (the feet mostly go up/down, not forward/back), so the signal
+        was near-stepped — held, then jumped; (b) the per-frame IK solve
+        flipped the elbow (pole flip) at the swing reversal. Replaced the
+        whole approach with a **rigid arm swing**: rotate the entire arm
+        about the shoulder by a smooth angle proportional to the *thigh's*
+        forward lean (a clean, high-amplitude signal), keeping the elbow
+        bend fixed. Result: forearm velocity 0.1°/frame (dead smooth),
+        upper-arm peak 20°/frame walk / 52° run, real visible swing, and
+        100% correct opposite-arm/leg coordination. Same fix applied to Run.
+      - **Get-up ended tucked back too.** The fall/get-up (LandFallGetUp)
+        rose correctly but *settled* into the same old tucked-behind pose
+        in its last ~40 frames, which is what the user meant by "weird when
+        she stands up" — and it made the get-up→idle handoff pop. Eased the
+        arms into the natural idle hang over frames 185-245 (smoothstep),
+        leaving the dramatic fall/push-up/rise untouched, so it now ends
+        exactly matching idle for a seamless transition.
+      - **Root Blender lesson (why the earlier fix looked right but wasn't
+        fully):** reading `pose_bone.rotation_quaternion` while an IK
+        constraint is *actively solving* returns an incomplete value; the
+        continuity check (`dot>0`) only catches >180° sign flips, not these
+        large-but-under-180° snaps — you have to measure actual per-frame
+        angular velocity. Also caught and merged around TWO concurrent
+        re-exports by the parallel session mid-fix (it kept changing the
+        shipped glb underneath this work); re-applied all three fixes onto
+        their latest so their walk-timing and Run-cycle changes were kept.
 - [x] Real foot-locked walk + run cycles for both Beanies, built from an
       analytical 2-bone IK solve rather than hand-tuned constants
       (2026-07-16): the user's request this round was an unusually precise,
