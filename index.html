@@ -222,8 +222,7 @@
   /* ---------- planet-arrival title card (wide establishing orbit shot) ---------- */
   #planetTitle{position:fixed;inset:0;z-index:26;display:flex;flex-direction:column;
     align-items:center;justify-content:flex-start;padding-top:6vh;gap:4px;pointer-events:none;
-    opacity:0;transition:opacity 1.1s ease;
-    background:radial-gradient(ellipse at center,rgba(10,12,28,.16) 0%,rgba(10,12,28,.05) 55%,transparent 80%)}
+    opacity:0;transition:opacity 1.1s ease}
   #planetTitle.show{opacity:1;pointer-events:auto;cursor:pointer}
   /* big, "epic movie transition" title reveal: starts oversized/spread/blurred
      and converges into place. Sized to fill almost the entire top of the
@@ -381,7 +380,9 @@
       <div id="cardText"><span id="typed"></span><span id="caret"></span></div>
       <div class="sig" id="cardSig"></div>
       <button id="closeCardBtn" class="hidden">💛 &nbsp;close the letter</button>
-      <button id="replayBtn">↺ &nbsp;travel the universe again</button>
+      <!-- replay lives on the THE END screen ("click to play again") now; the
+           letter's only action is to close it, which plays THE END -->
+      <button id="replayBtn" class="hidden">↺ &nbsp;travel the universe again</button>
     </div>
   </div>
 </div>
@@ -578,12 +579,12 @@ function isBlocked(body, testOrientation){
   return false;
 }
 const tmpBlockV = new THREE.Vector3();
-function spawnEphemeral(mesh, pos, vel, life, spin=0){
+function spawnEphemeral(mesh, pos, vel, life, spin=0, maxOpacity=1){
   mesh.position.copy(pos);
   mesh.material = mesh.material.clone();
   mesh.material.transparent = true;
   scene.add(mesh);
-  ephemerals.push({ mesh, life, max:life, vel, spin });
+  ephemerals.push({ mesh, life, max:life, vel, spin, maxOpacity });
 }
 function updateEphemerals(dt){
   for (let i = ephemerals.length-1; i >= 0; i--){
@@ -592,7 +593,7 @@ function updateEphemerals(dt){
     if (e.life <= 0){ scene.remove(e.mesh); e.mesh.material.dispose(); ephemerals.splice(i,1); continue; }
     if (e.vel) e.mesh.position.addScaledVector(e.vel, dt);
     if (e.spin){ e.mesh.rotation.x += e.spin*dt; e.mesh.rotation.y += e.spin*0.7*dt; }
-    e.mesh.material.opacity = Math.min(1, e.life/e.max*1.4);
+    e.mesh.material.opacity = Math.min(e.maxOpacity, e.life/e.max*1.4);
   }
 }
 
@@ -630,12 +631,18 @@ const footprintGeo = new THREE.CircleGeometry(0.14, 10);
 footprintGeo.rotateX(-Math.PI/2);
 const FOOTPRINT_LIFE = 2.0;
 function spawnFootprint(pos, up, fwd, side, leftSide){
-  const mesh = new THREE.Mesh(footprintGeo, mat(0x000000, { roughness:1, transparent:true, opacity:0.22 }));
+  // Softer than pure black so it reads as a faint pressed mark, not a harsh
+  // ink blot. NOTE: updateEphemerals overwrites material.opacity every frame
+  // with a fade curve that used to clamp to 1.0 — so the decal peaked FULLY
+  // OPAQUE right after spawn regardless of this base opacity, which is why
+  // footprints looked solid black. The maxOpacity arg to spawnEphemeral now
+  // caps that fade; 0.5 makes them ~50% more transparent (per request).
+  const mesh = new THREE.Mesh(footprintGeo, mat(0x3a352f, { roughness:1, transparent:true, opacity:0.5 }));
   mesh.quaternion.copy(quatFromBasis(up, fwd));
   mesh.scale.set(0.65, 1, 1.15);   // narrower side-to-side (local X), a touch longer along her forward (local Z)
   const footPos = new THREE.Vector3().copy(pos)
     .addScaledVector(up, 0.015).addScaledVector(side, leftSide ? -0.13 : 0.13);
-  spawnEphemeral(mesh, footPos, null, FOOTPRINT_LIFE, 0);
+  spawnEphemeral(mesh, footPos, null, FOOTPRINT_LIFE, 0, 0.5);
 }
 /* ---------- footstep dust puffs ---------- */
 const dustGeo = new THREE.SphereGeometry(0.13, 7, 5);
@@ -2625,9 +2632,12 @@ function buildGarden(g, R, ctx){
     couch.add(flower);
     bedFlowers.push({ group: flower, x, z, ry, cur: 0 });
   }
-  // soft glow so she can find it
-  const glow = new THREE.PointLight(0xfff4dd, 60, 30, 2);
-  glow.position.set(0, 4, 0); couch.add(glow);
+  // a gentle glow so she can find it — was intensity 60, which blew out the
+  // white couch and washed out the characters sitting on it to the point you
+  // couldn't tell who was there. Dropped to a soft fill that just lifts it a
+  // little from the surroundings.
+  const glow = new THREE.PointLight(0xfff4dd, 12, 26, 2);
+  glow.position.set(0, 3, 0); couch.add(glow);
   // bred: real Blender/Rodin model, standing on the ground beside the couch
   // (not sitting on it — Percy and Chippy still sit; Bred stands so he can
   // turn and wave at Rachel as she approaches). No rig, so "standing" is
@@ -2681,9 +2691,15 @@ function buildGarden(g, R, ctx){
         bredWaveT += dt;
         if (bredWaveT < BRED_WAVE_DUR){
           const env = Math.sin(Math.PI * bredWaveT/BRED_WAVE_DUR);
-          bredModel.rotation.z = Math.sin(bredWaveT*9) * 0.22 * env;
+          // No rig on this model, so "waving" is a happy little greeting
+          // bob-and-sway rather than an arm wave: a gentle side tilt (small,
+          // so it reads as excited leaning, not tipping over) plus an
+          // eager up-down bounce.
+          bredModel.rotation.z = Math.sin(bredWaveT*8) * 0.12 * env;
+          bredModel.position.y = Math.abs(Math.sin(bredWaveT*8)) * 0.16 * env;
         } else {
           bredModel.rotation.z = 0;
+          bredModel.position.y = 0;
           bredWaveT = -1;
         }
       }
@@ -2916,6 +2932,11 @@ const GARDEN_I = 4, PIGEON_I = 3;
   bodies[GARDEN_I].guideFn = (out) => bredWorldPos(out || new THREE.Vector3());
   bodies[GARDEN_I].guideLabel = '💛 find Bred';
   bodies[GARDEN_I].guideNear = 4.2;
+  // The Garden was the ONE world left at the default missionDone=true (only
+  // 0-3 get flipped false near WORLD_DEFS), which silently suppressed its
+  // "find Bred" compass entirely. It has no next world to gate, so opening it
+  // just lets the navigation guide toward Bred show like every other world's.
+  bodies[GARDEN_I].missionDone = false;
 }
 
 /* ---------- World 2: Chippy's 5-books quest ---------- */
@@ -3680,6 +3701,7 @@ loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
 // curI reaches GARDEN_I. Only Idle/Walk exist for her there (no jump clips
 // needed — nothing launches her onward again from the very last world).
 let herSummerGroup = null, herSummerMixer = null, herSummerIdleAction = null, herSummerWalkAction = null;
+let herSummerLandFallGetUpAction = null;
 loadModelFull('./game-assets/beanie/beanie_summer.glb').then((gltf) => {
   her.add(gltf.scene);
   herSummerGroup = gltf.scene;
@@ -3688,6 +3710,7 @@ loadModelFull('./game-assets/beanie/beanie_summer.glb').then((gltf) => {
   herSummerMixer = new THREE.AnimationMixer(gltf.scene);
   const idleClip = gltf.animations.find((a) => a.name === 'Idle');
   const walkClip = gltf.animations.find((a) => a.name === 'Walk');
+  const landFallGetUpClip = gltf.animations.find((a) => a.name === 'LandFallGetUp');
   if (idleClip){
     herSummerIdleAction = herSummerMixer.clipAction(idleClip);
     herSummerIdleAction.setLoop(THREE.LoopRepeat);
@@ -3699,6 +3722,16 @@ loadModelFull('./game-assets/beanie/beanie_summer.glb').then((gltf) => {
     herSummerWalkAction.setLoop(THREE.LoopRepeat);
     herSummerWalkAction.play();
     herSummerWalkAction.setEffectiveWeight(0);
+  }
+  // Retargeted from Winter's own LandFallGetUp (same fall-on-face, hold,
+  // push-up-to-standing beat) — plays during arriveGarden()'s landing
+  // sequence, same as every other world. See updateLandingAnim().
+  if (landFallGetUpClip){
+    herSummerLandFallGetUpAction = herSummerMixer.clipAction(landFallGetUpClip);
+    herSummerLandFallGetUpAction.setLoop(THREE.LoopOnce);
+    herSummerLandFallGetUpAction.clampWhenFinished = true;
+    herSummerLandFallGetUpAction.play();
+    herSummerLandFallGetUpAction.setEffectiveWeight(0);
   }
 }).catch((err) => {
   // if this fails to load, animBeanieSkinned() just keeps showing the
@@ -3764,24 +3797,38 @@ function updateJumpAnim(e){        // e: 0..1 flight progress — crossfade the 
   herJumpLandAction.setEffectiveWeight(landW);
 }
 function landingClipDuration(){
-  return herLandFallGetUpAction ? herLandFallGetUpAction.getClip().duration : 2.5;
+  const showSummer = curI === GARDEN_I && herSummerGroup;
+  const action = showSummer ? herSummerLandFallGetUpAction : herLandFallGetUpAction;
+  return action ? action.getClip().duration : 2.5;
 }
 // Crossfade: whatever landing pose she arrived in -> the fall/impact/get-up
-// performance (played once) -> back to Idle, all driven by landing.t.
+// performance (played once) -> back to Idle, all driven by landing.t. Same
+// beat for both characters — Summer's own LandFallGetUp is retargeted from
+// Winter's (see the model-load block above), just picked here by whichever
+// mixer animBeanieSkinned() is currently ticking.
 function updateLandingAnim(){
+  const showSummer = curI === GARDEN_I && herSummerGroup;
   if (herJumpLaunchAction) herJumpLaunchAction.setEffectiveWeight(0);
   if (herJumpSoarAction) herJumpSoarAction.setEffectiveWeight(0);
   if (herWalkAction) herWalkAction.setEffectiveWeight(0);
   if (herRunAction) herRunAction.setEffectiveWeight(0);
   if (herTalkAction) herTalkAction.setEffectiveWeight(0);
-  if (!herLandFallGetUpAction){ if (herIdleAction) herIdleAction.setEffectiveWeight(1); return; }
+  if (herSummerWalkAction) herSummerWalkAction.setEffectiveWeight(0);
+  const fallAction = showSummer ? herSummerLandFallGetUpAction : herLandFallGetUpAction;
+  const idleAction = showSummer ? herSummerIdleAction : herIdleAction;
+  const modelGroup = showSummer ? herSummerGroup : herWinterGroup;
+  if (!fallAction){ if (idleAction) idleAction.setEffectiveWeight(1); return; }
   const dur = landingClipDuration();
   const fadeIn  = Math.min(1, landing.t/0.2);
   const fadeOut = Math.min(1, Math.max(0, (landing.t - (dur - 0.35))/0.35));
   const w = fadeIn*(1 - fadeOut);
-  herLandFallGetUpAction.setEffectiveWeight(w);
+  fallAction.setEffectiveWeight(w);
+  // Only Winter ever arrives via an actual jump (Summer arrives via the
+  // Percy-flight + iris wipe, no JumpLand pose to fade from), so this only
+  // does anything meaningful for her — harmless no-op the rest of the time
+  // since Winter's own mixer isn't the one being ticked while Summer shows.
   if (herJumpLandAction) herJumpLandAction.setEffectiveWeight(1 - fadeIn);
-  if (herIdleAction) herIdleAction.setEffectiveWeight(fadeOut);
+  if (idleAction) idleAction.setEffectiveWeight(fadeOut);
   // The fall clip's own root motion was authored for a flat ground plane and
   // doesn't quite reach this planet-scale surface, so lying flat read as
   // floating just above it. Sink the model down while that pose actually
@@ -3790,7 +3837,7 @@ function updateLandingAnim(){
   // by the time the cutscene ends) so her body visibly touches down.
   // (0.6 overshot into visibly burying her face-down pose — 0.22 still reads
   // as touching the ground without her sinking most of the way in.)
-  if (herWinterGroup) herWinterGroup.position.y = HER_MODEL_LIFT - 0.22*w;
+  if (modelGroup) modelGroup.position.y = HER_MODEL_LIFT - 0.22*w;
 }
 
 /* ---------- movement / state ---------- */
@@ -4267,24 +4314,94 @@ let bredGreeted = false;
 let bredWaveT = -1;
 const BRED_WAVE_DUR = 1.8;
 const BRED_GREET_DIST = 9;
+// Orient Bred (now a scene child during the cutscene) so his MODEL faces
+// `dir`. His loaded model carries a baked rotation.y = π, so the group's own
+// forward must point the OPPOSITE way for the model to face the target.
+function faceBredWorld(bredG, up, dir){
+  return quatFromBasis(up, dir.clone().negate());
+}
+const BRED_GREET = { notice:1.4, turn:1.1, wave:1.7, walk:2.8, handoff:1.6 };
 function startBredGreet(){
   bredGreeted = true;
-  bredGreet = { t: 0 };
   her.userData.moving = false;
-  const up = herUp(tmpV), fwd = herFwd(tmpV2);
-  const toward = tangentToward(her.position, up, bredWorldPos(V()));
-  camYaw = Math.atan2(V().crossVectors(fwd, toward).dot(up), fwd.dot(toward));
-  camPitch = 0.22;
+  const g = bodies[GARDEN_I];
+  const bredG = worldRefs.garden.bred;
+  const couchPos = worldRefs.garden.couch.getWorldPosition(new THREE.Vector3());
+  // Reparent Bred out of the couch group into the scene so he can turn, wave
+  // and walk across the surface in plain world space (attach preserves his
+  // current world transform). He never goes back — THE END uses him here too.
+  scene.attach(bredG);
+  const up = herUp(new THREE.Vector3());
+  // "outward" = the couch→her direction continued past her; the pair will
+  // face this in THE END (couch behind them) and Bred walks up on her side.
+  const awayFromCouch = new THREE.Vector3().copy(her.position).sub(couchPos);
+  const outward = tangentToward(her.position, up, new THREE.Vector3().copy(her.position).add(awayFromCouch));
+  const side = new THREE.Vector3().crossVectors(up, outward).normalize();
+  const bredStart = bredG.getWorldPosition(new THREE.Vector3());
+  const bredEnd = new THREE.Vector3().copy(her.position).addScaledVector(side, 1.25)
+    .sub(g.center).normalize().multiplyScalar(g.r).add(g.center);
+  bredGreet = { phase:'notice', t:0, bredG, up:up.clone(), couchPos, side:side.clone(),
+    outward:outward.clone(), bredStart, bredEnd, qStart:bredG.quaternion.clone(), letter:null };
+  bredWaveT = -1;
   state = 'bredgreet';
-  bredWaveT = 0;
+  // clear gameplay HUD for the cutscene
+  promptEl.classList.remove('show');
+  guideEl.classList.remove('show');
+  hudEl.classList.add('hidden');
+  missionEl.classList.add('hidden');
+  reticleEl.classList.add('hidden');
+  targetRing.visible = false;
+  noticeBubbleEl.textContent = '💭 Oh…! Someone\'s over there!';
+  noticeBubbleEl.classList.add('show');
 }
 function updateBredGreet(dt){
-  bredGreet.t += dt;
-  followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 6.5);
-  if (bredGreet.t > BRED_WAVE_DUR + 0.5){
-    bredGreet = null;
-    state = 'walk';
+  const bg = bredGreet, bredG = bg.bredG;
+  bg.t += dt;
+  // frame both her and Bred: look at the midpoint between them, from her
+  // outward-front side and a little above, so we see him turn/wave/approach.
+  const mid = tmpV.copy(her.position).add(bredG.position).multiplyScalar(0.5).addScaledVector(bg.up, 1.1);
+  const camGoal = cC.copy(mid).addScaledVector(bg.outward, 6.2).addScaledVector(bg.up, 2.6).addScaledVector(bg.side, 1.6);
+  camPos.lerp(camGoal, 1 - Math.exp(-3.5*dt));
+  camera.position.copy(camPos);
+  camUp.lerp(bg.up, 1 - Math.exp(-3*dt)).normalize();
+  camera.up.copy(camUp);
+  camera.lookAt(mid);
+  const qFaceHer = faceBredWorld(bredG, bg.up, tangentToward(bredG.position, bg.up, her.position));
+  if (bg.phase === 'notice'){
+    if (bg.t > BRED_GREET.notice){ bg.phase='turn'; bg.t=0; noticeBubbleEl.classList.remove('show'); }
+  } else if (bg.phase === 'turn'){
+    bredG.quaternion.slerpQuaternions(bg.qStart, qFaceHer, Math.min(1, bg.t/BRED_GREET.turn));
+    if (bg.t > BRED_GREET.turn){ bg.phase='wave'; bg.t=0; bredWaveT=0; }
+  } else if (bg.phase === 'wave'){
+    bredG.quaternion.copy(qFaceHer);
+    if (bg.t > BRED_GREET.wave){ bg.phase='walk'; bg.t=0; }
+  } else if (bg.phase === 'walk'){
+    const k = Math.min(1, bg.t/BRED_GREET.walk), e = k*k*(3-2*k);
+    bredG.position.lerpVectors(bg.bredStart, bg.bredEnd, e).addScaledVector(bg.up, Math.abs(Math.sin(e*Math.PI*5))*0.12);
+    bredG.quaternion.copy(qFaceHer);
+    if (bg.t > BRED_GREET.walk){
+      bg.phase='handoff'; bg.t=0;
+      bredG.position.copy(bg.bredEnd);
+      // a letter appears and floats from Bred over to Beanie
+      bg.letter = makeLetterProp(); bg.letter.scale.setScalar(1.4);
+      scene.add(bg.letter);
+    }
+  } else if (bg.phase === 'handoff'){
+    bredG.quaternion.copy(qFaceHer);
+    const k = Math.min(1, bg.t/BRED_GREET.handoff);
+    if (bg.letter){
+      const from = tmpV2.copy(bredG.position).addScaledVector(bg.up, 1.15);
+      const to = tmpV3.copy(her.position).addScaledVector(bg.up, 1.15);
+      bg.letter.position.lerpVectors(from, to, k*k*(3-2*k)).addScaledVector(bg.up, Math.sin(k*Math.PI)*0.35);
+      bg.letter.quaternion.copy(camera.quaternion);
+    }
+    if (bg.t > BRED_GREET.handoff && bg.phase !== 'done'){
+      bg.phase = 'done';
+      if (bg.letter){ scene.remove(bg.letter); bg.letter = null; }
+      cardOverlay.classList.remove('hidden');   // open Bred's letter
+    }
   }
+  // 'done' just holds the framing behind the card overlay until she closes it
 }
 function startLandingSequence(bi){
   curI = bi;
@@ -4313,7 +4430,8 @@ function startLandingSequence(bi){
   // keep its HUD/mission up through the fall/get-up beat.
   hudEl.classList.add('hidden');
   missionEl.classList.add('hidden');
-  if (herLandFallGetUpAction) herLandFallGetUpAction.reset().play();
+  const fallAction = (bi === GARDEN_I && herSummerGroup) ? herSummerLandFallGetUpAction : herLandFallGetUpAction;
+  if (fallAction) fallAction.reset().play();
   landing = { bi, phase:'fallgetup', t:0 };
   spawnLandingDustBurst(her.position, herUp(V()));
   if (bi === PIGEON_I) spawnPigeonFleeOnLanding(her.position.clone());
@@ -4685,33 +4803,15 @@ function arriveGarden(){
   const landPos = V().copy(g.center).addScaledVector(g.landN, g.r);
   const couchPos = V().copy(g.center).addScaledVector(worldRefs.garden.couchN, g.r);
   orientation.copy(quatFromBasis(g.landN, tangentToward(landPos, g.landN, couchPos)));
-  curI = GARDEN_I;
-  updatePose();
-  // bright daytime sky-blue gradient + stars faded fully out (arrive() below
-  // re-applies the same, but set it now so the iris opens straight onto it)
-  applyWorldSky(GARDEN_I);
   hemi.intensity = 1.85; sun.intensity = 1.25;   // golden-hour warmth, still low-contrast
   playMelody(MELODY_BDAY);          // ...now it can be the birthday song
-  arrive(GARDEN_I);
-  followCam(1, her.position, herUp(tmpV), herFwd(tmpV2), 9, true);
+  // Same fall-on-face / impact / get-up / orbit / title beat every other
+  // world gets (startLandingSequence() picks Summer's own retargeted
+  // LandFallGetUp automatically — see updateLandingAnim()) — she used to
+  // just teleport in standing, which read as inconsistent with the rest of
+  // the game the moment she was compared side-by-side with Winter's landings.
+  startLandingSequence(GARDEN_I);
   setTimeout(() => irisEl.classList.remove('closed'), 250);
-  setTimeout(() => flashPlanetTitleAuto(g), 550);
-}
-// A non-blocking version of showPlanetTitle for arrivals that don't use the
-// click-gated landing/orbit sequence (Garden's Percy-flight + iris entrance).
-function flashPlanetTitleAuto(b, ms=3200){
-  showPlanetTitle(b);
-  planetTitleEl.style.pointerEvents = 'none';
-  clearTimeout(flashPlanetTitleAuto._t);
-  flashPlanetTitleAuto._t = setTimeout(() => {
-    planetTitleEl.classList.remove('show');
-    planetTitleEl.style.pointerEvents = '';
-    // this path calls arrive() BEFORE the title (unlike the click-gated
-    // cutscene, which calls it after) so showPlanetTitle()'s hud/mission
-    // hide would otherwise never get undone once the flash fades.
-    hudEl.classList.remove('hidden');
-    if (b.mission) setMission(b.mission);
-  }, ms);
 }
 
 /* ---------- finale ---------- */
@@ -4786,45 +4886,59 @@ function updateFinale(dt, t){
 let theEnd = null;   // { t, mid, up, t1, t2, orbitA }
 function startTheEnd(){
   const g = bodies[GARDEN_I];
-  const bp = bredWorldPos(new THREE.Vector3());
-  const bredUp = new THREE.Vector3().subVectors(bp, g.center).normalize();
-  const outward = tangentToward(bp, bredUp, tmpV3.copy(g.landN).multiplyScalar(g.r));
-  const side = new THREE.Vector3().crossVectors(bredUp, outward).normalize();
-  // updatePose() rebuilds her.position from orientation + body center/radius
-  // every time it's called — setting her.position directly and THEN calling
-  // updatePose() just gets overwritten. Derive the offset point's OWN up
-  // vector first and orient off of that, so updatePose() actually lands her
-  // there instead of collapsing her back onto Bred's exact surface point.
-  const herOffsetPos = new THREE.Vector3().copy(bp).addScaledVector(side, 0.9);
-  const up = new THREE.Vector3().subVectors(herOffsetPos, g.center).normalize();
+  const couchPos = worldRefs.garden.couch.getWorldPosition(new THREE.Vector3());
+  const bredG = worldRefs.garden.bred;
+  // Bred is a scene child after the greet cutscene; if THE END is reached
+  // without it (debug), reparent him now so we can place him freely.
+  if (bredG.parent !== scene) scene.attach(bredG);
+  // The pair stands out in the meadow, a good arc AWAY from the couch, so the
+  // couch (with Chippy + Percy still on it) sits far behind them. Bias the
+  // spot toward where she lands, a natural clearing.
+  const pairN = g.landN.clone().lerp(worldRefs.garden.couchN, 0.18).normalize();
+  const pairCenter = new THREE.Vector3().copy(g.center).addScaledVector(pairN, g.r);
+  const up = pairN.clone();
+  // both face AWAY from the couch (couch ends up behind + far), same direction
+  const outward = tangentToward(pairCenter, up, new THREE.Vector3().copy(pairCenter)
+    .add(new THREE.Vector3().copy(pairCenter).sub(couchPos)));
+  const side = new THREE.Vector3().crossVectors(up, outward).normalize();
+  // stand side by side holding hands — Beanie on one side, Bred the other,
+  // close together, both facing `outward`.
+  const herStand = new THREE.Vector3().copy(pairCenter).addScaledVector(side, 0.42)
+    .sub(g.center).normalize().multiplyScalar(g.r).add(g.center);
+  const bredStand = new THREE.Vector3().copy(pairCenter).addScaledVector(side, -0.42)
+    .sub(g.center).normalize().multiplyScalar(g.r).add(g.center);
+  const herUp2 = new THREE.Vector3().subVectors(herStand, g.center).normalize();
   curI = GARDEN_I;
-  orientation.copy(quatFromBasis(up, outward));
+  // updatePose() rebuilds her.position from orientation, so orient off
+  // herStand's OWN up vector (not the pair center's) to land her there.
+  orientation.copy(quatFromBasis(herUp2, outward));
   updatePose();
   her.userData.moving = false;
+  bredG.position.copy(bredStand);
+  bredG.quaternion.copy(faceBredWorld(bredG, up, outward));
   state = 'theend';
-  const mid = V().addVectors(her.position, bp).multiplyScalar(0.5).addScaledVector(bredUp, 1.6);
-  const t1 = arbitraryPerp(bredUp);
-  const t2 = V().crossVectors(bredUp, t1).normalize();
-  theEnd = { t: 0, mid, up: bredUp.clone(), t1, t2, orbitA: 0 };
-  for (let i = 0; i < 10; i++){
+  const mid = new THREE.Vector3().copy(pairCenter).addScaledVector(up, 1.2);
+  const t1 = arbitraryPerp(up);
+  const t2 = V().crossVectors(up, t1).normalize();
+  theEnd = { t: 0, mid, up: up.clone(), t1, t2, orbitA: 0 };
+  for (let i = 0; i < 12; i++){
     const h = new THREE.Mesh(heartGeo, heartBurstMat);
     h.scale.setScalar(0.16 + Math.random()*0.12);
-    spawnEphemeral(h, V().lerpVectors(her.position, bp, 0.5).addScaledVector(up, 0.9),
+    spawnEphemeral(h, new THREE.Vector3().copy(pairCenter).addScaledVector(up, 1.2),
       randDir().multiplyScalar(0.4).addScaledVector(up, 0.5), 3 + Math.random()*2, 1 + Math.random()*2);
   }
-  // "click to continue" doesn't apply once the game is actually over —
-  // repoint the same prompt at a replay instead (see the click handler
-  // registered alongside envelope/replayBtn below).
   document.getElementById('planetTitleContinue').textContent = '↺ click to play again';
   showPlanetTitle({ name:'THE END', key:'theend' });
 }
 function updateTheEnd(dt){
   theEnd.t += dt;
   theEnd.orbitA += dt*0.1;
+  // zoomed out further than before (was 8/3.2) so the whole meadow reads —
+  // the two of them together up front, the couch + friends small behind.
   cC.copy(theEnd.mid)
-    .addScaledVector(theEnd.t1, Math.cos(theEnd.orbitA)*8)
-    .addScaledVector(theEnd.t2, Math.sin(theEnd.orbitA)*8)
-    .addScaledVector(theEnd.up, 3.2);
+    .addScaledVector(theEnd.t1, Math.cos(theEnd.orbitA)*15)
+    .addScaledVector(theEnd.t2, Math.sin(theEnd.orbitA)*15)
+    .addScaledVector(theEnd.up, 5.5);
   camPos.lerp(cC, 1 - Math.exp(-2*dt));
   camera.position.copy(camPos);
   camUp.lerp(theEnd.up, 1 - Math.exp(-2*dt)).normalize();
@@ -4983,7 +5097,7 @@ function updateWalk(dt){
       spawnDust(b.step, her.position, upV, fwdV);
       const sideV = new THREE.Vector3().crossVectors(upV, fwdV).normalize();
       spawnFootprint(her.position, upV, fwdV, sideV, step % 2 === 0);
-      stepPunch = 0.1;
+      stepPunch = 0.32;   // per-step camera dip — bumped from 0.1 for a heavier, weightier stride (both Summer + Winter)
     }
   }
   // distance-to-NPC guide — shown while the current world's mission isn't done.
@@ -5098,13 +5212,12 @@ function updateWalk(dt){
   } else {
     promptEl.classList.remove('show');
   }
-  // reaching bred on the garden — the wave beat (further out) fires once on
-  // the way in; the finale embrace threshold is untouched from before so a
-  // debug teleport straight inside 5.5 still triggers it same as always.
-  if (curI === GARDEN_I){
+  // reaching Bred on the Garden: the whole endgame is now one scripted
+  // cutscene (she notices him → he turns, waves, walks over and hands her a
+  // letter → card → THE END), kicked off once when she gets within range.
+  if (curI === GARDEN_I && !bredGreeted){
     const bredDist = her.position.distanceTo(bredWorldPos(tmpV3));
-    if (bredDist < 5.5) startFinale();
-    else if (!bredGreeted && bredDist < BRED_GREET_DIST) startBredGreet();
+    if (bredDist < BRED_GREET_DIST) startBredGreet();
   }
   followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), camDist);
 }
@@ -5569,7 +5682,7 @@ function step(dt){
   updatePercyScatter(dt);
   maybeShoot(dt);
   updateAim(t);
-  stepPunch *= Math.exp(-12*dt);
+  stepPunch *= Math.exp(-9*dt);   // slightly slower recovery so each step's weight is felt, not instant
   updateLocator(t);
 
   // General backstop, not just a per-cutscene special case: the mission box
@@ -5592,7 +5705,8 @@ function step(dt){
   // does it); this rule's only job is guaranteeing it can't stay/become
   // visible during an actual cutscene.
   const isCutsceneState = state === 'intro' || state === 'fly' || state === 'landing'
-    || state === 'percyfly' || state === 'finale' || state === 'cukeReveal' || state === 'theend';
+    || state === 'percyfly' || state === 'finale' || state === 'cukeReveal' || state === 'theend'
+    || state === 'bredgreet';
   if (isCutsceneState) missionEl.classList.add('hidden');
 
   if (state === 'intro'){
