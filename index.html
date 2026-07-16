@@ -160,11 +160,25 @@
   .jsticker img{width:100%;height:100%;object-fit:contain;display:block}
   .jsticker.got img{filter:drop-shadow(0 5px 7px rgba(0,0,0,.22))}
   .jsticker.locked img{filter:brightness(0) opacity(.13)}   /* pure shape silhouette */
+  /* Pigeon Plaza's stickers are actual circular patch/badge illustrations,
+     each with its own ornate outline (a name-banner, antlers, scalloped
+     felt edges...) - a raw alpha silhouette reads as a chaotic pile of
+     random spiky blobs rather than a badge, and no two read as "the same
+     kind of thing" the way the other pages' plain silhouettes do. Pin them
+     to a uniform circular disc instead, like a real badge board: a plain
+     token while locked, the real patch resting on a matching disc once met. */
+  .jsticker.badge{border-radius:50%;box-shadow:0 4px 10px rgba(20,30,60,.24)}
+  .jsticker.badge.locked{background:radial-gradient(circle at 35% 30%,#c7d2e8,#8b9dc0 72%);
+    box-shadow:0 4px 10px rgba(20,30,60,.24),inset 0 0 0 4px rgba(255,255,255,.32),inset 0 -7px 11px rgba(20,30,60,.16)}
+  .jsticker.badge.locked img{display:none}
+  .jsticker.badge.got{background:radial-gradient(circle at 35% 30%,#fff,#eef2fa 75%)}
+  .jsticker.badge.got img{padding:6%;box-sizing:border-box}
   /* a little strip of "washi tape" holding each collected sticker down */
   .jsticker.got::before{content:'';position:absolute;top:-4%;left:50%;
     transform:translateX(-50%) rotate(-5deg);width:44%;height:13px;
     background:var(--tape,rgba(255,209,102,.7));opacity:.62;border-radius:1px;
     box-shadow:0 1px 2px rgba(0,0,0,.12)}
+  .jsticker.badge.got::before{content:none}   /* a pinned badge doesn't need washi tape */
   .jpageFoot{font-size:11.5px;opacity:.6;text-align:right;margin-top:4px}
   #journalNav{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:12px}
   #journalNav button{border:none;cursor:pointer;color:#fff;font-size:14px;
@@ -7010,7 +7024,7 @@ function renderJournalPage(){
   page.chars.forEach((key, i) => {
     const got = metFriends.has(key);
     const st = document.createElement('div');
-    st.className = 'jsticker ' + (got ? 'got' : 'locked');
+    st.className = 'jsticker ' + (got ? 'got' : 'locked') + (page.key === 'pigeon' ? ' badge' : '');
     st.style.cssText = `left:${pos[i].x}%;top:${pos[i].y}%;width:${pos[i].size}%;aspect-ratio:1;--rot:${pos[i].rot}deg;--tape:${page.tape}`;
     const img = document.createElement('img');
     img.src = stickerURL(STICKER_FILES[key]); img.alt = got ? STICKER_LABELS[key] : '???';
@@ -7230,6 +7244,7 @@ window.__world = {
   camFillDebug(){ return { intensity: +camFill.intensity.toFixed(2), base: CAMFILL_BASE_INTENSITY, baseDist: CAMFILL_BASE_DIST }; },
   bgmDebug(){ return { volume: bgmRecording ? +bgmRecording.volume.toFixed(3) : null, key: bgmKey, fading: !!bgmFadeFrame, state }; },
   clearIntroLock(){ introLocked = false; },   // debug-only: skip past Chicago's letter-gate for testing other worlds
+  debugMeetFriend(key){ meetFriend(key); },   // debug-only: earn a sticker without playing through its real trigger
   talkFrameDebug(){
     if (!dialog) return null;
     const up = herUp(new THREE.Vector3());
