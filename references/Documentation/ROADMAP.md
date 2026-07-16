@@ -1,4 +1,25 @@
 # ROADMAP
+- [x] Garden daytime haze: the other worlds barely visible in the day sky
+      (2026-07-16): Bred asked to make the other planets "barely visible from
+      the garden because it's daytime." The other four worlds hang 840–1500
+      units out and, unfogged, read as saturated coloured orbs in the Garden's
+      clear blue sky (Emerald Meadow especially, a vivid green ringed planet) —
+      which breaks the bright-midday feel, since in real daylight you can barely
+      make anything out up there. Fixed with a linear `THREE.Fog` (mid-day
+      sky-blue `#a6ccef`) applied ONLY on the Garden, set in `applyWorldSky()`
+      alongside the sky swap and cleared to `null` on every other world (space/
+      dawn/morning all want their planets and stars crisp). The trick is the
+      huge gap between the compact Garden and the distant worlds: the fog's
+      `near` (200u) sits well past everything the player ever sees of the Garden
+      itself — the roaming camera is ~9u back and even the wide arrival-orbit
+      establishing shot only pulls to ~76u (content out to ~160u) — so the
+      flowers, couch, and ground stay 100% crisp, while the `far` (1050u) sits
+      short of the nearest other world, blending every planet 75–100% into the
+      sky. Verified by probing the fog blend factor at each distance (Garden
+      content 0% faded; Chicago 75%, Main Stacks 98%, Emerald Meadow and Pigeon
+      Plaza 100%) and with a frozen-camera before/after: the vivid green ringed
+      planet drops to a barely-there ghost while Chicago stays crisp and
+      unfogged. No per-frame cost — it's a single scene-level fog toggle.
 - [x] Per-world skies: a night→sunrise→day arc across the whole journey
       (2026-07-16): Bred asked for the sky to "show bits of more sunrise
       starting from emerald meadow," to be "sky blue for the garden," and to
