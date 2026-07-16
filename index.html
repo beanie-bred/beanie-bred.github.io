@@ -230,7 +230,7 @@
     100%{opacity:1;transform:scale(1);letter-spacing:var(--tls,6px)}
   }
   #planetTitleContinue{font-size:14px;font-weight:600;color:#ffe9c9;letter-spacing:1px;
-    animation:pulseTxt 1.6s ease-in-out infinite;text-shadow:0 0 14px rgba(0,0,0,.6)}
+    animation:pulseTxt 1.6s ease-in-out infinite;text-shadow:0 0 14px rgba(0,0,0,.6);cursor:pointer}
 
   /* ---------- iris wipe ---------- */
   #iris{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:45;
@@ -274,10 +274,16 @@
   @keyframes blink{50%{opacity:0}}
   .sig{font-family:"Snell Roundhand","Apple Chancery",cursive;font-size:24px;color:#b8465f;
     text-align:right;margin-top:16px}
-  #replayBtn{margin-top:22px;border:none;cursor:pointer;padding:11px 26px;border-radius:999px;
+  #replayBtn{margin-top:12px;border:none;cursor:pointer;padding:11px 26px;border-radius:999px;
     font-size:14px;color:#fff;background:linear-gradient(135deg,#ff8fae,#e8547c);
     box-shadow:0 4px 14px rgba(232,84,124,.4);transition:transform .2s}
   #replayBtn:hover{transform:scale(1.05)}
+  #closeCardBtn{margin-top:22px;border:none;cursor:pointer;padding:11px 26px;border-radius:999px;
+    font-size:14px;font-weight:700;color:#6b4a2a;background:linear-gradient(135deg,#ffe9c9,#f2c94a);
+    box-shadow:0 4px 14px rgba(242,201,74,.45);transition:transform .2s,opacity .3s;
+    display:block;margin-left:auto;margin-right:auto}
+  #closeCardBtn.hidden{display:none}
+  #closeCardBtn:hover{transform:scale(1.05)}
   .fheart{position:absolute;bottom:-50px;font-size:22px;opacity:.85;pointer-events:none;
     animation:rise linear forwards}
   @keyframes rise{to{transform:translateY(-115vh) rotate(300deg);opacity:0}}
@@ -348,6 +354,7 @@
       <h1 id="cardTitle">Happy Birthday</h1>
       <div id="cardText"><span id="typed"></span><span id="caret"></span></div>
       <div class="sig" id="cardSig"></div>
+      <button id="closeCardBtn" class="hidden">💛 &nbsp;close the letter</button>
       <button id="replayBtn">↺ &nbsp;travel the universe again</button>
     </div>
   </div>
@@ -2380,6 +2387,9 @@ function buildGarden(g, R, ctx){
     const m = mat(colors ? 0xffffff : color, { roughness:0.8 });
     if (geo === 'puff') { geo = new THREE.SphereGeometry(0.34, 7, 5); m.flatShading = true; }
     const im = new THREE.InstancedMesh(geo, m, count);
+    // These matrices are rewritten every frame for the handful of flowers near
+    // Beanie (see the sway animator below), so hint the driver accordingly.
+    im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     g.add(im);
     return im;
   }
@@ -2393,32 +2403,47 @@ function buildGarden(g, R, ctx){
   const stems = instanced(stemGeo, 0x5f9f56, 35000);
   let stemI = 0;
   const flowerSpots = [];   // reuse spots so heads sit on stems
+  // Persistent registry of every flower so the sway animator (below) can bend
+  // stem + head as one rigid unit. `heads()` pops spots in reverse order, so a
+  // stem's instance index has no relation to its head's — the ONLY reliable way
+  // to bend a flower together is to record, per spot, every instanced-mesh part
+  // (stem, petal, centre, …) that shares its base point.
+  const allFlowers = [];
   scatter(35000, (n) => {
     const s = 0.8 + Math.random()*0.7;
     dummy.position.copy(n).multiplyScalar(R);
     dummy.quaternion.setFromUnitVectors(Y, n);
     dummy.scale.setScalar(s);
     dummy.updateMatrix();
-    stems.setMatrixAt(stemI++, dummy.matrix);
-    flowerSpots.push({ n, s });
+    const si = stemI++;
+    stems.setMatrixAt(si, dummy.matrix);
+    // parts store the offset/scale/ry needed to rebuild each part's REST
+    // transform from the shared (n, s) — offset = radial distance of the part
+    // above the foot in stem-lengths, ry = the part's random spin.
+    const spot = { n, s, parts: [{ im: stems, i: si, offset: 0, baseScale: 1, ry: 0 }] };
+    flowerSpots.push(spot);
+    allFlowers.push(spot);
   });
   function heads(im, count, offset, baseScale, colors, im2=null, offset2=0, scale2=1){
     for (let i = 0; i < count; i++){
       const spot = flowerSpots.pop();
       if (!spot) break;
       const { n, s } = spot;
+      const ry = Math.random()*Math.PI;
       dummy.position.copy(n).multiplyScalar(R + offset*s);
       dummy.quaternion.setFromUnitVectors(Y, n);
-      dummy.rotateY(Math.random()*Math.PI);
+      dummy.rotateY(ry);
       dummy.scale.setScalar(baseScale*s);
       dummy.updateMatrix();
       im.setMatrixAt(i, dummy.matrix);
+      spot.parts.push({ im, i, offset, baseScale, ry });
       if (colors){ col.setHex(colors[i % colors.length]); im.setColorAt(i, col); }
       if (im2){
         dummy.position.copy(n).multiplyScalar(R + offset2*s);
         dummy.scale.setScalar(scale2*s);
         dummy.updateMatrix();
         im2.setMatrixAt(i, dummy.matrix);
+        spot.parts.push({ im: im2, i, offset: offset2, baseScale: scale2, ry });
       }
     }
     if (im.instanceColor) im.instanceColor.needsUpdate = true;
@@ -2470,6 +2495,7 @@ function buildGarden(g, R, ctx){
   // A dense flower bed wraps the couch while leaving a small opening in
   // front for Rachel to walk through.
   const bedColors = [0xf2a0b4,0xf7d48a,0xc4b4ec,0xaecdf2,0xf3bfd4,0xf6f0e8];
+  const bedFlowers = [];   // the couch-ring flowers also sway (see animator below)
   for (let i = 0; i < 84; i++){
     const a = i/84*Math.PI*2 + (Math.random()-0.5)*0.08;
     const x = Math.cos(a)*(2.4 + Math.random()*1.0);
@@ -2484,8 +2510,10 @@ function buildGarden(g, R, ctx){
     head.scale.set(1, i%3===0 ? 1.2 : 0.8, 1);
     head.position.y = 0.43; flower.add(head);
     flower.position.set(x,0,z);
-    flower.rotation.y = Math.random()*Math.PI;
+    const ry = Math.random()*Math.PI;
+    flower.rotation.y = ry;
     couch.add(flower);
+    bedFlowers.push({ group: flower, x, z, ry, cur: 0 });
   }
   // soft glow so she can find it
   const glow = new THREE.PointLight(0xfff4dd, 60, 30, 2);
@@ -2569,6 +2597,117 @@ function buildGarden(g, R, ctx){
     orbiter(g, bf, R + 1.6 + Math.random(), 0.15 + Math.random()*0.2,
       Math.random()*2.6, Math.random()*2.6, 0.4, 2);
   }
+  // ---------- flowers sway away from Beanie as she walks by ----------
+  // Bred asked for the field to bend away from Beanie "like a person walking
+  // through a flower field," then spring back once she passes. The whole field
+  // is ~35k instanced stems + ~35k instanced heads with STATIC pre-baked
+  // matrices, so re-writing every instance each frame would tank the framerate.
+  // Instead we only ever touch the handful of flowers within a few units of
+  // her: at build time each flower is dropped into a coarse 3D spatial grid
+  // keyed on its rounded local position; each frame we look up only the 3x3x3
+  // cells around her, spring those flowers toward a "lean away" tilt, and keep
+  // springing anything she has already left back upright (tracked in a small
+  // `active` set) until it settles — then stop touching it entirely.
+  const gardenCenter = V().copy(g.position);   // garden group sits at world center, unrotated
+  const SWAY_CELL = 4;        // grid cell size (world units); must exceed SWAY_RADIUS
+  const SWAY_RADIUS = 3.6;    // how close she must be to disturb a flower
+  const SWAY_MAXBEND = 0.95;  // radians the very nearest flowers tip over
+  const SWAY_SPRING = 7;      // spring rate; larger = snappier bend AND recovery
+  const swayGrid = new Map();
+  const gkey = (x,y,z) => x + ',' + y + ',' + z;
+  const Yv = new THREE.Vector3(0,1,0);
+  for (const f of allFlowers){
+    f.base = V().copy(f.n).multiplyScalar(R);   // flower foot, garden-local
+    f.cur = 0; f.target = 0; f.ax = 0; f.ay = 1; f.az = 0;
+    const k = gkey(Math.floor(f.base.x/SWAY_CELL), Math.floor(f.base.y/SWAY_CELL), Math.floor(f.base.z/SWAY_CELL));
+    let cell = swayGrid.get(k);
+    if (!cell){ cell = []; swayGrid.set(k, cell); }
+    cell.push(f);
+  }
+  const swayActive = new Set();
+  const touched = new Set();   // instanced meshes needing a GPU re-upload this frame
+  // reusable scratch — the animator allocates nothing per frame
+  const _herL = V(), _toF = V(), _away = V(), _axis = V(), _off = V(), _pos = V(), _scl = V();
+  const _tilt = new THREE.Quaternion(), _rest = new THREE.Quaternion(), _spin = new THREE.Quaternion();
+  const _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
+  function writePart(f, part){
+    const { im, i, offset, baseScale, ry } = part;
+    _rest.setFromUnitVectors(Yv, f.n);
+    if (ry) _rest.multiply(_spin.setFromAxisAngle(Yv, ry));
+    if (f.cur > 1e-4){
+      _tilt.setFromAxisAngle(_axis.set(f.ax, f.ay, f.az), f.cur);
+      _q.copy(_tilt).multiply(_rest);                          // orient: bend after rest
+      _off.copy(f.n).multiplyScalar(offset * f.s).applyQuaternion(_tilt);
+      _pos.copy(f.base).add(_off);                             // pivot the part about the foot
+    } else {
+      _q.copy(_rest);
+      _pos.copy(f.n).multiplyScalar(R + offset * f.s);
+    }
+    _scl.setScalar(baseScale * f.s);
+    _m.compose(_pos, _q, _scl);
+    im.setMatrixAt(i, _m);
+    touched.add(im);
+  }
+  // couch-ring bed: 84 real Group meshes, cheap enough to just process all of
+  // them each frame in the couch's local frame (its local +Y is the up axis).
+  let couchInv = null;
+  const _herC = V();
+  function swayBed(dt){
+    if (!couchInv){ couch.updateWorldMatrix(true, false); couchInv = new THREE.Matrix4().copy(couch.matrixWorld).invert(); }
+    _herC.copy(her.position).applyMatrix4(couchInv);   // her position in couch-local space
+    const a = 1 - Math.exp(-SWAY_SPRING*dt);
+    for (const b of bedFlowers){
+      const dx = b.x - _herC.x, dz = b.z - _herC.z;
+      const d = Math.hypot(dx, dz);
+      let target = 0, ax = 0, az = 1;
+      if (d < SWAY_RADIUS){
+        const s = 1 - d/SWAY_RADIUS, sm = s*s*(3 - 2*s);   // smoothstep falloff
+        target = SWAY_MAXBEND * sm;
+        // lean axis = up(0,1,0) × away(dx,0,dz) = (dz,0,-dx), normalized
+        const L = Math.hypot(dx, dz) || 1; ax = dz/L; az = -dx/L;
+      }
+      b.cur += (target - b.cur)*a;
+      if (b.cur < 1e-3 && target === 0){ b.cur = 0; b.group.quaternion.setFromAxisAngle(Yv, b.ry); continue; }
+      _tilt.setFromAxisAngle(_axis.set(ax, 0, az), b.cur);
+      b.group.quaternion.copy(_tilt).multiply(_spin.setFromAxisAngle(Yv, b.ry));
+    }
+  }
+  animators.push((t, dt) => {
+    if (curI !== GARDEN_I) return;   // the Garden is the only place any of this exists
+    swayBed(dt);
+    // her position in garden-local space (group is unrotated → world - center)
+    _herL.copy(her.position).sub(gardenCenter);
+    for (const f of swayActive) f.target = 0;   // decay; the proximity pass re-raises the near ones
+    const cx = Math.floor(_herL.x/SWAY_CELL), cy = Math.floor(_herL.y/SWAY_CELL), cz = Math.floor(_herL.z/SWAY_CELL);
+    for (let dx=-1; dx<=1; dx++) for (let dy=-1; dy<=1; dy++) for (let dz=-1; dz<=1; dz++){
+      const cell = swayGrid.get(gkey(cx+dx, cy+dy, cz+dz));
+      if (!cell) continue;
+      for (const f of cell){
+        _toF.copy(f.base).sub(_herL);
+        const d = _toF.length();
+        if (d >= SWAY_RADIUS) continue;
+        const s = 1 - d/SWAY_RADIUS, sm = s*s*(3 - 2*s);
+        f.target = SWAY_MAXBEND * sm;
+        // away = the from-her direction projected into the flower's tangent plane
+        _away.copy(_toF).addScaledVector(f.n, -_toF.dot(f.n));
+        if (_away.lengthSq() < 1e-8) _away.copy(arbitraryPerp(f.n)); else _away.normalize();
+        _axis.crossVectors(f.n, _away).normalize();
+        f.ax = _axis.x; f.ay = _axis.y; f.az = _axis.z;
+        swayActive.add(f);
+      }
+    }
+    const a = 1 - Math.exp(-SWAY_SPRING*dt);
+    for (const f of swayActive){
+      f.cur += (f.target - f.cur)*a;
+      const settled = f.cur < 1e-3 && f.target === 0;
+      if (settled) f.cur = 0;
+      for (const part of f.parts) writePart(f, part);
+      if (settled) swayActive.delete(f);
+    }
+    for (const im of touched) im.instanceMatrix.needsUpdate = true;
+    touched.clear();
+  });
+
   return { couchN, bred, percy, chippyPlush, couch };
 }
 
@@ -2660,6 +2799,13 @@ const GARDEN_I = 4, PIGEON_I = 3;
   worldRefs.pigeon = buildPigeons(bodies[PIGEON_I].group, bodies[PIGEON_I].r);
   worldRefs.garden = buildGarden(bodies[GARDEN_I].group, bodies[GARDEN_I].r,
     { gardenLandN: bodies[GARDEN_I].landN });
+  // Drives both the walk-screen "find Bred, N steps away" compass chip AND
+  // (via the shared isCharacterSeek/noticedGuides mechanism in updateWalk)
+  // the generic "oh, someone!" glance the first time she's close enough to
+  // spot him — matches every other world's guideFn/guideLabel convention.
+  bodies[GARDEN_I].guideFn = (out) => bredWorldPos(out || new THREE.Vector3());
+  bodies[GARDEN_I].guideLabel = '💛 find Bred';
+  bodies[GARDEN_I].guideNear = 4.2;
 }
 
 /* ---------- World 2: Chippy's 5-books quest ---------- */
@@ -4512,6 +4658,62 @@ function updateFinale(dt, t){
     }
   }
 }
+// The true final beat, after she's read Bred's card: the same orbiting-
+// camera + big title treatment every world gets on arrival (showPlanetTitle
+// + an orbit around a fixed point), but orbiting Beanie and Bred standing
+// together instead of a planet, with "THE END" as the title. Neither of
+// them has a rig that supports a real hand-clasp (Bred has no rig at all;
+// Beanie's skeleton has no "hold someone's hand" pose) — sold instead by
+// standing them hands-distance apart plus a few slow-drifting hearts
+// between them, same visual language as the reunion burst above.
+let theEnd = null;   // { t, mid, up, t1, t2, orbitA }
+function startTheEnd(){
+  const g = bodies[GARDEN_I];
+  const bp = bredWorldPos(new THREE.Vector3());
+  const bredUp = new THREE.Vector3().subVectors(bp, g.center).normalize();
+  const outward = tangentToward(bp, bredUp, tmpV3.copy(g.landN).multiplyScalar(g.r));
+  const side = new THREE.Vector3().crossVectors(bredUp, outward).normalize();
+  // updatePose() rebuilds her.position from orientation + body center/radius
+  // every time it's called — setting her.position directly and THEN calling
+  // updatePose() just gets overwritten. Derive the offset point's OWN up
+  // vector first and orient off of that, so updatePose() actually lands her
+  // there instead of collapsing her back onto Bred's exact surface point.
+  const herOffsetPos = new THREE.Vector3().copy(bp).addScaledVector(side, 0.9);
+  const up = new THREE.Vector3().subVectors(herOffsetPos, g.center).normalize();
+  curI = GARDEN_I;
+  orientation.copy(quatFromBasis(up, outward));
+  updatePose();
+  her.userData.moving = false;
+  state = 'theend';
+  const mid = V().addVectors(her.position, bp).multiplyScalar(0.5).addScaledVector(bredUp, 1.6);
+  const t1 = arbitraryPerp(bredUp);
+  const t2 = V().crossVectors(bredUp, t1).normalize();
+  theEnd = { t: 0, mid, up: bredUp.clone(), t1, t2, orbitA: 0 };
+  for (let i = 0; i < 10; i++){
+    const h = new THREE.Mesh(heartGeo, heartBurstMat);
+    h.scale.setScalar(0.16 + Math.random()*0.12);
+    spawnEphemeral(h, V().lerpVectors(her.position, bp, 0.5).addScaledVector(up, 0.9),
+      randDir().multiplyScalar(0.4).addScaledVector(up, 0.5), 3 + Math.random()*2, 1 + Math.random()*2);
+  }
+  // "click to continue" doesn't apply once the game is actually over —
+  // repoint the same prompt at a replay instead (see the click handler
+  // registered alongside envelope/replayBtn below).
+  document.getElementById('planetTitleContinue').textContent = '↺ click to play again';
+  showPlanetTitle({ name:'THE END', key:'theend' });
+}
+function updateTheEnd(dt){
+  theEnd.t += dt;
+  theEnd.orbitA += dt*0.1;
+  cC.copy(theEnd.mid)
+    .addScaledVector(theEnd.t1, Math.cos(theEnd.orbitA)*8)
+    .addScaledVector(theEnd.t2, Math.sin(theEnd.orbitA)*8)
+    .addScaledVector(theEnd.up, 3.2);
+  camPos.lerp(cC, 1 - Math.exp(-2*dt));
+  camera.position.copy(camPos);
+  camUp.lerp(theEnd.up, 1 - Math.exp(-2*dt)).normalize();
+  camera.up.copy(camUp);
+  camera.lookAt(tmpV.copy(theEnd.mid));
+}
 
 /* ---------- input + walking ---------- */
 addEventListener('keydown', (e) => {
@@ -5122,9 +5324,17 @@ function typeMessage(){
     if (i >= msg.length){
       clearInterval(iv);
       document.getElementById('caret').style.display = 'none';
+      document.getElementById('closeCardBtn').classList.remove('hidden');
     }
   }, 26);
 }
+document.getElementById('closeCardBtn').addEventListener('click', () => {
+  cardOverlay.classList.add('hidden');
+  startTheEnd();
+});
+document.getElementById('planetTitleContinue').addEventListener('click', () => {
+  if (state === 'theend') location.reload();
+});
 function floatHearts(){
   const glyphs = ['❤️','🤍','🌷','✨','🕊️','🩷'];
   for (let i = 0; i < 16; i++){
@@ -5257,7 +5467,7 @@ function step(dt){
   // does it); this rule's only job is guaranteeing it can't stay/become
   // visible during an actual cutscene.
   const isCutsceneState = state === 'intro' || state === 'fly' || state === 'landing'
-    || state === 'percyfly' || state === 'finale' || state === 'cukeReveal';
+    || state === 'percyfly' || state === 'finale' || state === 'cukeReveal' || state === 'theend';
   if (isCutsceneState) missionEl.classList.add('hidden');
 
   if (state === 'intro'){
@@ -5288,6 +5498,7 @@ function step(dt){
   else if (state === 'percyfly') updatePercyFlight(dt, t);
   else if (state === 'finale')   updateFinale(dt, t);
   else if (state === 'bredgreet') updateBredGreet(dt);
+  else if (state === 'theend')   updateTheEnd(dt);
   else if (state === 'cukeReveal') updateCukeReveal(dt, t);
   else if (state === 'notice')   updateNotice(dt);
 }

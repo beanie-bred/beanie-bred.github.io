@@ -1,4 +1,63 @@
 # ROADMAP
+- [x] Garden flowers sway away from Beanie as she walks by (2026-07-16):
+      Bred asked (2026-07-15, explicitly deferred to a later pass) for the
+      flower field to bend away from Beanie "like how a person would walk by a
+      flower field," then spring back once she's passed — a gentle bow-wave
+      parting around her, not an instant snap. The hard part was never the
+      look; it was doing it without wrecking the framerate. The Garden field is
+      ~35k instanced stems plus ~35k instanced heads (tulips, daisies, roses,
+      hydrangea puffs, calla lilies), every one of them a STATIC pre-baked
+      transform matrix written exactly once at build time. Re-writing all of
+      them every frame — the naive reading of "make the flowers move" — would
+      have meant rebuilding ~90k matrices and re-uploading megabytes of
+      instance buffers 60 times a second, for flowers she can't even see. So
+      the whole feature is built around only ever touching the handful within
+      arm's reach of her.
+      - **Spatial bucketing, radius-limited updates**: at build time each
+        flower's foot is dropped into a coarse 3D grid keyed on its rounded
+        local position (cell size 4 world units). Each frame the animator looks
+        up only the 3×3×3 cells around her current position — a few dozen
+        candidate flowers — instead of scanning the field. A flower within
+        `SWAY_RADIUS` (3.6u) gets a target lean whose magnitude falls off by
+        smoothstep with distance; everything else is ignored. The cell size is
+        deliberately larger than the radius so the 3×3×3 neighbourhood is
+        guaranteed to contain every flower that could possibly be in range.
+      - **Rigid stem+head bending**: `heads()` pops build-time spots in reverse
+        order, so a stem's instance index has NO relation to its petal/centre
+        indices — there was no way to bend a flower as a unit without first
+        recording, per flower, every instanced-mesh part that shares its base
+        point. Added an `allFlowers` registry doing exactly that. Each part
+        bends by the SAME tilt quaternion about the SAME foot pivot (the tilt
+        axis is `surfaceNormal × away-from-her`, so the flower tips directly
+        away from her along the ground), and the head's radial offset is
+        rotated by that tilt too so it stays planted on top of its stem instead
+        of sliding off.
+      - **Spring in AND out, with a tiny active set**: the applied bend eases
+        toward its target with `cur += (target-cur)*(1-exp(-k·dt))`, so it
+        bows in and springs back smoothly rather than snapping. Flowers she has
+        walked past can't spring back if we've stopped looking at them, so any
+        flower with a non-zero bend stays in a small `active` set: each frame
+        their targets decay to zero, they keep integrating toward upright, and
+        the instant they settle we write their exact rest matrix one last time
+        and drop them from the set. When she stands still in open ground the
+        set drains to empty and the per-frame cost is essentially nothing.
+      - **Instance buffers flagged only when touched**: only the instanced
+        meshes that actually had an instance rewritten this frame get their
+        `instanceMatrix.needsUpdate` set (via a per-frame `touched` set), and
+        all field buffers are marked `DynamicDrawUsage`. Standing idle uploads
+        nothing at all; walking uploads only the flower-type buffers she's
+        currently brushing through.
+      - **The couch-ring bed** (84 real non-instanced `Group` flowers) gets the
+        same treatment far more cheaply — all 84 processed every frame in the
+        couch's own local frame, no grid needed.
+      - **Verification**: driven headlessly via `pump()` in the Garden. Probed
+        the raw instance matrices as she walked ~21 units: nearby stems bent
+        0.6–0.9 rad (heads tipping ~35–52° away from her), flowers beyond the
+        radius stayed at exactly 0, and a full-field scan for "stuck" bent
+        flowers behind her read 0 at every step and after she stopped —
+        confirming the spring-back never leaves a trail of flattened flowers.
+        The couch bed showed the same signature (bent-count rising near her,
+        falling back to baseline once she left). No console errors.
 - [x] Large batch: landing-camera polish, per-world navigation/content fixes,
       weightier movement, footprints, night-sky detail, and Beanie's own
       dialogue lines (2026-07-15, later still same day): one big combined
