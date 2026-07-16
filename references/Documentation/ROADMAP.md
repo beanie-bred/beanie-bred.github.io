@@ -1,4 +1,43 @@
 # ROADMAP
+- [x] Journal: stickers made bigger with a provably non-overlapping layout
+      (2026-07-16): Bred said the collage pages had "so much whitespace" and
+      asked for stickers "as big as possible... but not overlap."
+      - **Root fix**: `collagePlace()`'s old jitter was a fixed fraction of
+        each grid cell's own size, regardless of the item's size - fine at
+        the small, cautious sizes it shipped with, but nothing stopped a
+        bigger item from simply exceeding its own cell. Reworked jitter to
+        be a fraction of the item's LEFTOVER room in its cell (cell size
+        minus the item's size), which makes "never overlaps a neighbor or
+        runs off the page" a structural guarantee as long as `sizeMax`
+        stays under the cell's own width/height - not something to
+        hand-tune per page.
+      - **Rotation caught a real, if tiny, gap**: a first attempt (verified
+        against plain circle-vs-circle math in a scratch Node script)
+        looked safe, but `.jsticker` renders with a CSS `rotate()` - and a
+        rotated square's actual on-screen (axis-aligned) bounding box is
+        BIGGER than its own size, by a factor of `|cos|+|sin|` of the
+        rotation angle. Confirmed live via `getBoundingClientRect` on two
+        "just touching" stickers: a real ~1px sliver overlap, invisible in
+        a screenshot but real. Fixed by computing slack against each
+        item's worst-case ROTATED footprint instead of its nominal size,
+        and re-verified across 40+ synthetic seeds per page (not just the
+        one real seed each page actually uses) before settling on final
+        numbers.
+      - Sizes pushed up close to that provably-safe ceiling for Main
+        Stacks, Emerald Meadow, and Pigeon Plaza (the three pages with a
+        multi-item collage) - meaningfully bigger throughout, confirmed
+        zero overlaps and zero off-page items on all three via a live
+        `getBoundingClientRect` pairwise-intersection check, both fully
+        locked and with items collected.
+      - **Verification note**: the embedded test browser's
+        `getBoundingClientRect` reads came back as degenerate garbage
+        (a single collapsed point) exactly once, immediately after an
+        `await waitFor(900)` call inside the same script - a same-page
+        re-check moments later (no `waitFor`) read normally. Screenshot
+        ground truth was correct the whole time. Treat one weird
+        layout-measurement result right after an async wait as a tooling
+        flake worth re-checking with a fresh, synchronous read before
+        concluding the page itself is broken.
 - [x] Journal: gift books and Emerald Meadow foods now earn their own
       stickers on pickup (2026-07-16): Bred added new sticker art -
       `stickers/mainstacks stickers/` (book 1-5) and `stickers/meadow
