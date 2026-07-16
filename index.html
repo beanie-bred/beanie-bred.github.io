@@ -106,24 +106,47 @@
     background:rgba(20,18,40,.55);backdrop-filter:blur(6px);opacity:0;pointer-events:none;
     transition:opacity .3s ease}
   #journalPanel.show{opacity:1;pointer-events:auto}
-  /* Opens like a book: two pages hinged at a central spine, each folded flat
-     against it (rotateY ±90deg) until .show flips them open to 0deg. The
-     perspective on the book (not the page) is what makes that rotation read
-     as a page swinging open in 3D instead of just squashing flat. */
+  /* Opens like a book: a hardcover shell (#journalCover) pops in first, then
+     the two pages — hinged at a central spine, folded flat against it
+     (rotateY ±100deg) — swing open to 0deg a beat later (transition-delay
+     below), so the "opening" reads as its own distinct motion instead of
+     happening simultaneously with the backdrop fade. The perspective on the
+     book (not the page) is what makes that rotation read as a page swinging
+     open in 3D instead of just squashing flat. */
+  #journalCover{position:relative;padding:16px;border-radius:22px;
+    background:linear-gradient(155deg,#caa06a,#a9784a 55%,#8f6038);
+    box-shadow:inset 0 2px 3px rgba(255,255,255,.35),inset 0 -3px 8px rgba(0,0,0,.35),
+      0 26px 60px rgba(0,0,0,.5);
+    transform:scale(.85) translateY(10px);opacity:0;
+    transition:transform .45s cubic-bezier(.2,1.4,.4,1),opacity .35s ease}
+  #journalPanel.show #journalCover{transform:scale(1) translateY(0);opacity:1}
+  /* a little gold corner-plate + ribbon bookmark peeking out, purely
+     decorative — sells "keepsake book" more than a plain cover alone would */
+  #journalCover::before{content:'';position:absolute;top:10px;left:10px;right:10px;bottom:10px;
+    border:1.5px solid rgba(255,224,138,.55);border-radius:14px;pointer-events:none}
+  #journalRibbon{position:absolute;top:-6px;right:38px;width:16px;height:46px;
+    background:linear-gradient(#e8547c,#c43860);
+    clip-path:polygon(0 0,100% 0,100% 100%,50% 78%,0 100%);
+    box-shadow:0 3px 8px rgba(0,0,0,.3);z-index:1}
   #journalBook{position:relative;display:flex;width:min(680px,92vw);height:min(460px,86vh);
-    perspective:2000px;filter:drop-shadow(0 24px 60px rgba(0,0,0,.5));
-    transform:scale(.94);transition:transform .4s ease}
-  #journalPanel.show #journalBook{transform:scale(1)}
+    perspective:2000px}
   .journalPage{position:relative;width:50%;background:linear-gradient(#fffdf8,#fbf3ea);color:#43364f;
-    padding:20px 18px;overflow-y:auto;transition:transform .7s cubic-bezier(.34,1.1,.4,1)}
-  #journalPageLeft{border-radius:18px 3px 3px 18px;transform-origin:right center;
-    transform:rotateY(-100deg);text-align:center}
-  #journalPageRight{border-radius:3px 18px 18px 3px;transform-origin:left center;
-    transform:rotateY(100deg);display:flex;flex-direction:column;align-items:stretch}
+    padding:20px 18px;overflow-y:auto;transition:transform .6s cubic-bezier(.34,1.1,.4,1);
+    transition-delay:.2s}
+  #journalPageLeft{border-radius:16px 3px 3px 16px;transform-origin:right center;
+    transform:rotateY(-100deg);text-align:center;
+    box-shadow:inset 8px 0 14px -10px rgba(0,0,0,.3),-2px 0 0 #f0e6d8,-4px 0 0 #fffdf8,-6px 0 0 #f0e6d8}
+  #journalPageRight{border-radius:3px 16px 16px 3px;transform-origin:left center;
+    transform:rotateY(100deg);display:flex;flex-direction:column;align-items:stretch;
+    box-shadow:inset -8px 0 14px -10px rgba(0,0,0,.3),2px 0 0 #f0e6d8,4px 0 0 #fffdf8,6px 0 0 #f0e6d8}
   #journalPanel.show .journalPage{transform:rotateY(0deg)}
-  #journalSpine{width:8px;flex-shrink:0;
-    background:linear-gradient(90deg,rgba(0,0,0,.3),rgba(0,0,0,.08) 40%,rgba(0,0,0,.08) 60%,rgba(0,0,0,.3));
-    box-shadow:0 0 16px rgba(0,0,0,.35)}
+  #journalSpine{width:14px;flex-shrink:0;position:relative;border-radius:2px;
+    background:linear-gradient(90deg,#6b4326,#8a5a3a 30%,#a06f48 50%,#8a5a3a 70%,#6b4326);
+    box-shadow:0 0 16px rgba(0,0,0,.4),inset 0 2px 2px rgba(255,255,255,.2)}
+  /* stitching along the spine */
+  #journalSpine::before{content:'';position:absolute;inset:14px 0;
+    background:repeating-linear-gradient(0deg,rgba(255,224,138,.5) 0 3px,transparent 3px 11px);
+    left:50%;width:1px}
   #journalTitle{font-size:21px;font-weight:700;color:#8a5a3a;margin-bottom:4px}
   #journalCount{font-size:13px;color:#8a7a95;margin-bottom:18px}
   .journalGrid{display:grid;grid-template-columns:repeat(2,clamp(64px,9vw,92px));
@@ -309,16 +332,19 @@
 <button id="muteBtn" class="hidden">🔊</button>
 <button id="journalBtn" class="hidden" title="Beanie's journal">📔</button>
 <div id="journalPanel" class="hidden">
-  <div id="journalBook">
-    <div id="journalPageLeft" class="journalPage">
-      <div id="journalTitle">📔 Beanie's Journal</div>
-      <div id="journalCount"></div>
-      <div id="journalGridLeft" class="journalGrid"></div>
-    </div>
-    <div id="journalSpine"></div>
-    <div id="journalPageRight" class="journalPage">
-      <div id="journalGridRight" class="journalGrid"></div>
-      <button id="journalClose">close ✕</button>
+  <div id="journalCover">
+    <div id="journalRibbon"></div>
+    <div id="journalBook">
+      <div id="journalPageLeft" class="journalPage">
+        <div id="journalTitle">📔 Beanie's Journal</div>
+        <div id="journalCount"></div>
+        <div id="journalGridLeft" class="journalGrid"></div>
+      </div>
+      <div id="journalSpine"></div>
+      <div id="journalPageRight" class="journalPage">
+        <div id="journalGridRight" class="journalGrid"></div>
+        <button id="journalClose">close ✕</button>
+      </div>
     </div>
   </div>
 </div>
