@@ -3380,8 +3380,8 @@ function talkBbak(){
 refreshBbakGuide();
 
 /* ---------- the ring's secret: solid green ring -> revealed as cucumbers ----------
-   A scripted ~7s beat: the mystery ring visibly slows to a stop while the real
-   cucumber-built ring (and the ground cucumbers) fade in underneath it, then
+   A slow cinematic beat: the mystery ring visibly stops, the ground sprouts,
+   then a dedicated close view watches the solid ring dissolve into cucumbers before
    the world's true name is revealed via the same title-card system every
    other world uses. Triggered once, right after bbak's "long and green" hint. */
 let cukeReveal = null;
@@ -3406,19 +3406,29 @@ function startCukeRevealCutscene(){
     placeOn(b.group, entry.holder, n, b.r, 0.3);
   });
 }
-// Two acts, 20s total. Act 1 (0-9s): a close,
+// Two acts, 22s total. Act 1 (0-9s): a close,
 // ground-level shot — a real change of POV from every other cutscene's wide
-// establishing orbit — watching the cucumbers actually form. The ring's own
-// solid->cucumber crossfade runs inside this act too, kept coupled to the
-// ground-cucumber growth exactly as tightly as before: both read from the
-// same shared `cucumberMat` (ground cucumbers are clones of the same loaded
-// model), so starting them at the same moment reads as one "materializing"
-// event — starting them at DIFFERENT times would make whichever finishes
-// first blink as the other's opacity ramp reset the shared material out from
-// under it. Act 2 (9-20s): a slow push along the ring band itself — not the
-// whole planet — ending close enough to read the individual cucumbers.
-const ACT1_DUR = 9.0, ACT2_DUR = 11.0;
-const RING_FADE_START = 1.7, RING_FADE_DUR = 5.0;
+// establishing orbit — watching cucumbers sprout around Beanie. Act 2
+// (9-22s) starts on the still-solid ring, holds through a nine-second true
+// crossfade into thousands of individually readable cucumbers, then glides
+// briefly along the completed band.
+const ACT1_DUR = 9.0, ACT2_DUR = 13.0;
+const GROUND_GROW_START = 1.25;
+const RING_FADE_LOCAL_START = 0.8, RING_FADE_DUR = 9.0;
+function ringRevealMaterials(wr){
+  const mats = [];
+  for (const ring of wr.cukeRingGroups){
+    ring.traverse((obj) => {
+      if (!obj.isMesh) return;
+      if (!obj.userData.revealMaterial){
+        obj.material = obj.material.clone();
+        obj.userData.revealMaterial = obj.material;
+      }
+      mats.push(obj.userData.revealMaterial);
+    });
+  }
+  return mats;
+}
 function updateCukeReveal(dt, t){
   const cr = cukeReveal, wr = worldRefs.cucumber, b = bodies[2];
   cr.t += dt;
@@ -3448,28 +3458,12 @@ function updateCukeReveal(dt, t){
     }
     // the solid ring's spin winds down to a stop before the transformation begins…
     wr.setSolidSpinScale(Math.max(0, 1 - k1*2.2));
-    // …then it visibly DISSOLVES over RING_FADE_DUR seconds while the real
-    // cucumber-built ring fades in underneath it (a crossfade, not a hard
-    // visibility toggle), and the ground cucumbers sprout up out of the grass
-    // on their own staggered timers, kicked off at the same moment.
-    const fadeK = Math.max(0, Math.min(1, (cr.t - RING_FADE_START)/RING_FADE_DUR));
-    if (fadeK > 0 && !cr.fadeStarted){
-      cr.fadeStarted = true;
-      for (const ring of wr.cukeRingGroups) ring.visible = true;
-      if (cucumberMat){ cucumberMat.transparent = true; cucumberMat.opacity = 0; }
-      startGroundCucumberGrowth(wr.groundCucumberHolders, RING_FADE_DUR + 0.5);
-    }
-    if (cr.fadeStarted){
-      wr.solidMat.opacity = 1 - fadeK;
-      if (cucumberMat) cucumberMat.opacity = fadeK;
-      if (fadeK >= 1 && !cr.solidHidden){
-        cr.solidHidden = true;
-        wr.solidRing.visible = false;
-        for (let i = 0; i < 24; i++)
-          spawnEphemeral(new THREE.Mesh(sparkGeo, sparkMat), b.center.clone().addScaledVector(up, b.r + 6),
-            randDir().multiplyScalar(6 + Math.random()*6), 1.2 + Math.random(), 4);
-        playChime();
-      }
+    // Ground growth remains the strong first beat. Its material stays fully
+    // opaque; the ring meshes get private fade materials in Act 2 so neither
+    // reveal can accidentally blink or control the other's opacity.
+    if (cr.t >= GROUND_GROW_START && !cr.groundGrowthStarted){
+      cr.groundGrowthStarted = true;
+      startGroundCucumberGrowth(wr.groundCucumberHolders, 5.8);
     }
   } else if (cr.t < ACT1_DUR + ACT2_DUR){
     // Slow reveal pass from OUTSIDE the ring looking back toward the planet:
@@ -3487,6 +3481,36 @@ function updateCukeReveal(dt, t){
     camera.position.copy(camPos);
     camera.up.copy(camUp);
     camera.lookAt(tmpV3.copy(ringPoint).lerp(b.center, 0.16).addScaledVector(up, -1.0));
+    // Hold on the intact solid ring first, then phase the actual cucumber
+    // meshes in underneath it over nine full seconds. A smoothstep opacity
+    // curve makes the beginning/end feathered instead of mechanically linear.
+    const localT = cr.t - ACT1_DUR;
+    if (localT >= RING_FADE_LOCAL_START && !cr.fadeStarted){
+      cr.fadeStarted = true;
+      cr.ringMats = ringRevealMaterials(wr);
+      for (const material of cr.ringMats){ material.transparent = true; material.depthWrite = false; material.opacity = 0; }
+      for (const ring of wr.cukeRingGroups) ring.visible = true;
+    }
+    if (cr.fadeStarted){
+      const rawFade = Math.max(0, Math.min(1, (localT - RING_FADE_LOCAL_START)/RING_FADE_DUR));
+      const fadeK = rawFade*rawFade*(3 - 2*rawFade);
+      // If the GLB finished loading during this very cutscene, collect its
+      // newly-created instanced meshes here too instead of letting them pop in.
+      cr.ringMats = ringRevealMaterials(wr);
+      wr.solidMat.opacity = 1 - fadeK;
+      for (const material of cr.ringMats){
+        material.transparent = true; material.depthWrite = rawFade >= 1; material.opacity = fadeK;
+      }
+      if (rawFade >= 1 && !cr.solidHidden){
+        cr.solidHidden = true;
+        wr.solidRing.visible = false;
+        for (const material of cr.ringMats){ material.opacity = 1; material.depthWrite = true; }
+        for (let i = 0; i < 28; i++)
+          spawnEphemeral(new THREE.Mesh(sparkGeo, sparkMat), ringPoint.clone(),
+            randDir().multiplyScalar(5 + Math.random()*7), 1.2 + Math.random(), 4);
+        playChime();
+      }
+    }
   } else {
     finishCukeReveal();
   }
