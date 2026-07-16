@@ -410,7 +410,7 @@
 </div>
 
 <div id="musicCredits">
-  Music from <b>Uppbeat</b>:
+  Music from <b>#Uppbeat</b> (free for Creators!):
   <a href="https://uppbeat.io/t/dan-barton/the-executive-lounge" target="_blank" rel="noopener">The Executive Lounge — Dan Barton</a><br>
   <a href="https://uppbeat.io/t/color-parade/pixeltown" target="_blank" rel="noopener">Pixeltown — Color Parade</a>
 </div>
@@ -865,6 +865,10 @@ function applyWorldSky(bi){
 /* ═══════════════ AUDIO ═══════════════ */
 let audio = null, muted = false, melodyGain = null, melodyWet = null, melodyTimer = null;
 let bgmRecording = null, bgmPrevious = null, bgmFadeFrame = null, bgmKey = null;
+const qaAudioFlag = new URLSearchParams(location.search).get('qa');
+const QA_AUDIO_MUTED = navigator.webdriver || ['1','true','codex','claude'].includes((qaAudioFlag || '').toLowerCase());
+if (QA_AUDIO_MUTED) muted = true;
+let bgmAutoplayPending = false;
 const BGM_TRACKS = {
   executive:'audio/executive-lounge.mp3',
   pixeltown:'audio/pixeltown.mp3'
@@ -873,7 +877,8 @@ function playBgm(key, fadeSeconds=2.5){
   if (bgmKey === key && bgmRecording) return;
   const next = new Audio(BGM_TRACKS[key]);
   next.loop = true; next.preload = 'auto'; next.volume = fadeSeconds ? 0 : .52; next.muted = muted;
-  next.play().catch(() => {});
+  next.play().then(() => { bgmAutoplayPending = false; })
+    .catch(() => { bgmAutoplayPending = true; });
   if (bgmFadeFrame) cancelAnimationFrame(bgmFadeFrame);
   const old = bgmRecording;
   bgmPrevious = old;
@@ -897,6 +902,16 @@ function playBgm(key, fadeSeconds=2.5){
   };
   bgmFadeFrame = requestAnimationFrame(fade);
 }
+// Attempt audible autoplay as soon as the page opens. Browsers that prohibit
+// it resume the same track on the very first pointer/key interaction. Muted QA
+// sessions are allowed to start immediately and never interrupt automation.
+function unlockAutoplayBgm(){
+  if (!bgmAutoplayPending || !bgmRecording) return;
+  bgmRecording.play().then(() => { bgmAutoplayPending = false; }).catch(() => {});
+}
+addEventListener('pointerdown', unlockAutoplayBgm, { capture:true });
+addEventListener('keydown', unlockAutoplayBgm, { capture:true });
+playBgm('executive', 0);
 function ensureAudio(){
   if (audio) return true;
   try{
@@ -2952,7 +2967,10 @@ function buildGarden(g, R, ctx){
 
   // ---------- the big white couch ----------
   const couch = new THREE.Group();
-  const white = mat(0xf6f4ee, { roughness:0.9 });
+  // A soft warm off-white, NOT near-pure white — under the Garden's bright
+  // daytime lighting a pure-white couch pushed past the bloom threshold and
+  // glowed, hiding the characters on it. This sits comfortably below bloom.
+  const white = mat(0xdcd5c6, { roughness:0.95 });
   const seat = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.6, 1.5), white);
   seat.position.y = 0.5; couch.add(seat);
   const backR = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.15, 0.4), white);
@@ -2962,7 +2980,7 @@ function buildGarden(g, R, ctx){
     arm.position.set(s*1.95, 0.85, 0); couch.add(arm);
   }
   for (let c = 0; c < 3; c++){
-    const cush = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.26, 1.32), mat(0xfdfbf6, { roughness:0.95 }));
+    const cush = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.26, 1.32), mat(0xe8e1d3, { roughness:0.96 }));
     cush.position.set(-1.13 + c*1.13, 0.9, 0.04); couch.add(cush);
   }
   const couchPos = V().copy(couchN).multiplyScalar(R);
@@ -2992,29 +3010,46 @@ function buildGarden(g, R, ctx){
     couch.add(flower);
     bedFlowers.push({ group: flower, x, z, ry, cur: 0 });
   }
-  // a gentle glow so she can find it — was intensity 60, which blew out the
-  // white couch and washed out the characters sitting on it to the point you
-  // couldn't tell who was there. Dropped to a soft fill that just lifts it a
-  // little from the surroundings.
-  const glow = new THREE.PointLight(0xfff4dd, 12, 26, 2);
-  glow.position.set(0, 3, 0); couch.add(glow);
-  // bred: real Blender/Rodin model, standing on the ground beside the couch
-  // (not sitting on it — Percy and Chippy still sit; Bred stands so he can
-  // turn and wave at Rachel as she approaches). No rig, so "standing" is
-  // just his one static mesh at ground level (y=0 in couch-local space,
-  // same convention as the couch group itself sitting flush on the planet).
+  // NO glow light on the couch anymore. Even dropped to 12 it (plus the bright
+  // white couch material under full daytime lighting) kept blowing out into a
+  // bloom halo that washed out whoever was sitting on it — you couldn't tell
+  // who was there. She finds the couch/Bred via the compass guide instead, so
+  // the couch needs no glow of its own.
+  // bred: real RIGGED Blender model with a hand-authored wave animation
+  // (game-assets/bred/bred_wave.glb, "Wave" clip = idle→raise-arm-and-wave→
+  // idle). Stands on the ground beside the couch (Percy + Chippy still sit).
+  // He holds the wave clip's resting first frame (arms down) until the greet
+  // cutscene plays the real wave at Rachel; see bred.userData.playWave below.
   const bred = new THREE.Group();
   bred.position.set(2.5, 0, 1.15);
   couch.add(bred);
-  let bredModel = null;
-  loadModel('./game-assets/bred/bred.glb').then((model) => {
+  let bredModel = null, bredMixer = null, bredWaveAction = null;
+  bred.userData.playWave = () => {};   // safe no-op until the model loads
+  loadModelFull('./game-assets/bred/bred_wave.glb').then((gltf) => {
+    const model = gltf.scene;
     model.rotation.y = Math.PI; // face outward, toward the camera/Rachel
     bredModel = model;
     bred.add(model);
+    bredMixer = new THREE.AnimationMixer(model);
+    const waveClip = gltf.animations.find((a) => a.name === 'Wave');
+    if (waveClip){
+      bredWaveAction = bredMixer.clipAction(waveClip);
+      bredWaveAction.setLoop(THREE.LoopOnce);
+      bredWaveAction.clampWhenFinished = true;
+      bredWaveAction.play();
+      bredWaveAction.paused = true;     // frozen on the resting first frame
+      bredWaveAction.time = 0;
+      bred.userData.playWave = (speed = 2.0) => {
+        bredWaveAction.reset();
+        bredWaveAction.timeScale = speed;   // sped up so the whole wave reads within the approach
+        bredWaveAction.paused = false;
+        bredWaveAction.play();
+      };
+    }
   }).catch((err) => {
     console.error('Bred model failed to load, falling back to placeholder', err);
     const fallback = makeChibi('bred');
-    fallback.userData.sit(true);
+    fallback.userData.sit(false);
     bred.add(fallback);
   });
   // percy (real model, puppy-sized) + chippy resting beside him
@@ -3041,29 +3076,9 @@ function buildGarden(g, R, ctx){
   animators.push((t, dt) => {
     percy.position.y = 0.9 + Math.abs(Math.sin(t*1.9))*0.02;
     if (chippyPlush.children[0]) chippyPlush.children[0].scale.setScalar(1 + 0.03*Math.sin(t*1.5));
-    if (bredModel){
-      bredModel.scale.setScalar(1 + 0.02*Math.sin(t*1.3));
-      // Happy wave for the "notice" cutscene when Rachel gets close, set off
-      // by startBredGreet() (bredWaveT >= 0 while it plays). No rig on this
-      // model — the whole mesh rocks side to side (eased in/out) instead of
-      // a real arm-wave, since there's no separate hand/arm node to isolate.
-      if (bredWaveT >= 0){
-        bredWaveT += dt;
-        if (bredWaveT < BRED_WAVE_DUR){
-          const env = Math.sin(Math.PI * bredWaveT/BRED_WAVE_DUR);
-          // No rig on this model, so "waving" is a happy little greeting
-          // bob-and-sway rather than an arm wave: a gentle side tilt (small,
-          // so it reads as excited leaning, not tipping over) plus an
-          // eager up-down bounce.
-          bredModel.rotation.z = Math.sin(bredWaveT*8) * 0.12 * env;
-          bredModel.position.y = Math.abs(Math.sin(bredWaveT*8)) * 0.16 * env;
-        } else {
-          bredModel.rotation.z = 0;
-          bredModel.position.y = 0;
-          bredWaveT = -1;
-        }
-      }
-    }
+    // the real rigged wave is driven by the AnimationMixer now (see
+    // bred.userData.playWave, triggered from the greet cutscene) — just tick it.
+    if (bredMixer) bredMixer.update(dt);
   });
   // butterflies + floating petals
   for (let i = 0; i < 12; i++){
@@ -5132,14 +5147,12 @@ function noticeSubject(){
 // A dedicated beat for Bred specifically, closer-range than the generic
 // notice above (which just fires the shared "spotted them" glance for
 // EVERY required character, Bred included, via bodies[GARDEN_I].guideFn).
-// Once she's properly close, he turns and happily waves — a separate pause
-// from the generic notice since it needs its own animation trigger
-// (bredWaveT, read by the animator registered in buildGarden) rather than
+// Once she's properly close, he turns, walks over and plays his real rigged
+// hand-wave (bred.userData.playWave, driving the "Wave" clip through his
+// AnimationMixer) before handing her the letter — a full scripted beat, not
 // just a camera glance.
 let bredGreet = null;   // { t }
 let bredGreeted = false;
-let bredWaveT = -1;
-const BRED_WAVE_DUR = 1.8;
 const BRED_GREET_DIST = 9;
 // Orient Bred (now a scene child during the cutscene) so his MODEL faces
 // `dir`. His loaded model carries a baked rotation.y = π, so the group's own
@@ -5147,7 +5160,10 @@ const BRED_GREET_DIST = 9;
 function faceBredWorld(bredG, up, dir){
   return quatFromBasis(up, dir.clone().negate());
 }
-const BRED_GREET = { notice:1.8, turn:1.5, wave:2.2, walk:3.6, handoff:2.0 };
+// notice → approach (he turns to face her, walks over, and does the real
+// rigged hand-wave all at once) → handoff (letter). The couch is left far
+// behind: he WALKS the full distance from it out to where she's standing.
+const BRED_GREET = { notice:1.6, approach:4.4, handoff:1.9 };
 function startBredGreet(){
   bredGreeted = true;
   her.userData.moving = false;
@@ -5169,7 +5185,6 @@ function startBredGreet(){
     .sub(g.center).normalize().multiplyScalar(g.r).add(g.center);
   bredGreet = { phase:'notice', t:0, bredG, up:up.clone(), couchPos, side:side.clone(),
     outward:outward.clone(), bredStart, bredEnd, qStart:bredG.quaternion.clone(), letter:null };
-  bredWaveT = -1;
   state = 'bredgreet';
   // clear gameplay HUD for the cutscene
   promptEl.classList.remove('show');
@@ -5195,20 +5210,27 @@ function updateBredGreet(dt){
   camera.lookAt(mid);
   const qFaceHer = faceBredWorld(bredG, bg.up, tangentToward(bredG.position, bg.up, her.position));
   if (bg.phase === 'notice'){
-    if (bg.t > BRED_GREET.notice){ bg.phase='turn'; bg.t=0; noticeBubbleEl.classList.remove('show'); }
-  } else if (bg.phase === 'turn'){
-    bredG.quaternion.slerpQuaternions(bg.qStart, qFaceHer, Math.min(1, bg.t/BRED_GREET.turn));
-    if (bg.t > BRED_GREET.turn){ bg.phase='wave'; bg.t=0; bredWaveT=0; }
-  } else if (bg.phase === 'wave'){
-    bredG.quaternion.copy(qFaceHer);
-    if (bg.t > BRED_GREET.wave){ bg.phase='walk'; bg.t=0; }
-  } else if (bg.phase === 'walk'){
-    const k = Math.min(1, bg.t/BRED_GREET.walk), e = k*k*(3-2*k);
-    bredG.position.lerpVectors(bg.bredStart, bg.bredEnd, e).addScaledVector(bg.up, Math.abs(Math.sin(e*Math.PI*5))*0.12);
-    bredG.quaternion.copy(qFaceHer);
-    if (bg.t > BRED_GREET.walk){
+    if (bg.t > BRED_GREET.notice){
+      bg.phase='approach'; bg.t=0;
+      noticeBubbleEl.classList.remove('show');
+      // kick off the REAL rigged hand-wave (idle→raise-and-wave→idle),
+      // sped up so it plays fully across the walk over.
+      worldRefs.garden.bred.userData.playWave(2.0);
+    }
+  } else if (bg.phase === 'approach'){
+    // he turns to face her, walks the whole way from the couch out to beside
+    // her, and waves — all at once. Turn resolves over the first third, then
+    // he just keeps facing her as he closes the distance.
+    const k = Math.min(1, bg.t/BRED_GREET.approach), e = k*k*(3-2*k);
+    const turnK = Math.min(1, bg.t/(BRED_GREET.approach*0.32));
+    bredG.quaternion.slerpQuaternions(bg.qStart, qFaceHer, turnK);
+    if (turnK >= 1) bredG.quaternion.copy(qFaceHer);
+    bredG.position.lerpVectors(bg.bredStart, bg.bredEnd, e)
+      .addScaledVector(bg.up, Math.abs(Math.sin(e*Math.PI*6))*0.10);
+    if (bg.t > BRED_GREET.approach){
       bg.phase='handoff'; bg.t=0;
       bredG.position.copy(bg.bredEnd);
+      bredG.quaternion.copy(qFaceHer);
       // a letter appears and floats from Bred over to Beanie
       bg.letter = makeLetterProp(); bg.letter.scale.setScalar(1.4);
       scene.add(bg.letter);
@@ -5866,9 +5888,21 @@ function startTheEnd(){
   bredG.quaternion.copy(faceBredWorld(bredG, up, outward));
   state = 'theend';
   const mid = new THREE.Vector3().copy(pairCenter).addScaledVector(up, 1.2);
-  const t1 = arbitraryPerp(up);
+  // Orbit basis anchored to `outward` (not an arbitrary perpendicular), so
+  // orbitA=0 puts the camera in FRONT of the pair (outward side) looking back
+  // at their faces — a deliberate, pleasant opening frame every time.
+  const t1 = outward.clone();
   const t2 = V().crossVectors(up, t1).normalize();
   theEnd = { t: 0, mid, up: up.clone(), t1, t2, orbitA: 0 };
+  // SNAP the camera straight to the orbit's start position. Without this it
+  // lerped from wherever the letter-cutscene camera was, and since that's a
+  // long straight-line move across a big sphere, the chord dipped BELOW the
+  // surface mid-transit — the ending opened on a view from under the planet.
+  const startCam = new THREE.Vector3().copy(mid).addScaledVector(t1, 15).addScaledVector(up, 5.5);
+  camPos.copy(startCam);
+  camera.position.copy(camPos);
+  camUp.copy(up); camera.up.copy(up);
+  camera.lookAt(mid);
   for (let i = 0; i < 12; i++){
     const h = new THREE.Mesh(heartGeo, heartBurstMat);
     h.scale.setScalar(0.16 + Math.random()*0.12);
@@ -5880,7 +5914,7 @@ function startTheEnd(){
 }
 function updateTheEnd(dt){
   theEnd.t += dt;
-  theEnd.orbitA += dt*0.1;
+  theEnd.orbitA += dt*0.2;   // a clear, steady 360 (~one revolution per half-minute), not a near-static crawl
   // zoomed out further than before (was 8/3.2) so the whole meadow reads —
   // the two of them together up front, the couch + friends small behind.
   cC.copy(theEnd.mid)
@@ -6261,6 +6295,7 @@ const planetNameEl = document.getElementById('planetName');
 const planetTitleEl = document.getElementById('planetTitle');
 const planetTitleNameEl = document.getElementById('planetTitleName');
 const muteBtn = document.getElementById('muteBtn');
+if (QA_AUDIO_MUTED) muteBtn.textContent = '🔇';
 const journalBtn = document.getElementById('journalBtn');
 const journalPanelEl = document.getElementById('journalPanel');
 const journalGridLeftEl = document.getElementById('journalGridLeft');
