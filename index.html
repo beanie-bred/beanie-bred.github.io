@@ -1023,7 +1023,7 @@ function playStamp(){
   clickGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.03);
   click.connect(clickGain); clickGain.connect(master); click.start(t0); click.stop(t0 + 0.04);
 }
-function footstep(kind){
+function footstep(kind, weight=1){
   if (!audio || muted) return;
   const { ctx, master, noise } = audio, t0 = ctx.currentTime;
   const src = ctx.createBufferSource(); src.buffer = noise;
@@ -1041,10 +1041,21 @@ function footstep(kind){
     o.connect(og); og.connect(master); o.start(t0); o.stop(t0+0.14);
   }
   else { f.type='bandpass'; f.frequency.value=1400; f.Q.value=2; dur=0.06; vol=0.05; }
-  gn.gain.setValueAtTime(vol, t0);
+  gn.gain.setValueAtTime(vol * weight, t0);
   gn.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
   src.connect(f); f.connect(gn); gn.connect(master);
   src.start(t0); src.stop(t0+dur+0.02);
+  // Running gets a quiet low thump beneath the surface sound, so the planted
+  // foot feels weighty without making ordinary walking loud or boomy.
+  if (weight > 1){
+    const thump = ctx.createOscillator(), tg = ctx.createGain();
+    thump.type = 'sine';
+    thump.frequency.setValueAtTime(92, t0);
+    thump.frequency.exponentialRampToValueAtTime(54, t0+0.11);
+    tg.gain.setValueAtTime(0.026 * (weight-1), t0);
+    tg.gain.exponentialRampToValueAtTime(0.0001, t0+0.13);
+    thump.connect(tg); tg.connect(master); thump.start(t0); thump.stop(t0+0.14);
+  }
 }
 
 /* ═══════════════ CHIBI AVATARS (Animal-Crossing proportions) ═══════════════ */
@@ -3740,6 +3751,7 @@ addEventListener('keydown', (e) => {
 const her = new THREE.Group();
 her.userData = {
   moving:false, sitting:false, walkP:0, lastStep:0,
+  runPlantSide:0, runPlantWeight:0,
   inner: new THREE.Object3D(),   // inert stand-in so updateWalk's turn-recovery tweak never crashes
   sit(v){ this.sitting = v; },
 };
@@ -3913,6 +3925,22 @@ function animBeanieSkinned(dt){
     const w = idleAction.getEffectiveWeight();
     idleAction.setEffectiveWeight(w + ((1 - walkTarget - talkTarget) - w) * Math.min(1, dt*8));
   }
+  // Give each running footfall a visible planted side instead of letting the
+  // rig glide evenly through both feet. The whole visual model settles a
+  // little toward/down onto the foot that just landed, then smoothly returns
+  // to centre before the opposite foot plants. This works for both outfits.
+  const modelGroup = showSummer ? herSummerGroup : herWinterGroup;
+  if (modelGroup){
+    u.runPlantWeight *= Math.exp(-10.5*dt);
+    const plant = run ? u.runPlantWeight : 0;
+    const targetX = u.runPlantSide * plant * 0.045;
+    const targetY = HER_MODEL_LIFT - plant * 0.07;
+    const targetLean = -u.runPlantSide * plant * 0.055;
+    const settle = Math.min(1, dt*14);
+    modelGroup.position.x += (targetX - modelGroup.position.x) * settle;
+    modelGroup.position.y += (targetY - modelGroup.position.y) * settle;
+    modelGroup.rotation.z += (targetLean - modelGroup.rotation.z) * settle;
+  }
 }
 function updateJumpAnim(e){        // e: 0..1 flight progress — crossfade the leap pose
   if (!herJumpLaunchAction) return;
@@ -3992,8 +4020,8 @@ const WALK_SPEED = 8.5, TURN_SPEED = 2.3;
 // updateWalk) and consumed by followCam, read+decayed once per frame in
 // step() — putting real weight behind each stride instead of a perfectly
 // smooth glide, without needing a dedicated bob animation.
-let stepPunch = 0;
-const HER_MODEL_LIFT = 0.18;   // radial lift of the visual model so idle feet don't sink
+let stepPunch = 0, stepSidePunch = 0;
+const HER_MODEL_LIFT = 0.10;   // tiny grounding adjustment: soles meet the planet in idle/walk
 const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion(),
       tmpV = V(), tmpV2 = V(), tmpV3 = V();
 const cA = V(), cB = V(), cC = V(), aimDir = V();
@@ -4053,7 +4081,8 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
   cB.crossVectors(up, cA).normalize();            // side axis
   tmpQ.setFromAxisAngle(cB, -camPitch);
   cA.applyQuaternion(tmpQ);                       // pitch
-  cC.copy(pos).addScaledVector(cA, dist).addScaledVector(up, 7.5 - stepPunch);
+  cC.copy(pos).addScaledVector(cA, dist).addScaledVector(up, 7.5 - stepPunch)
+    .addScaledVector(cB, stepSidePunch);
   // Keep the third-person camera outside the current spherical world —
   // also during 'landing' (its fallgetup phase calls followCam too), since
   // without this the close-up landing shot had no floor-clipping guard at
@@ -5300,12 +5329,19 @@ function updateWalk(dt){
     const step = Math.floor(u.walkP/Math.PI);
     if (step !== u.lastStep){
       u.lastStep = step;
-      footstep(b.step);
+      footstep(b.step, u.running ? 1.5 : 1);
       const upV = herUp(V()), fwdV = herFwd(V());
       spawnDust(b.step, her.position, upV, fwdV);
       const sideV = new THREE.Vector3().crossVectors(upV, fwdV).normalize();
-      spawnFootprint(her.position, upV, fwdV, sideV, step % 2 === 0);
-      stepPunch = 0.32;   // per-step camera dip — bumped from 0.1 for a heavier, weightier stride (both Summer + Winter)
+      const leftPlant = step % 2 === 0;
+      spawnFootprint(her.position, upV, fwdV, sideV, leftPlant);
+      const plantSide = leftPlant ? -1 : 1;
+      if (u.running){
+        u.runPlantSide = plantSide;
+        u.runPlantWeight = 1;
+      }
+      stepPunch = u.running ? 0.46 : 0.26;
+      stepSidePunch = plantSide * (u.running ? 0.13 : 0.035);
     }
   }
   // distance-to-NPC guide — shown while the current world's mission isn't done.
@@ -5900,6 +5936,7 @@ function step(dt){
   maybeShoot(dt);
   updateAim(t);
   stepPunch *= Math.exp(-9*dt);   // slightly slower recovery so each step's weight is felt, not instant
+  stepSidePunch *= Math.exp(-11*dt); // matching left/right settle onto the planted foot
   updateLocator(t);
 
   // General backstop, not just a per-cutscene special case: the mission box
