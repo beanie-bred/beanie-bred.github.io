@@ -470,23 +470,29 @@ const PALETTE = {
   lampAmber:0xffe0ad,          // warm table-lamp glow for lanterns/fireflies
 };
 const GARDEN_BG = new THREE.Color(PALETTE.skyBlue);
-// a vertical gradient instead of the old flat navy fill — deep cool navy at
-// the top easing into the slightly richer PALETTE.nightNavy lower down.
-// scene.background as a plain 2D canvas texture renders as a fixed
-// screen-space backdrop (doesn't rotate with the camera, same as the flat
-// Color it replaces), which reads fine for a stylized, non-directional sky.
-const SPACE_BG_TEXTURE = (() => {
+// Every sky is a vertical gradient (zenith at the top of the screen, horizon
+// at the bottom). scene.background as a plain 2D canvas texture renders as a
+// fixed screen-space backdrop — it doesn't rotate with the camera, which
+// reads fine for a stylized, non-directional storybook sky. Each world gets
+// its OWN gradient (see WORLD_SKY below): the journey runs from night at
+// Chicago through a sunrise that begins at Emerald Meadow and opens into a
+// full daytime sky-blue by the time she reaches the Garden.
+function makeSkyGradient(stops){
   const c = document.createElement('canvas'); c.width = 8; c.height = 512;
   const ctx = c.getContext('2d');
   const grad = ctx.createLinearGradient(0, 0, 0, 512);
-  grad.addColorStop(0, '#161f36');
-  grad.addColorStop(0.55, '#232f52');
-  grad.addColorStop(1, '#394a6b');
+  for (const [pos, col] of stops) grad.addColorStop(pos, col);
   ctx.fillStyle = grad; ctx.fillRect(0, 0, 8, 512);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
-})();
+}
+// Chicago + Main Stacks — deep night, a little richer than a flat navy:
+// near-black indigo at the zenith easing down through navy to a lighter
+// slate blue at the horizon. Also the initial title-screen backdrop.
+const SPACE_BG_TEXTURE = makeSkyGradient([
+  [0, '#0e1730'], [0.45, '#1e2b4e'], [0.8, '#33436a'], [1, '#48587e'],
+]);
 const scene = new THREE.Scene();
 scene.background = SPACE_BG_TEXTURE;
 const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 3000);
@@ -702,6 +708,13 @@ const pinkStars = makeStars(420, 1350, 2500, 3.2, 0xffd0de, 0.65);
 makeStars(90, 1400, 2500, 6.5, 0xffffff, 1.0);   // sparse, extra-bright "hero" stars
 makeStars(140, 1400, 2500, 4.2, 0xffffff, 0.85);   // an extra prominent layer, per request for more density
 animators.push((t) => { pinkStars.rotation.y = t*0.004; });
+// Every night-only sky element (star point-clouds + constellation anchors and
+// lines below) registers its material here so a single nightFactor can fade
+// them all together — full at night (Chicago/Main Stacks), faint at the
+// Emerald Meadow dawn, gone by the Garden's daytime sky. setNightFactor lives
+// down with the WORLD_SKY table so it can be called from applyWorldSky.
+const nightSkyMats = [];
+for (const p of starLayers) nightSkyMats.push({ m:p.material, base:p.material.opacity });
 // Constellations: small clusters of bright anchor stars connected by faint
 // lines suggesting a star-picture, in the same spirit as (not an attempt at
 // astronomically real) actual constellations — reads as whimsical detail in
@@ -720,15 +733,18 @@ animators.push((t) => { pinkStars.rotation.y = t*0.004; });
         .addScaledVector(t1, (Math.random()-0.5)*280)
         .addScaledVector(t2, (Math.random()-0.5)*280);
       points.push(p);
+      // transparent so it can fade out as the sky brightens toward dawn/day
       const starMesh = new THREE.Mesh(constellationStarGeo,
-        new THREE.MeshBasicMaterial({ color:0xffffff }));
+        new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:1 }));
       starMesh.position.copy(p);
       scene.add(starMesh);
+      nightSkyMats.push({ m:starMesh.material, base:1 });
     }
     const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
     const line = new THREE.Line(lineGeo,
       new THREE.LineBasicMaterial({ color:0x9fb8e8, transparent:true, opacity:0.4 }));
     scene.add(line);
+    nightSkyMats.push({ m:line.material, base:0.4 });
   }
 }
 // Shooting stars: a bright streak flies across a random chord of the sky
@@ -747,9 +763,58 @@ function spawnShootingStar(){
 let nextShootingStarT = 4 + Math.random()*6;
 animators.push((t) => {
   if (t < nextShootingStarT) return;
+  // no shooting stars once the sky has brightened past a faint dawn — they'd
+  // look wrong streaking across a morning/daytime sky
+  if (nightFactor <= 0.25){ nextShootingStarT = t + 7 + Math.random()*11; return; }
   spawnShootingStar();
   nextShootingStarT = t + 7 + Math.random()*11;
 });
+
+/* ---------- per-world skies: night → sunrise → day ----------
+   A day-cycle arc across the whole journey. Chicago and Main Stacks are deep
+   night; the sunrise first breaks at Emerald Meadow (cool blue zenith bleeding
+   into warm coral/gold along the horizon); it opens further into a golden
+   morning at Pigeon Plaza; and by the Garden it's a bright, clear daytime
+   sky-blue. Every one of these is a full multi-stop vertical gradient — even
+   the daytime Garden sky is a real gradient, not a flat blue fill. */
+const SKY_DAWN = makeSkyGradient([         // Emerald Meadow — sunrise begins
+  [0, '#26406b'],   // still-blue dawn zenith
+  [0.34, '#4b4f83'],// dusky blue-violet
+  [0.56, '#8a6b96'],// mauve where night meets the glow
+  [0.74, '#d99a83'],// warm coral
+  [0.89, '#f4c58c'],// peach-gold
+  [1, '#ffe1a6'],   // warm gold along the horizon
+]);
+const SKY_MORNING = makeSkyGradient([      // Pigeon Plaza — golden morning
+  [0, '#5f9fd6'],   // opening morning blue
+  [0.4, '#a7c7e4'], // pale blue
+  [0.62, '#e9caae'],// warm cream
+  [0.8, '#f7cf9f'], // apricot
+  [1, '#ffe7ba'],   // pale gold horizon
+]);
+const SKY_DAY = makeSkyGradient([          // The Garden — bright clear day
+  [0, '#4a90d9'],   // clear sky-blue zenith
+  [0.36, '#79b2e6'],
+  [0.64, '#aed6f2'],
+  [0.86, '#dceff9'],
+  [1, '#f2f9fd'],   // near-white pale blue at the horizon
+]);
+// indexed by curI: [Chicago, Main Stacks, Emerald Meadow, Pigeon Plaza, Garden]
+const WORLD_SKY = [SPACE_BG_TEXTURE, SPACE_BG_TEXTURE, SKY_DAWN, SKY_MORNING, SKY_DAY];
+const WORLD_STAR_FACTOR = [1, 1, 0.35, 0.1, 0];
+let nightFactor = 1;
+function setNightFactor(f){
+  nightFactor = f;
+  for (const e of nightSkyMats) e.m.opacity = e.base * f;
+}
+// Swap in a world's sky + fade the night-sky elements to match. Called at the
+// START of a landing (so the fall/orbit cutscene already shows the world she's
+// arriving on) and again in arrive() as a backstop for paths that skip the
+// landing sequence (the procedural-fallback jump, QA warps).
+function applyWorldSky(bi){
+  scene.background = WORLD_SKY[bi] || SPACE_BG_TEXTURE;
+  setNightFactor(WORLD_STAR_FACTOR[bi] != null ? WORLD_STAR_FACTOR[bi] : 1);
+}
 
 /* ═══════════════ AUDIO ═══════════════ */
 let audio = null, muted = false, melodyGain = null, melodyTimer = null;
@@ -4207,6 +4272,11 @@ function startLandingSequence(bi){
   updatePose();
   state = 'landing';
   camYaw = 0;
+  // swap to the destination world's sky right away, so the fall/get-up +
+  // orbit/title cutscene already shows the sky she's arriving under (dawn at
+  // Emerald Meadow, daytime blue at the Garden, etc.) rather than the sky of
+  // the world she just left.
+  applyWorldSky(bi);
   // Nothing should ever cover her during the fall/get-up + orbit/title
   // cutscene (a decorative object placed close to this world's landing spot
   // has done this before — see the gift-book landN clearance fix in
@@ -4358,6 +4428,9 @@ function arrive(bi){
   curI = bi;
   state = 'walk';
   camYaw = 0;
+  // backstop: normally startLandingSequence() already set this world's sky,
+  // but the procedural-fallback jump and QA warps reach arrive() without it.
+  applyWorldSky(bi);
   // Same class of fix as Chicago's Main Stacks (above): the standard resting
   // pitch (0.3) looks too far down for the next world's actual elevation, so
   // the default view leaves it out of frame — confirmed live for Cucumber
@@ -4596,9 +4669,9 @@ function arriveGarden(){
   orientation.copy(quatFromBasis(g.landN, tangentToward(landPos, g.landN, couchPos)));
   curI = GARDEN_I;
   updatePose();
-  // pastel daylight
-  scene.background = GARDEN_BG.clone();
-  for (const s of starLayers) s.visible = false;
+  // bright daytime sky-blue gradient + stars faded fully out (arrive() below
+  // re-applies the same, but set it now so the iris opens straight onto it)
+  applyWorldSky(GARDEN_I);
   hemi.intensity = 1.85; sun.intensity = 1.25;   // golden-hour warmth, still low-contrast
   playMelody(MELODY_BDAY);          // ...now it can be the birthday song
   arrive(GARDEN_I);
@@ -5597,7 +5670,7 @@ window.__world = {
     model.traverse((o) => {
       if (o.isBone){
         out.allBoneNames.push(o.name);
-        if (/upperarm|chest|spine|head|neck/i.test(o.name)){
+        if (/upperarm|chest|spine|head|neck|thigh|lowerarm|hand/i.test(o.name)){
           out.bones[o.name] = { quat: o.quaternion.toArray().map(v => +v.toFixed(4)) };
         }
       }
@@ -5906,9 +5979,7 @@ window.__world = {
   },
   advance(){ advanceDialog(); },
   gotoCouch(){
-    this.goto(GARDEN_I);
-    scene.background = GARDEN_BG.clone();
-    for (const s of starLayers) s.visible = false;
+    this.goto(GARDEN_I);   // goto -> arrive -> applyWorldSky(GARDEN_I) sets the daytime sky
     const n = dirNear(worldRefs.garden.couchN, 0.28);
     const p = V().copy(bodies[GARDEN_I].center).addScaledVector(n, bodies[GARDEN_I].r);
     orientation.copy(quatFromBasis(n, tangentToward(p, n, bredWorldPos(V()))));

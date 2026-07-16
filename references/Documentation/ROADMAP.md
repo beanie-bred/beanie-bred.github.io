@@ -1,4 +1,48 @@
 # ROADMAP
+- [x] Per-world skies: a night→sunrise→day arc across the whole journey
+      (2026-07-16): Bred asked for the sky to "show bits of more sunrise
+      starting from emerald meadow," to be "sky blue for the garden," and to
+      "always [be] a really amazing gradient... even the sky in the garden
+      must be a pretty gradient." Turned this into a full day-cycle told
+      through the sky as she travels: the two early worlds (Chicago, Main
+      Stacks) stay deep night; the sunrise first breaks at Emerald Meadow;
+      it opens into a golden morning at Pigeon Plaza; and by the Garden it's
+      a bright, clear daytime sky-blue — every one of them a real multi-stop
+      vertical gradient, the daytime Garden included (no more flat blue fill).
+      - **One gradient builder, one per-world table**: refactored the old
+        single hardcoded `SPACE_BG_TEXTURE` canvas-gradient into a reusable
+        `makeSkyGradient(stops)` and defined a `WORLD_SKY[]` table indexed by
+        `curI` — Chicago/Main Stacks reuse the (now richer) night gradient,
+        Emerald Meadow gets a dawn gradient (cool blue zenith bleeding down
+        through mauve into warm coral/gold at the horizon), Pigeon Plaza a
+        golden-morning gradient (morning blue up top, apricot/cream low), the
+        Garden a bright day gradient (sky-blue zenith easing to near-white
+        pale blue at the horizon). scene.background is a screen-space 2D
+        canvas texture, so each is a fixed zenith-to-horizon vertical wash —
+        stylized and non-directional, which reads right for this storybook
+        look.
+      - **Stars fade with the dawn**: added a single `nightFactor` that scales
+        the opacity of every night-only sky element together — all the
+        `makeStars` point-cloud layers plus the constellation anchor stars and
+        their connecting lines (the anchors/lines had to be made `transparent`
+        to fade; previously they stayed at full opacity even in daylight).
+        Full at the night worlds, a faint 0.35 at the Emerald Meadow dawn (a
+        few dawn stars still linger), 0.1 at Pigeon Plaza, and 0 in the
+        Garden. Shooting stars now also stop spawning once `nightFactor` drops
+        past a faint-dawn threshold, so none streak across a morning/day sky.
+      - **Applied at the right moment**: `applyWorldSky(bi)` (sets the sky +
+        the star factor) is called at the START of a landing so the fall/
+        get-up + orbit/title cutscene already shows the sky of the world she's
+        arriving under, and again as a backstop in `arrive()` for the paths
+        that skip the landing (procedural-fallback jump, QA number-key warps).
+        Replaced the Garden's old flat `GARDEN_BG` fill + manual
+        `star.visible = false` toggling (in both `arriveGarden` and the
+        `gotoCouch` debug helper) with the same call — the old `.visible`
+        toggle also never touched the constellations, so those used to hang in
+        the Garden's daytime sky. Verified live across all five worlds: deep
+        navy + stars + constellations at Chicago/Main Stacks, the coral dawn
+        at Emerald Meadow, the golden morning at Pigeon Plaza, and the clear
+        blue day in the Garden, with no console errors.
 - [x] Landing-camera reference match, Bred stand-and-wave scene, a real
       ending, journal redesign, messenger pacing (2026-07-16): Bred rejected
       the previous round's 90°-rolled landing camera outright ("아니 이게 아니라")
