@@ -223,22 +223,28 @@
   #dialogNext{text-align:right;font-size:12px;color:#c9c3ea;margin-top:8px;
     animation:pulseTxt 1.4s ease-in-out infinite}
   #dialogChoices{position:fixed;right:clamp(24px,6vw,96px);top:24%;z-index:34;
-    width:min(480px,50vw);display:flex;flex-direction:column;gap:16px;pointer-events:auto}
-  .dialogChoice{position:relative;min-height:72px;border:2px solid rgba(255,218,235,.62);border-radius:24px;
-    padding:17px 48px 17px 60px;background:linear-gradient(135deg,rgba(79,72,120,.95),rgba(123,84,124,.92));
-    color:#fff9fd;text-align:left;font:700 clamp(15px,1.7vw,18px)/1.42 inherit;cursor:pointer;
-    box-shadow:0 9px 28px rgba(18,12,38,.38),inset 0 1px 0 rgba(255,255,255,.22);
+    width:min(560px,56vw);display:flex;flex-direction:column;gap:18px;pointer-events:auto}
+  .dialogChoice{position:relative;min-height:94px;border:2px solid rgba(255,225,239,.76);border-radius:28px;
+    padding:22px 58px 22px 72px;background:linear-gradient(135deg,rgba(91,78,139,.97),rgba(154,91,139,.95));
+    color:#fffafd;text-align:left;font-family:'Comfortaa','Arial Rounded MT Bold','Segoe UI Rounded',sans-serif;
+    font-size:clamp(18px,2.05vw,23px);font-weight:700;line-height:1.42;letter-spacing:.005em;cursor:pointer;
+    text-shadow:0 2px 8px rgba(35,20,60,.42);
+    box-shadow:0 11px 32px rgba(18,12,38,.42),inset 0 2px 0 rgba(255,255,255,.25),inset 0 -2px 0 rgba(40,24,72,.2);
     transition:transform .2s cubic-bezier(.2,1.25,.35,1),background .2s,border-color .2s,box-shadow .2s}
-  .dialogChoice::before{content:'♡';position:absolute;left:20px;top:50%;transform:translateY(-52%);
-    width:27px;height:27px;border-radius:50%;display:grid;place-items:center;
-    color:#ffe1ee;background:rgba(255,255,255,.13);font-size:20px;line-height:1}
-  .dialogChoice::after{content:'✦';position:absolute;right:20px;top:50%;transform:translateY(-50%);
-    color:#ffe5a8;font-size:16px;opacity:.82}
-  .dialogChoice:hover,.dialogChoice:focus{outline:none;transform:translateX(-10px) scale(1.025);
-    background:linear-gradient(135deg,rgba(108,94,151,.98),rgba(158,101,143,.96));
-    border-color:#ffe4b3;box-shadow:0 12px 34px rgba(35,20,60,.48),0 0 22px rgba(255,188,218,.24)}
+  .dialogChoice::before{content:'♡';position:absolute;left:22px;top:50%;transform:translateY(-52%);
+    width:36px;height:36px;border-radius:50%;display:grid;place-items:center;
+    color:#ffe6f1;background:rgba(255,255,255,.16);font-size:26px;line-height:1;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.2)}
+  .dialogChoice::after{content:'✦';position:absolute;right:23px;top:50%;transform:translateY(-50%);
+    color:#ffe5a8;font-size:20px;opacity:.9}
+  .dialogChoice:hover,.dialogChoice:focus{outline:none;transform:translateX(-12px) scale(1.035);
+    background:linear-gradient(135deg,rgba(119,101,171,.99),rgba(184,108,156,.98));
+    border-color:#fff0bc;box-shadow:0 14px 38px rgba(35,20,60,.52),0 0 28px rgba(255,188,218,.36)}
   @media(max-width:700px){#dialogChoices{left:4vw;right:auto;top:auto;bottom:155px;width:92vw}
-    .dialogChoice{min-height:64px;padding:14px 42px 14px 54px;border-radius:20px}}
+    .dialogChoice{min-height:78px;padding:17px 45px 17px 62px;border-radius:23px;
+      font-size:clamp(17px,4.6vw,20px);line-height:1.38}
+    .dialogChoice::before{left:18px;width:32px;height:32px;font-size:23px}
+    .dialogChoice::after{right:17px;font-size:17px}}
 
   /* ---------- planet-arrival title card (wide establishing orbit shot) ---------- */
   #planetTitle{position:fixed;inset:0;z-index:26;display:flex;flex-direction:column;
@@ -4664,15 +4670,35 @@ function exitConversationStage(){
   }
   conversationStage = null;
 }
-function dialogueSubjectHeight(obj, fallback){
-  if (!obj || !obj.isObject3D) return fallback;
-  if (!dialog.subjectHeights) dialog.subjectHeights = new WeakMap();
-  if (dialog.subjectHeights.has(obj)) return dialog.subjectHeights.get(obj);
-  const box = new THREE.Box3().setFromObject(obj);
-  const size = box.getSize(new THREE.Vector3());
-  const height = Number.isFinite(size.y) && size.y > 0.1 ? Math.max(0.8, Math.min(5.2, size.y)) : fallback;
-  dialog.subjectHeights.set(obj, height);
-  return height;
+function dialogueVisualObject(obj, beanieFocus){
+  if (beanieFocus) return ((curI === GARDEN_I && herSummerGroup) ? herSummerGroup : herWinterGroup) || her;
+  // Chippy's dialogue anchor also owns the books he sits on. Measuring that
+  // whole group puts his face below the camera, so frame his visible body only.
+  if (worldRefs.books && obj === worldRefs.books.chippy) return worldRefs.books.chippyModel || null;
+  return obj;
+}
+function dialogueSubjectFrame(obj, fallbackPos, up, fallbackHeight){
+  const fallbackFocus = new THREE.Vector3().copy(fallbackPos).addScaledVector(up, fallbackHeight*0.74);
+  if (!obj || !obj.isObject3D || !obj.visible) return { focus:fallbackFocus, height:fallbackHeight };
+  obj.updateWorldMatrix(true, true);
+  const box = new THREE.Box3().setFromObject(obj, true);
+  if (box.isEmpty()) return { focus:fallbackFocus, height:fallbackHeight };
+
+  // Project every bounding-box corner onto the planet's real up direction.
+  // This works on every spherical planet and still finds the upper face after
+  // the model is rotated, unlike reading world-space size.y from its parent.
+  let low = Infinity, high = -Infinity;
+  for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]){
+    const level = x*up.x + y*up.y + z*up.z;
+    low = Math.min(low, level); high = Math.max(high, level);
+  }
+  const rawHeight = high - low;
+  if (!Number.isFinite(rawHeight) || rawHeight < 0.1) return { focus:fallbackFocus, height:fallbackHeight };
+  const height = Math.max(0.65, Math.min(5.2, rawHeight));
+  const center = box.getCenter(new THREE.Vector3());
+  const faceLevel = low + rawHeight*0.78;
+  center.addScaledVector(up, faceLevel - center.dot(up));
+  return { focus:center, height };
 }
 function updateTalkCam(dt){
   const npc = (dialog && dialog.npcPos) ? dialog.npcPos() : null;
@@ -4684,19 +4710,18 @@ function updateTalkCam(dt){
   const side = new THREE.Vector3().crossVectors(up, toNpc).normalize().multiplyScalar(CONVO_BEANIE_LEFT);
   const beanieFocus = isBeanieSpeaking() && !dialog.awaitingChoice;
   const subject = beanieFocus ? her.position : npc;
-  const subjectObj = beanieFocus ? her : dialog.npcObj;
-  const subjectHeight = dialogueSubjectHeight(subjectObj, beanieFocus ? 4.1 : 1.8);
+  const subjectObj = dialogueVisualObject(beanieFocus ? her : dialog.npcObj, beanieFocus);
+  const frame = dialogueSubjectFrame(subjectObj, subject, up, beanieFocus ? 4.1 : 1.8);
+  const subjectHeight = frame.height;
   // Genshin-like upper-body framing. Small characters such as pigeons get an
   // actually close camera rather than inheriting Beanie's much larger scale.
   const closeDistance = Math.max(2.7, Math.min(5.6, subjectHeight*0.96 + 0.85));
-  const focusLift = Math.max(0.55, Math.min(2.45, subjectHeight*0.58));
   const towardPartner = beanieFocus ? toNpc : toNpc.clone().negate();
-  const goal = new THREE.Vector3().copy(subject)
+  const goal = new THREE.Vector3().copy(frame.focus)
     .addScaledVector(side, closeDistance)
-    .addScaledVector(up, focusLift + 0.12)
+    .addScaledVector(up, 0.12)
     .addScaledVector(towardPartner, -0.22);
-  const look = new THREE.Vector3().copy(subject)
-    .addScaledVector(up, focusLift)
+  const look = new THREE.Vector3().copy(frame.focus)
     .addScaledVector(towardPartner, 0.18);
 
   // Keep the face-to-face read, then open both characters about 15–20°
