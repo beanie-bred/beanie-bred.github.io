@@ -1,4 +1,53 @@
 # ROADMAP
+- [x] Summer's fall-motion arms fixed via IK; wired into the Garden landing
+      (2026-07-16): user sent a screenshot of Summer mid-fall with her arms
+      tucked against her torso instead of spread out, said "her arms go in
+      when she tries to stand up... unlike winter beanie... her legs also
+      both fold back for no reason," and asked for this to actually play
+      "as the same interface as when winter beanie falls on other planets."
+      - **The quaternion-conjugation retarget (used for the walk-cycle fix)
+        did not hold up for this pose.** Tried both possible conjugation
+        directions on the arm chain and measured the resulting hand
+        position against Winter's own — neither got within half of her
+        actual reach distance, confirming this wasn't just a sign error
+        this time.
+      - **Switched to a geometric fix: 2-bone IK against Winter's real hand
+        position.** For each frame, took Winter's actual hand position
+        relative to her shoulder, scaled by Summer's own ARM-length ratio
+        specifically (not overall body scale — her arms are proportionally
+        shorter relative to her torso than Winter's, so scaling by body
+        size alone put the IK target beyond her actual reach), and solved
+        for the shoulder/elbow rotations that place her hand there — using
+        Blender's own IK constraint system rather than hand-rolled aim
+        math (an earlier custom aim-solver attempt had a 0.45-unit error
+        even after two rounds of fixing dimension-mismatch bugs; the
+        built-in IK solver reproduced the target position exactly).
+        Verified by measuring hand-to-chest offset error numerically (was
+        ~50% short of target, now exact) before ever re-rendering.
+      - **The reported leg problem turned out to be a false alarm** — a
+        side-by-side Euler-angle readout showed Summer's thigh rotations
+        with a consistent sign flip vs Winter's, which looked like a real
+        bug, but a low, front-on render at the same frame showed both feet
+        already positioned naturally. Comparing raw Euler angles across two
+        differently-rested rigs isn't reliable (same lesson as the walk fix,
+        this time on the other side of the coin — the flip data can also
+        make a CORRECT retarget look wrong on paper). Trusted the render,
+        not the numbers, and left the legs untouched.
+      - **Exported the fixed clip into `beanie_summer.glb` as a real
+        `LandFallGetUp` animation and wired `arriveGarden()` through
+        `startLandingSequence()`/`updateLandingAnim()`** — the exact same
+        machinery every other world already uses (fall on face, dust
+        burst, camera shake, get up, orbit, click-gated title card).
+        Previously she just teleported in standing the instant the iris
+        opened, which is what made the mismatch against Winter's landings
+        so obvious once actually compared. `updateLandingAnim()` and
+        `landingClipDuration()` now pick whichever character's own fall
+        action applies, mirroring the existing `showSummer` pattern used
+        everywhere else in the animation code.
+      - Verified end-to-end via `qaWarp` on both Summer's world (Garden)
+        and Winter's (Main Stacks) — full fall → dust → get-up → orbit →
+        click-gated title → normal walk, on both characters, zero console
+        errors either way.
 - [x] Fall-landing camera flipped to a front view + a big performance pass
       (2026-07-16): Bred asked for the fall/landing POV to be "the opposite
       view (so when she stands up, the player can see her face side)," and
