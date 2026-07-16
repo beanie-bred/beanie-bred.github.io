@@ -323,7 +323,7 @@
 <div id="hud" class="hidden"><div class="chip" id="planetName">…</div></div>
 <div id="mission" class="hidden"></div>
 <div id="guide" class="hidden"><span id="guideArrow">▲</span><span id="guideLabel"></span></div>
-<div id="noticeBubble" class="hidden">💭 Hmm… I should go talk to that character!</div>
+<div id="noticeBubble" class="hidden">💭 Hmm… I should go talk to them!</div>
 <div id="bookpop"><div id="bookpopCover"><span id="bookpopSpine"></span></div>
   <div id="bookpopMeta"><div id="bookpopKicker">📖 collected</div><div id="bookpopTitle"></div><div id="bookpopCount"></div></div></div>
 <div id="foodPocket"><div id="foodPocketIcon"></div><div id="foodPocketLabel"></div></div>
@@ -4467,11 +4467,11 @@ const LAND_ORBIT_DURATION = 15;   // seconds for a full slow 360
 // instead of just silently letting the guide chip count down. Each distinct
 // guide label (a quest can point at several characters in turn, e.g. Percy
 // then each Plaza pigeon) only ever triggers this once.
-let notice = null;   // { t }
+let notice = null;   // { t, targetPos }
 const noticedGuides = new Set();
 const NOTICE_DURATION = 2.4;
-function startNotice(targetPos){
-  notice = { t: 0 };
+function startNotice(targetPos, subject){
+  notice = { t: 0, targetPos: targetPos.clone() };
   her.userData.moving = false;
   // bias the camera yaw toward the target's bearing so it's visible bouncing
   // past her shoulder for the pause, same signed convention updateWalk's
@@ -4482,16 +4482,43 @@ function startNotice(targetPos){
   camYaw = Math.atan2(V().crossVectors(fwd, toward).dot(up), fwd.dot(toward));
   camPitch = 0.22;
   state = 'notice';
+  noticeBubbleEl.textContent = `💭 Hmm… I should go talk to ${subject}!`;
   noticeBubbleEl.classList.add('show');
 }
 function updateNotice(dt){
   notice.t += dt;
-  followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 4.2);
+  // An over-the-shoulder target shot: the required character is the actual
+  // look-at point, not merely somewhere beyond Beanie in a normal follow
+  // camera. This keeps them plainly visible throughout the thought beat.
+  const up = herUp(tmpV), toward = tangentToward(her.position, up, notice.targetPos);
+  const side = tmpV2.crossVectors(up, toward).normalize();
+  const goal = cC.copy(her.position).addScaledVector(toward, -2.4)
+    .addScaledVector(side, 1.7).addScaledVector(up, 2.25);
+  camPos.lerp(goal, 1 - Math.exp(-4.0*dt));
+  camUp.lerp(up, 1 - Math.exp(-3.5*dt)).normalize();
+  camera.position.copy(camPos); camera.up.copy(camUp);
+  const targetUp = tmpV3.copy(notice.targetPos).sub(bodies[curI].center).normalize();
+  camera.lookAt(cA.copy(notice.targetPos).addScaledVector(targetUp, 1.0));
   if (notice.t > NOTICE_DURATION){
     noticeBubbleEl.classList.remove('show');
     notice = null;
     state = 'walk';
   }
+}
+
+function noticeSubject(){
+  if (curI === 1) return metFriends.has('chippy') ? 'Chippy' : 'that potato';
+  if (curI === 2) return metFriends.has('bbak') ? 'bbak' : 'that polar bear';
+  if (curI === PIGEON_I){
+    const holder = plazaTargetHolder();
+    if (holder && holder.userData.cfg){
+      const key = holder.userData.cfg.name;
+      return metFriends.has(key) ? STICKER_LABELS[key] : 'that pigeon';
+    }
+    return metFriends.has('percy') ? 'Percy' : 'that pigeon';
+  }
+  if (curI === GARDEN_I) return 'that handsome piece of bread';
+  return 'that character';
 }
 // A dedicated beat for Bred specifically, closer-range than the generic
 // notice above (which just fires the shared "spotted them" glance for
@@ -5223,20 +5250,16 @@ addEventListener('keydown', (e) => {
       else pickupBook(pickTarget);
     }
   }
-  // QA contract: 3 is an unconditional fresh Emerald Meadow trial, even if
-  // it is pressed during dialogue or a cutscene. Unlike the other number
-  // warps, it deliberately resets this world's quest/reveal scene first.
-  if (e.key === '3'){
-    resetEmeraldMeadowForQA();
-    qaWarp(2);
+  // QA shortcut + reset: every number starts a completely fresh page trial
+  // on that planet. Reloading is intentional—it resets every mission object,
+  // spawned story NPC, pickup, introduction/name, and interrupted cinematic
+  // instead of trying to maintain a fragile hand-written reset per world.
+  if (e.key >= '1' && e.key <= String(WORLD_DEFS.length)){
+    const url = new URL(location.href);
+    url.search = '';
+    url.searchParams.set('qaPlanet', String(Number(e.key) - 1));
+    location.replace(url.href);
     return;
-  }
-  // QA shortcut: 1-5 instantly warps to that world. Earlier worlds are
-  // treated as complete, but the destination's own story still starts
-  // normally so its NPC mission and navigation cannot be skipped by mistake.
-  if ((state === 'walk' || state === 'talk' || state === 'intro' || state === 'landing')
-      && e.key >= '1' && e.key <= String(WORLD_DEFS.length)){
-    qaWarp(Number(e.key) - 1);
   }
 });
 function qaWarp(i){
@@ -5445,10 +5468,10 @@ function updateWalk(dt){
     // genuinely new character each time) silently never did.
     const noticeKey = `${curI}:${bg.guideLabel}:${npc.x.toFixed(0)},${npc.y.toFixed(0)},${npc.z.toFixed(0)}`;
     const noticeRange = (bg.guideNear || 4) * 6;
-    const isCharacterSeek = /find |say hello/i.test(bg.guideLabel);
+    const isCharacterSeek = /find |say hello|go back to/i.test(bg.guideLabel);
     if (isCharacterSeek && !near && d < noticeRange && !noticedGuides.has(noticeKey)){
       noticedGuides.add(noticeKey);
-      startNotice(npc.clone());   // clone: npc is the shared tmpV3 scratch vector
+      startNotice(npc.clone(), noticeSubject());   // clone: npc is the shared tmpV3 scratch vector
     }
   } else if (bg.missionDone && bg.chainNext != null){
     // Once the current world's mission is done, the next task is "find and
@@ -6449,6 +6472,18 @@ if (new URLSearchParams(location.search).get('test') === '1'){
     else if (cmd === 'garden') window.__world.gotoCouch();
     else if (cmd === 'finale') startFinale();
   });
+}
+
+// Number-key QA reload destination. The query string is the only handoff
+// across the reload; no mission/name state is stored, so every reload starts
+// with an empty journal and no introductions exactly like a brand-new trial.
+const qaPlanetRaw = new URLSearchParams(location.search).get('qaPlanet');
+const qaPlanetBoot = qaPlanetRaw === null ? NaN : Number(qaPlanetRaw);
+if (Number.isInteger(qaPlanetBoot) && qaPlanetBoot >= 0 && qaPlanetBoot < WORLD_DEFS.length){
+  setTimeout(() => {
+    if (qaPlanetBoot === 0) startJourney();
+    else qaWarp(qaPlanetBoot);
+  }, 0);
 }
 </script>
 </body>
