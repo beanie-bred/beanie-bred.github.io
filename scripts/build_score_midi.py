@@ -137,7 +137,7 @@ score.insert(0, right)
 bass = stream.Part()
 bass.partName = "Upright bass"
 bass.insert(0, instrument.AcousticBass())
-for beat_start in range(int(cursor)):
+for beat_start in range(0, int(cursor), 2):
     sounding = [e for e in source_left.notes
                 if float(e.offset) <= beat_start < float(e.offset + e.duration.quarterLength)]
     if not sounding:
@@ -147,11 +147,10 @@ for beat_start in range(int(cursor)):
     root = min(p.midi for p in pitches)
     while root > 47: root -= 12
     while root < 36: root += 12
-    bass_midi = root if beat_start % 2 == 0 else min(52, root+7)
-    b = note.Note(bass_midi)
+    b = note.Note(root)
     active = any(start <= beat_start < end for start, end, _ in melody_intervals)
-    b.volume.velocity = 29 if active else 39
-    b.duration.quarterLength = .82
+    b.volume.velocity = 24 if active else 31
+    b.duration.quarterLength = 1.68
     bass.insert(beat_start, b)
 bass.makeMeasures(inPlace=True)
 score.insert(0, bass)
@@ -196,19 +195,20 @@ for track_index, track in enumerate(midi.tracks[1:]):
         track.append(message.copy(time=tick-previous))
         previous = tick
 
-# Café brush groove: feathered kick, cross-stick on 2/4 and soft hat eighths.
+# Simple café pulse: quarter-note brush texture, a tiny kick only on beat 1,
+# and cross-stick on 2/4. No busy eighth-note pattern fighting the melody.
 drum_events = []
-for eighth in range(int(cursor*2)):
-    tick = eighth*midi.ticks_per_beat//2
-    beat = eighth/2
+for quarter in range(int(cursor)):
+    tick = quarter*midi.ticks_per_beat
+    beat = quarter
     active = any(start <= beat < end for start, end, _ in melody_intervals)
-    hat = 15 if active else 22
+    hat = 10 if active else 14
     drum_events += [(tick,1,mido.Message("note_on",channel=9,note=42,velocity=hat,time=0)),
                     (tick+38,0,mido.Message("note_off",channel=9,note=42,velocity=0,time=0))]
-    if eighth % 2 == 0:
-        quarter=eighth//2
-        drum_note=36 if quarter%4 in (0,2) else 37
-        vel=(20 if active else 28) if drum_note==36 else (18 if active else 25)
+    beat_in_bar = quarter % 4
+    if beat_in_bar in (0,1,3):
+        drum_note = 36 if beat_in_bar == 0 else 37
+        vel = (12 if active else 16) if drum_note == 36 else (15 if active else 19)
         drum_events += [(tick,1,mido.Message("note_on",channel=9,note=drum_note,velocity=vel,time=0)),
                         (tick+55,0,mido.Message("note_off",channel=9,note=drum_note,velocity=0,time=0))]
 drum_events.sort(key=lambda event:(event[0],event[1]))

@@ -1,4 +1,64 @@
 # ROADMAP
+- [x] Summer's walk-cycle arms genuinely fixed — the earlier "fixed" bake was
+      silently wrong (2026-07-16): user reported (a second time, with fresh
+      Blender screenshots) that Summer's arms go backward instead of
+      spreading forward when she runs and gets up, plus pasted a detailed
+      human-biomechanics checklist as a standing validation bar going
+      forward.
+      - **Root cause: reading `rotation_quaternion` while a `chain_count=2`
+        IK constraint is actively solving does not return the complete
+        pose.** The constraint visibly drives the bone correctly on
+        screen and even echoes a plausible-looking value back through
+        `rotation_quaternion`, but that value silently omits part of what
+        the solve actually did — baking it into a keyframe and later
+        replaying it with the constraint removed reproduces a completely
+        different (and wrong) arm position. Proved this by capturing the
+        exact same "solved" quaternion and manually reassigning it with no
+        constraint present: it reproduced the wrong pose, not the one seen
+        live. The fix is to capture `pose_bone.matrix` (the full evaluated
+        transform) while the constraint is active, drop the constraint's
+        influence to zero, and reassign that matrix directly — Blender
+        back-solves the correct `rotation_quaternion` from it. This is
+        almost certainly why the walk-arm fix earlier this same day looked
+        right in a quick check but wasn't.
+      - **Second, independent bug found via the biomechanics checklist:**
+        the rebuilt swing was timed off Winter's own walk cycle sampled at
+        the matching fractional time, which silently assumes both
+        characters' leg cycles start at the same phase. They don't —
+        measured against the checklist's "opposite arm/leg" rule, only
+        23% of frames had the correct arm leading the opposite leg. Fixed
+        by driving each arm's swing directly from Summer's own leg
+        position (`Foot.R.y - Foot.L.y` for the left arm and vice versa)
+        instead of a foreign, phase-assumed signal — now 100% of frames
+        pass the check, and elbow flexion stays within the checklist's
+        0-150° range throughout (was 54-138°).
+      - **Two visual red herrings during verification, worth remembering:**
+        a viewport screenshot showed what looked like a T-pose even after
+        the fix — turned out to be a stale OpenGL draw-cache artifact
+        specific to the interactive viewport under rapid scripted bone
+        edits; a proper `bpy.ops.render.render()` to a file showed the
+        correct bent-arm pose immediately. Separately, re-checking the
+        exported glb's animations looked "frozen" on re-import — the
+        importer had set `animation_data.action` to one of the three clips
+        directly, which overrides NLA-track playback regardless of each
+        track's own mute state; clearing it let the tracks evaluate
+        correctly. Neither was a real data bug; both would have sent this
+        down a wrong path if trusted at face value.
+      - **Explicitly re-checked against the user's checklist:** walk-cycle
+        knees bend in a single consistent direction (never backward or
+        sideways), straight during stance and flexing only during swing,
+        confirmed on both the old and new arm data — the repeated "legs
+        fold back" report was never a real leg bug. Also re-verified the
+        fall/get-up motion's arms frame-by-frame against Winter's own
+        reference clip (prone push-up, crouch, stand) — they match
+        Winter's pattern at every checkpoint checked, so that motion was
+        not touched.
+      - Re-exported `beanie_summer.glb` with Draco compression (the first
+        export attempt omitted it and bloated the file 3x; matched back to
+        the original ~1.4MB once enabled), verified the fix survives
+        export/re-import with NLA tracks properly isolated, and confirmed
+        live in-game that movement correctly enters the `"walk"` animation
+        state.
 - [x] Garden endgame cutscene + polish batch (2026-07-16): a big combined
       request — fainter/weightier footsteps, dimmer couch, Bred navigation, a
       scripted greeting cutscene, a single-option letter, a reworked THE END,
