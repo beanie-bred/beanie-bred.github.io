@@ -1,4 +1,52 @@
 # ROADMAP
+- [x] Garden endgame cutscene + polish batch (2026-07-16): a big combined
+      request — fainter/weightier footsteps, dimmer couch, Bred navigation, a
+      scripted greeting cutscene, a single-option letter, a reworked THE END,
+      and removing the planet-title glow.
+      - **Footsteps**: they rendered solid black because `updateEphemerals`
+        overwrote each decal's opacity every frame with a fade curve clamped
+        to 1.0, ignoring the material's own faint 0.22 — so footprints peaked
+        FULLY OPAQUE right after spawn. Added a `maxOpacity` arg to
+        `spawnEphemeral` (default 1, so nothing else changes) and pass 0.5 for
+        footprints (+ a softer dark-brown tone instead of pure black), so they
+        read as faint pressed marks. **Weight**: the per-step camera "punch"
+        was a barely-there 0.1 dip on a 7.5 height — bumped to 0.32 with a
+        slower recovery (exp(-9) vs -12) so each stride lands with real heft.
+        Both apply to Winter and Summer (shared footstep block in updateWalk).
+      - **Couch glow**: the Garden couch's PointLight was intensity 60, which
+        blew out the white couch and washed the characters on it to
+        unrecognisable — dropped to 12 (range 26). Percy + Chippy are now
+        clearly visible sitting on it.
+      - **Planet-title glow**: removed the radial-gradient backdrop behind
+        `#planetTitle` — the big world names now sit cleanly on the sky.
+      - **Bred navigation**: the "find Bred" compass never showed because the
+        Garden was the ONE world left at the default `missionDone = true` (only
+        worlds 0-3 get flipped false near WORLD_DEFS), which suppressed its
+        guide entirely. It has no next world to gate, so setting it false just
+        turns on the "💛 find Bred, N steps away" compass like every other
+        world. Verified live.
+      - **Greeting cutscene**: replaced the old "walk into Bred → heart burst"
+        finale with a scripted sequence — she notices him ("💭 Oh…! Someone's
+        over there!"), he turns to face her, waves, walks across the meadow to
+        her, and a letter floats over into her hands, opening the card.
+        Implemented by reparenting Bred out of the couch group into the scene
+        (`scene.attach`) so he can turn/walk in plain world space; phases
+        (notice/turn/wave/walk/handoff) drive his facing + position, with the
+        camera framing both of them. **Caveat:** Bred's model is unrigged, so
+        the "wave" is a happy whole-body bob-and-sway, NOT the authored
+        arm-wave in `bred T/Bred_idle_wave.blend` — using that needs a rigged
+        animated glb export + an AnimationMixer swap, a riskier rework of the
+        now-working cutscene, left as a dedicated follow-up.
+      - **Letter → THE END**: the finale card now offers ONLY "close the
+        letter" (the replay button is hidden; replay lives on the THE END
+        screen). **THE END** reworked: the pair stands out in the meadow a
+        good arc from the couch (which, with Chippy + Percy still on it, sits
+        far behind them), both facing the SAME way (outward) side by side
+        holding hands, and the orbit camera pulls out further (radius 15,
+        height 5.5 vs 8/3.2) for the 360. Verified the whole endgame end to
+        end — notice → wave → walk → letter → close → THE END — with no
+        console errors. (bbak lives on Cucumber Meadow, not the Garden, so
+        only Chippy + Percy are actually behind them.)
 - [x] Summer's fall-motion arms fixed via IK; wired into the Garden landing
       (2026-07-16): user sent a screenshot of Summer mid-fall with her arms
       tucked against her torso instead of spread out, said "her arms go in
