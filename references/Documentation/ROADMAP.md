@@ -1,4 +1,84 @@
 # ROADMAP
+- [x] Conversation lighting rescaled to fix glare; dialogue choice buttons
+      shrunk and repositioned above the dialogue box (2026-07-16): user sent
+      screenshots of an overexposed pigeon close-up ("my eyes hurt") and
+      oversized choice buttons covering the character's face.
+      - **Glare**: `camFill` (a point light riding on the camera) has a fixed
+        intensity tuned for normal ~9-unit gameplay distance, but
+        `updateTalkCam`'s close-up conversation framing pulls the camera to
+        just 1.9-4.3 units — at that range the same intensity blows out via
+        inverse-square falloff (decay=2), worst on small subjects like
+        pigeons, which sit at the closest 1.9-unit floor. Now rescaled every
+        frame to the camera's actual shooting distance (`95 * (dist/9)²`) and
+        restored to 95 on every path back out of a conversation (dialog end,
+        QA warp mid-conversation). Verified numerically (`camFillDebug()`:
+        4.23 during the exact reported pigeon shot, 95 after) and visually
+        reproducing the same scene from the screenshots.
+      - **Choice buttons**: were fixed at screen-center-right at a large size.
+        Shrunk (~40% smaller font/padding/icons) and anchored the stack flush
+        above the dialogue box's own right edge (same
+        `right:calc(50vw - min(680px,90vw)/2)` formula the box itself uses),
+        with the vertical gap computed in JS from the box's actual rendered
+        height each time choices appear (`positionDialogChoices()`), so it
+        holds regardless of how many lines the current line wraps to.
+        Verified live: 0px right-edge diff, 14px gap, no longer overlapping
+        the face; still fully clickable.
+- [x] Per-planet journal redesign with sticker collages; pigeons coo instead
+      of squealing in dialogue (2026-07-16): replace the plain grid-of-squares
+      journal with one themed scrapbook page per planet, and differentiate
+      pigeon speech from everyone else's.
+      - **Journal**: one page per world (`JOURNAL_PAGES`), each with its own
+        font, page texture/color palette, and a deterministic pseudo-random
+        collage layout (`collagePlace()`/`jrand()`) of sticker silhouettes —
+        locked stickers render as a dark silhouette, unlocked ones show the
+        full sticker art. Reuses already-loaded web fonts and each world's
+        existing CSS theme class.
+      - **Dialogue sound**: every non-pigeon speaker now makes an
+        Animal-Crossing-style syllable squeal while talking (existing
+        `playSpeechSqueal`, now applied generally); pigeons/doves/the dodo
+        instead get a new `playSpeechCoo()`, routed via
+        `isPigeonSpeaker(speaker)`. Verified the speaker-routing regex against
+        every actual speaker string in the codebase (9/9 cases correct).
+- [x] Fall/landing rumble, planet-title arrival sound, more pigeon ambience
+      (2026-07-16): asked for audio feedback on impact and on each planet's
+      title reveal, plus a fuller pigeon soundscape.
+      - Added `playFallRumble()` (low-oscillator rumble tied to the landing
+        impact, alongside the existing camera shake) and `playTitleSound()`
+        (a short arrival sting on each `showPlanetTitle()` call).
+      - Pigeon Plaza's ambient pigeons now also coo and flutter their wings
+        periodically (`playCoo`/new `playFlutter`), on top of their existing
+        idle motion.
+- [x] Bred's real rigged wave wired into the greet cutscene; couch glow fixed
+      for good; THE END camera no longer opens underground (2026-07-16):
+      follow-up round after the Garden endgame batch — Bred's greet cutscene
+      was still using a procedural whole-body bob (his model had no rig yet
+      at the time), the couch was reported bright enough to blow out whoever
+      sat on it even after an earlier 60→12 light-intensity cut, and THE
+      END's opening shot read as starting from underneath the planet.
+      - **Rigged Bred**: exported a real rigged `bred_wave.glb` (idle +
+        idle_wave clips, Draco + JPEG compressed) and wired it through
+        `loadModelFull`/`AnimationMixer`, the same pattern as Beanie's own
+        clips — `clipAction(wave).play()` then immediately paused/reset to
+        frame 0 so it holds an idle pose until `userData.playWave()`
+        triggers it. The greet cutscene (`startBredGreet`/`updateBredGreet`)
+        now plays this real arm-wave instead of the old rock/bob, with a
+        walk-toward-Beanie beat first and the couch positioned well clear of
+        the shot.
+      - **Couch glow, for real this time**: the earlier intensity cut
+        (60→12) still wasn't enough — the near-white couch material itself
+        (`0xf6f4ee`/`0xfdfbf6`) was pushing past the UnrealBloom threshold
+        (0.82) under the Garden's bright daytime lighting. Removed the point
+        light entirely and darkened the material (`0xdcd5c6`, cushions
+        `0xe8e1d3`) to sit under the bloom threshold — Percy and Chippy are
+        now clearly visible sitting on it.
+      - **THE END camera**: `camPos.lerp()` from wherever the previous
+        cutscene's camera was to the new orbit start cut a straight chord
+        through the planet sphere (the two points are far apart on a large
+        sphere), reading as "opens from underground." Fixed by snapping the
+        camera straight to the orbit's start position instead of lerping
+        across the arc, and anchoring the orbit basis to the direction the
+        characters actually face (rather than an arbitrary perpendicular) so
+        the shot deterministically opens on their faces.
 - [x] Summer landed on her BACK during the fall/get-up — root cause was a
       skeleton-direction bug (2026-07-16): user asked "why does she land on her
       back? feels like her body was assigned to the wrong direction of the
