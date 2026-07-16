@@ -4013,12 +4013,12 @@ function updateLanding(dt){
   updateLandingAnim();
   const up = herUp(tmpV);
   if (landing.phase === 'fallgetup'){
-    // Close, dramatically tilted "just landed" shot instead of a flat,
-    // upright behind-the-shoulder view: camera holds near her side (not
-    // dead behind) and its up vector is rolled a full 90° counterclockwise
-    // (as seen on screen) so her whole body reads on a clean diagonal
-    // across the frame, head toward the bottom-left, the way a real camera
-    // would tumble with an impact.
+    // Close "just landed" shot: camera stays level (no roll) and low,
+    // behind and to one side of her fallen body — a 3/4 back angle low
+    // to the ground, matching the reference blocking shot. Her own lying
+    // pose is what reads as the dramatic diagonal; an earlier version
+    // rolled camera.up a full 90° to force that diagonal artificially,
+    // which read as an unnatural tilted-horizon Dutch angle instead.
     const fwd = herFwd(new THREE.Vector3());
     const side = new THREE.Vector3().crossVectors(up, fwd).normalize();
     // The dust burst (spawnLandingDustBurst) erupts from this exact spot at
@@ -4039,23 +4039,16 @@ function updateLanding(dt){
     // Camera sits BEHIND her (-fwd), matching followCam's convention —
     // using +fwd here previously put the camera in front of her face,
     // clipping straight into her own head instead of framing her body.
+    // Low elevation (0.22 vs the old 0.5) and a bit more side offset for a
+    // near-level 3/4-back angle, matching the reference blocking shot's
+    // gentle horizon curve instead of looking steeply down at her. Negative
+    // side (was positive) so her head reads on the right / legs on the
+    // left, matching the reference's left-right arrangement exactly.
     const camPos2 = new THREE.Vector3().copy(her.position)
-      .addScaledVector(side, dist*0.55).addScaledVector(fwd, -dist*0.75).addScaledVector(up, dist*0.5);
-    const lookAtPoint = new THREE.Vector3().copy(her.position).addScaledVector(up, 1.2);
+      .addScaledVector(side, -dist*0.65).addScaledVector(fwd, -dist*0.8).addScaledVector(up, dist*0.22);
+    const lookAtPoint = new THREE.Vector3().copy(her.position).addScaledVector(up, 0.85);
     camera.position.copy(camPos2);
-    // A true 90°-CCW image roll. Rotating her raw body-up directly around
-    // the view axis gave an unpredictable result (confirmed live: the angle
-    // between it and the result measured ~53°, not 90°) because her body-up
-    // isn't perpendicular to the view axis to begin with — any component
-    // of it parallel to the axis doesn't rotate, so the leftover angle
-    // depends on camera geometry instead of being a clean quarter-turn.
-    // Project out that parallel component FIRST to get the "0°-roll"
-    // reference up, THEN rotate that (now-perpendicular) vector by exactly
-    // 90° around the axis pointing back toward the viewer.
-    const viewDir = new THREE.Vector3().subVectors(lookAtPoint, camPos2).normalize();
-    const naturalUp = up.clone().addScaledVector(viewDir, -up.dot(viewDir)).normalize();
-    const viewerAxis = viewDir.clone().negate();
-    camera.up.copy(naturalUp.applyAxisAngle(viewerAxis, Math.PI/2));
+    camera.up.copy(up);
     camera.lookAt(lookAtPoint);
     // camFill (a point light riding on the camera, tuned for its NORMAL
     // walking/talking distance) sits noticeably closer to her during this
