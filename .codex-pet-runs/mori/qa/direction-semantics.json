@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "reviewed_by": "independent-final-visual-qa-worker",
+  "directions": [
+    {"direction":"000","verdict":"pass","expected":"up","observed":"up","horizontal":"neutral","vertical":"up","reason":"Pupils sit above eye centers with white below and chin raised."},
+    {"direction":"022.5","verdict":"pass","expected":"up-right","observed":"up-right","horizontal":"screen-right","vertical":"up","reason":"Pupils and face shift screen-right while remaining visibly elevated."},
+    {"direction":"045","verdict":"pass","expected":"up-right","observed":"up-right","horizontal":"screen-right","vertical":"up","reason":"Rightward head yaw combines with raised pupils and chin."},
+    {"direction":"067.5","verdict":"pass","expected":"up-right","observed":"up-right","horizontal":"screen-right","vertical":"up","reason":"Face projects right with a smaller but visible upward eye axis."},
+    {"direction":"090","verdict":"pass","expected":"right","observed":"right","horizontal":"screen-right","vertical":"neutral","reason":"Nose and pupils lie screen-right of head center in a clear right profile."},
+    {"direction":"112.5","verdict":"warning","expected":"down-right","observed":"right with subtle down","horizontal":"screen-right","vertical":"subtle down","reason":"Nose and pupils are screen-right while lowered eyes and chin provide a mild vertical cue; labeled loop confirms the intended quadrant."},
+    {"direction":"135","verdict":"pass","expected":"down-right","observed":"down-right","horizontal":"screen-right","vertical":"down","reason":"Face remains right of center with pupils low and head pitched down."},
+    {"direction":"157.5","verdict":"pass","expected":"down-right","observed":"down-right","horizontal":"screen-right","vertical":"down","reason":"Rightward face placement remains visible beneath the lowered brim."},
+    {"direction":"180","verdict":"pass","expected":"down","observed":"down","horizontal":"neutral","vertical":"down","reason":"Frontal pupils sit low with white above and chin deeply tucked."},
+    {"direction":"202.5","verdict":"pass","expected":"down-left","observed":"down-left","horizontal":"screen-left","vertical":"down","reason":"Face and pupils move screen-left while remaining lowered."},
+    {"direction":"225","verdict":"pass","expected":"down-left","observed":"down-left","horizontal":"screen-left","vertical":"down","reason":"Left yaw and low pupils clearly carry both axes."},
+    {"direction":"247.5","verdict":"pass","expected":"down-left","observed":"down-left","horizontal":"screen-left","vertical":"down","reason":"Nose stays left of center with a restrained downward pitch."},
+    {"direction":"270","verdict":"pass","expected":"left","observed":"left","horizontal":"screen-left","vertical":"neutral","reason":"Nose and pupil sit screen-left of head center in a clear left profile."},
+    {"direction":"292.5","verdict":"warning","expected":"up-left","observed":"left with subtle up","horizontal":"screen-left","vertical":"subtle up","reason":"Face is clearly screen-left while the raised pupil and chin cue is mild; labeled loop confirms the intended quadrant."},
+    {"direction":"315","verdict":"pass","expected":"up-left","observed":"up-left","horizontal":"screen-left","vertical":"up","reason":"Leftward yaw combines with visibly elevated eyes and chin."},
+    {"direction":"337.5","verdict":"pass","expected":"up-left","observed":"up-left","horizontal":"screen-left","vertical":"up","reason":"Face remains screen-left while pupils and chin approach the up cardinal."}
+  ],
+  "review_warnings": [
+    "112.5 has a subtle downward axis.",
+    "292.5 has a subtle upward axis.",
+    "Continuity metrics contain outliers, but normal-size review shows no visible snap, scale pop, identity change, broken attachment, or reversal."
+  ]
+}

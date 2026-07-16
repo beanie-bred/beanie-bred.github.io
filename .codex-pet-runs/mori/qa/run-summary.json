@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "spriteVersionNumber": 2,
+  "run_dir": "/Users/ijin-u/Documents/GitHub/beanie-bred-world/.codex-pet-runs/mori",
+  "spritesheet": "/Users/ijin-u/Documents/GitHub/beanie-bred-world/.codex-pet-runs/mori/final/spritesheet-extended.webp",
+  "validation": "/Users/ijin-u/Documents/GitHub/beanie-bred-world/.codex-pet-runs/mori/final/validation-extended.json",
+  "chroma_despill": "/Users/ijin-u/Documents/GitHub/beanie-bred-world/.codex-pet-runs/mori/qa/chroma-despill-extended.json",
+  "contact_sheet": "/Users/ijin-u/Documents/GitHub/beanie-bred-world/.codex-pet-runs/mori/qa/contact-sheet-extended.png",
+  "direction_sheet": "/Users/ijin-u/Documents/GitHub/beanie-bred-world/.codex-pet-runs/mori/qa/look-directions.png",
+  "direction_semantics": "/Users/ijin-u/Documents/GitHub/beanie-bred-world/.codex-pet-runs/mori/qa/direction-semantics.json",
+  "blind_direction_validation": "/Users/ijin-u/Documents/GitHub/beanie-bred-world/.codex-pet-runs/mori/qa/direction-blind-validation.json",
+  "blind_review_resolution": "/Users/ijin-u/Documents/GitHub/beanie-bred-world/.codex-pet-runs/mori/qa/blind-review-resolution.json",
+  "continuity": "/Users/ijin-u/Documents/GitHub/beanie-bred-world/.codex-pet-runs/mori/qa/look-continuity.json",
+  "review": "/Users/ijin-u/Documents/GitHub/beanie-bred-world/.codex-pet-runs/mori/qa/review.json",
+  "package": "/Users/ijin-u/.codex/pets/mori"
+}
