@@ -1,4 +1,28 @@
 # ROADMAP
+- [x] Summer Beanie's walk arms retargeted from Winter's proven motion,
+      full arm chain (2026-07-16): the hand-on-back fix above worked, but
+      user said the arms still didn't look right — "always fold back and
+      dont spread out to the sides... unlike winter beanie" — and asked
+      specifically for the natural counter-swing gait (left arm forward
+      when right foot is forward).
+      - **Stopped hand-tuning angles and retargeted Winter's own walk
+        animation directly instead.** The previous fix only touched
+        `UpperArm.L/R` with a from-scratch swing; the rest of the arm
+        chain (`Shoulder`, `LowerArm`, `Hand`) still sat at old,
+        disconnected values, and an approximated swing was never going to
+        genuinely match Winter's actual proven motion no matter how much
+        the angles got tuned. Instead: sampled Winter's real
+        Shoulder/UpperArm/LowerArm/Hand rotation at the fractionally-
+        corresponding point in Summer's own walk cycle (their two cycles
+        run at different lengths/timing), and re-expressed each through
+        the same per-bone rest-orientation compensation already proven
+        for the fall-motion retarget earlier this session. This carries
+        over Winter's actual swing character (including the natural
+        counter-swing against the same-side leg) instead of reconstructing
+        an approximation of it.
+      - Verified from behind and from the side across the full cycle
+        (confirmed opposite-arm-opposite-leg coordination directly, not
+        just "no longer touching her back") and live in the Garden.
 - [x] Summer Beanie's walk-cycle arm swing fixed — hand was landing on her own
       back (2026-07-16): user sent an in-game screenshot from behind her
       showing a round shape in the middle of her back while walking in the
