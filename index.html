@@ -2778,15 +2778,15 @@ function buildPigeons(g, R, ctx){
     const fb = plushPigeon({}, { stripes:true }); fb.scale.setScalar(1.25); percy.add(fb);
   });
   const percyHolder = new THREE.Group(); percyHolder.add(percy);
+  percyHolder.userData.dialogueBird = true;
   placeOn(g, percyHolder, percyN, R, 0.02);
   percyHolder.userData.percy = percy;
   animators.push((t) => {
     if (percyHolder.userData.flying) return;
-    percy.position.y = Math.abs(Math.sin(t*2.2))*0.05;             // proud little hops
-    // pause the idle head-sway while actually talking to him — it doesn't
-    // fight the facing (that's the holder's job), but it looked odd to have
-    // him wobble mid-conversation instead of holding still toward her.
-    if (!(dialog && dialog.npcObj === percyHolder)) percy.rotation.y = Math.sin(t*0.7)*0.3;
+    // Percy stays planted. Conversation sway is applied to the holder only
+    // while his own line is showing, along with every other dialogue bird.
+    percy.position.y += (0 - percy.position.y)*0.18;
+    percy.rotation.y += (0 - percy.rotation.y)*0.18;
   });
   return { percyHolder, percyN, plazaN, crowd, flying };
 }
@@ -3906,16 +3906,15 @@ function spawnStoryPigeon(cfg){
       m.rotation.y = cfg.rotY || 0; m.scale.setScalar(cfg.scale || 1); inner.add(m);
     }).catch((e) => console.error('pigeon load failed', cfg.glb, e));
   }
-  const ph = Math.random()*6;
   animators.push((t) => {
-    // bounce only while this pigeon is the one talking (Vanessa never bounces)
-    if (cfg.bounce && plazaQuest.talkingPigeon === holder) inner.position.y = Math.abs(Math.sin(t*6 + ph))*0.35;
-    else inner.position.y += (0 - inner.position.y)*0.15;
+    // Never hop in conversation; the shared talk camera adds only a tiny,
+    // slow side-to-side sway while this bird's own line is being spoken.
+    inner.position.y += (0 - inner.position.y)*0.15;
     // face Beanie while talking, else idle
     if (plazaQuest.talkingPigeon === holder)
       holder.quaternion.copy(quatFromBasis(n, tangentToward(holder.getWorldPosition(tmpVP), n, her.position)));
   });
-  holder.userData = { cfg, n };
+  holder.userData = { cfg, n, dialogueBird:true };
   return holder;
 }
 const tmpVP = new THREE.Vector3();
@@ -4754,6 +4753,12 @@ function updateTalkCam(dt){
     const toHer = tangentToward(npcPos3, up, her.position);
     const toCamera = tangentToward(npcPos3, up, goal);
     dialog.npcObj.quaternion.copy(quatFromBasis(up, toHer.lerp(toCamera, 0.28).normalize()));
+  }
+  // Dialogue birds remain fully grounded. A restrained two-degree roll is
+  // their only talk motion, and it stops whenever Beanie is speaking.
+  if (dialog.npcObj && dialog.npcObj.userData.dialogueBird && !beanieFocus && !dialog.awaitingChoice){
+    dialog.birdSwayT = (dialog.birdSwayT || 0) + dt;
+    dialog.npcObj.rotateZ(Math.sin(dialog.birdSwayT*2.15)*0.032);
   }
 
   // A soft ease reads as a deliberate cut/dolly between speakers while the
@@ -6502,6 +6507,7 @@ const MESSENGER_SETTLE_SECONDS = 1.65;
 function spawnChicagoMessenger(onLanded){
   const b0 = bodies[0];
   const pg = plushPigeon(PIGEON_VARIANTS ? PIGEON_VARIANTS[0] : {});
+  pg.userData.dialogueBird = true;
   pg.scale.setScalar(0.9);
   // clamped just past the beak tip, tilted like she's gripping/carrying it
   const letter = makeLetterProp();
@@ -6542,8 +6548,9 @@ function spawnChicagoMessenger(onLanded){
       m.settleT = (m.settleT || 0) + dt;
       if (m.settleT > MESSENGER_SETTLE_SECONDS){ m.settling = false; m.landed = true; const cb = m.onLanded; m.onLanded = null; if (cb) cb(); }
     } else {
-      // planted flush on the ground — feet down, no hover (just a barely-there settle)
-      pg.position.copy(m.landPos).addScaledVector(m.groundN, -0.02 + Math.sin(t*2.2)*0.012);
+      // Planted flush on the ground after landing. The shared conversation
+      // sway is the only motion once this pigeon begins speaking.
+      pg.position.copy(m.landPos).addScaledVector(m.groundN, -0.02);
     }
     // stand upright on the surface, facing Beanie
     pg.quaternion.copy(quatFromBasis(m.groundN, tangentToward(pg.position, m.groundN, her.position)));
