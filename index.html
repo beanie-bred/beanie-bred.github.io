@@ -3215,7 +3215,7 @@ const GARDEN_I = 4, PIGEON_I = 3;
   // the generic "oh, someone!" glance the first time she's close enough to
   // spot him — matches every other world's guideFn/guideLabel convention.
   bodies[GARDEN_I].guideFn = (out) => bredWorldPos(out || new THREE.Vector3());
-  bodies[GARDEN_I].guideLabel = '💛 find Bred';
+  bodies[GARDEN_I].guideLabel = '🍞 find Bred';
   bodies[GARDEN_I].guideNear = 4.2;
   // The Garden was the ONE world left at the default missionDone=true (only
   // 0-3 get flipped false near WORLD_DEFS), which silently suppressed its
@@ -6119,8 +6119,8 @@ function updateWalk(dt){
   }
   if (chippyNear){
     promptEl.textContent = (booksQuest.phase === 1 && booksQuest.got >= booksQuest.need)
-      ? '🐿️ press SPACE to give Chippy the books'
-      : '🐿️ press SPACE to talk to Chippy';
+      ? '🥔 press SPACE to give Chippy the books'
+      : '🥔 press SPACE to talk to Chippy';
     promptEl.classList.add('show');
   } else if (bbakNear){
     promptEl.textContent = bbakQuest.holding
@@ -6319,15 +6319,15 @@ function showBookPop(color, title){
 /* ---------- Chicago intro: Bred's messenger pigeon + letter ---------- */
 const CHICAGO_LETTER_LINES = [
   `Coo! Rachel? …Rachel! Oh good, I found you. *pant pant*`,
-  { speaker:'Rachel 💫', text:`Whoa — a pigeon? Are you… okay? You look like you flew all the way here.`, alt:`Easy, little pigeon—catch your breath. Did you come here for me?` },
+  { speaker:'Rachel 🐰', text:`Whoa — a pigeon? Are you… okay? You look like you flew all the way here.`, alt:`Easy, little pigeon—catch your breath. Did you come here for me?` },
   `I flew a LONG way. I have something for you… a letter. 💌 It's from Bred.`,
-  { speaker:'Rachel 💫', text:`From Bred? What is all this…`, alt:`Bred sent you? Okay, now I really need to hear this.` },
+  { speaker:'Rachel 🐰', text:`From Bred? What is all this…`, alt:`Bred sent you? Okay, now I really need to hear this.` },
   `He couldn't FaceTime today, so he wrote this instead:`,
   `"Beanie, I built you a little universe. Every world is something you love. Leap across them all and follow them to the very end…"`,
   `"…and I'll be waiting for you there. Come find me. 🤍 Bred"`,
-  { speaker:'Rachel 💫', text:`He built me a whole universe? …okay. Okay! I'm doing this.`, alt:`A whole universe from Bred… there's no way I'm turning back now.` },
+  { speaker:'Rachel 🐰', text:`He built me a whole universe? …okay. Okay! I'm doing this.`, alt:`A whole universe from Bred… there's no way I'm turning back now.` },
   `Oh — almost forgot! He also sent this tiny notebook. 📔 Somewhere to keep records of things, he said, for whatever you find along the way.`,
-  { speaker:'Rachel 💫', text:`Thank you for carrying all that this far, little pigeon.`, alt:`You flew all this way for me. Thank you—you did amazing.` },
+  { speaker:'Rachel 🐰', text:`Thank you for carrying all that this far, little pigeon.`, alt:`You flew all this way for me. Thank you—you did amazing.` },
   `So don't stop, okay? Aim at the next little world and leap. Off you go!`,
 ];
 // A small folded letter, clamped in the messenger's beak — this pigeon is
