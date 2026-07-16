@@ -1,4 +1,41 @@
 # ROADMAP
+- [x] Journal: real two-page spread with journal text, margin-safe stickers
+      (2026-07-17): three requests in one message - don't let the stickers
+      visually "come out" of the page (a direct consequence of the previous
+      round's razor-thin margins), use a proper left-page/right-page book
+      spread rather than one page per planet, and add actual written
+      memories/journaling about each world.
+      - **Structure**: `#journalBook` went from one `.jpage` to a flex ROW of
+        two (`.jpage-l`/`.jpage-r`), book width roughly doubled
+        (`min(980px,95vw)`). Both halves get the SAME `page.theme` class so
+        the background texture/font/accent reads as one continuous spread
+        rather than two disconnected pages, hinged at a shared centre spine.
+        Opening/page-turn animations mirrored (`jflipL`/`jflipR`) so both
+        halves swing open from that spine together.
+      - **Left page**: chapter kicker/title/tag (unchanged) plus a new
+        `.jjournal` block - a short handwritten-style diary entry per
+        planet, in Rachel's own voice, in a newly-added Caveat Google Font
+        (the existing loaded fonts are all bold display faces, nothing
+        suited to paragraph-length personal writing). Written fresh for
+        all 4 planets/chapters.
+      - **Right page**: the sticker collage, mechanically unchanged, but
+        `collagePlace()` now uniformly rescales every computed position/size
+        into a margined-in "safe zone" (5% inset on all sides) as a final
+        step, rather than relying on sizes that were only just-barely
+        non-overlapping. That razor-thin margin (0.2-1.4% edge clearance,
+        previous round) didn't account for the "got" state's washi-tape
+        decoration extending 4% ABOVE the sticker's own box - almost
+        certainly what actually read as "stickers coming out of the page."
+        A uniform rescale can't flip any gap's sign, so this stays exactly
+        as overlap-safe as before, just visibly clear of every edge too.
+      - Added a basic mobile fallback (`@media(max-width:700px)`): stack the
+        two halves vertically instead of side-by-side, since a phone screen
+        can't fit both at a readable width.
+      - Verified live across all 4 planets, empty/partial/full collection
+        states (via real pickups, not just a debug hook), and a mobile
+        viewport width: zero sticker overlaps, zero off-page items via
+        `getBoundingClientRect`, journal text fits without scrolling at
+        typical desktop size.
 - [x] Journal: stickers made bigger with a provably non-overlapping layout
       (2026-07-16): Bred said the collage pages had "so much whitespace" and
       asked for stickers "as big as possible... but not overlap."
