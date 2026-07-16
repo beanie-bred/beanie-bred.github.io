@@ -207,17 +207,28 @@
   #toast .tag{display:block;font-size:12.5px;color:#c8d4ee;margin-top:4px;font-weight:400}
 
   /* ---------- dialogue ---------- */
-  #dialog{position:fixed;bottom:44px;left:50%;transform:translateX(-50%);z-index:30;
-    width:min(560px,90vw);background:rgba(28,26,54,.82);backdrop-filter:blur(12px);
-    border:1.5px solid rgba(255,255,255,.22);border-radius:20px;padding:14px 24px 12px}
-  #dialogName{font-weight:700;color:#8fd8d0;font-size:14px;margin-bottom:4px}
-  /* was min-height:44px — reserved room for ~2 lines even when a message was
-     only ever revealed/shown one line at a time, reading as a big empty box
-     covering the game view underneath. Sized to one real line instead; it
-     still grows naturally for the rarer message that wraps to 2-3 lines. */
-  #dialogText{font-size:16px;line-height:1.55;min-height:25px;color:#f2f0ff}
-  #dialogNext{text-align:right;font-size:12px;color:#b9b4dd;margin-top:10px;
+  /* Genshin-style cinematic lower third: the world remains visible behind a
+     soft bottom gradient instead of being covered by a floating opaque card. */
+  #dialog{position:fixed;bottom:0;left:50%;transform:translateX(-50%);z-index:30;
+    width:100vw;text-align:center;padding:42px max(8vw,60px) 20px;
+    background:linear-gradient(180deg,transparent,rgba(7,10,24,.5) 28%,rgba(7,10,24,.88));
+    border:none;border-radius:0;text-shadow:0 2px 8px rgba(0,0,0,.9)}
+  #dialogName{font-family:'Playfair Display',serif;font-weight:700;color:#f5d487;
+    font-size:clamp(16px,2vw,20px);margin-bottom:7px;letter-spacing:.02em}
+  #dialogText{font-size:clamp(15px,1.8vw,18px);line-height:1.55;min-height:28px;color:#fff}
+  #dialogNext{text-align:right;font-size:12px;color:#e2def8;margin-top:8px;
     animation:pulseTxt 1.4s ease-in-out infinite}
+  #dialogChoices{position:fixed;right:clamp(24px,7vw,110px);top:46%;z-index:34;
+    width:min(390px,46vw);display:flex;flex-direction:column;gap:12px;pointer-events:auto}
+  .dialogChoice{position:relative;border:1px solid rgba(255,255,255,.26);border-radius:999px;
+    padding:13px 24px 13px 44px;background:linear-gradient(90deg,rgba(18,25,45,.86),rgba(45,69,82,.72));
+    color:#fff;text-align:left;font:600 clamp(13px,1.6vw,16px)/1.35 inherit;cursor:pointer;
+    box-shadow:0 5px 20px rgba(0,0,0,.3);transition:transform .18s,background .18s,border-color .18s}
+  .dialogChoice::before{content:'•••';position:absolute;left:16px;top:50%;transform:translateY(-55%);
+    color:#e8edf5;letter-spacing:-2px}
+  .dialogChoice:hover,.dialogChoice:focus{outline:none;transform:translateX(-8px);
+    background:linear-gradient(90deg,rgba(51,75,90,.96),rgba(76,105,110,.9));border-color:#f5d487}
+  @media(max-width:700px){#dialogChoices{right:4vw;top:auto;bottom:150px;width:70vw}}
 
   /* ---------- planet-arrival title card (wide establishing orbit shot) ---------- */
   #planetTitle{position:fixed;inset:0;z-index:26;display:flex;flex-direction:column;
@@ -358,6 +369,7 @@
   <div id="dialogText"></div>
   <div id="dialogNext">press SPACE ▸</div>
 </div>
+<div id="dialogChoices" class="hidden"></div>
 
 <div id="planetTitle">
   <div id="planetTitleName"></div>
@@ -3076,9 +3088,9 @@ const booksQuest = { phase:0, got:0, need:5 };   // 0=find Chippy, 1=collecting,
 function chippyPos(out){ return worldRefs.books.chippy.getWorldPosition(out || new THREE.Vector3()); }
 const CHIPPY_ASK_LINES = [
   `Oh! Hello Rachel. *yaaawn* …I was just about to make some tea. 🍵`,
-  { speaker:'Rachel 💫', text:`Chippy! I didn't expect to find you way out here, buried in books.` },
+  { speaker:'Rachel 💫', text:`Chippy! I didn't expect to find you way out here, buried in books.`, alt:`Of course I'd find you in the coziest pile of books imaginable, Chippy.` },
   `Say, while the kettle boils, would you fetch me something to read?`,
-  { speaker:'Rachel 💫', text:`Of course — this whole place is basically ours to raid, right?` },
+  { speaker:'Rachel 💫', text:`Of course — this whole place is basically ours to raid, right?`, alt:`Five favourites coming right up. Save me a cup of tea!` },
   `Bring me 5 of your favourite books from around here. The glowy ones! ✨`,
   `Press A to pick each one up, then come back to me. Off you pop!`,
 ];
@@ -3088,7 +3100,7 @@ const CHIPPY_NEED_MORE = [
 const CHIPPY_DONE_LINES = [
   `Ooh! Now THESE are good picks. *happy squeak* 🐿️`,
   `Perfect reading for a slow afternoon. Thank you, Rachel!`,
-  { speaker:'Rachel 💫', text:`Happy to help. Enjoy your tea, Chippy.` },
+  { speaker:'Rachel 💫', text:`Happy to help. Enjoy your tea, Chippy.`, alt:`Anytime, Chippy. Those books better be worth staying awake for!` },
   `Now, the way onward. Aim past the tallest stack and leap. Go find him! 🤍`,
 ];
 bodies[1].guideNear = 3.6;
@@ -3162,12 +3174,12 @@ const bbakQuest = { phase:0, tries:0, need:4, holding:null, cukeRevealed:false }
 function bbakPos(out){ return worldRefs.cucumber.bbak.getWorldPosition(out || new THREE.Vector3()); }
 const BBAK_INTRO = [
   `Hnngh… oh, hi Rachel. *pant pant* It is SO hot out here… 🥵`,
-  { speaker:'Rachel 💫', text:`Oh no, bbak! I've never seen a polar bear look this... melted.` },
+  { speaker:'Rachel 💫', text:`Oh no, bbak! I've never seen a polar bear look this... melted.`, alt:`bbak, you look like you're about to become a polar-bear puddle!` },
   `This whole place used to be solid ice and snow, believe it or not. Now it's all melted into... this. A meadow.`,
-  { speaker:'Rachel 💫', text:`That's awful. There has to be SOMETHING I can do for you.` },
+  { speaker:'Rachel 💫', text:`That's awful. There has to be SOMETHING I can do for you.`, alt:`Tell me what you need. I'm not leaving you to melt out here.` },
   `This global-warming business is melting my brain, too. I need something COLD.`,
   `Fetch me a cold treat? Grab a glowy snack (press A) and bring it back to me.`,
-  { speaker:'Rachel 💫', text:`On it. Hang in there, bbak.` },
+  { speaker:'Rachel 💫', text:`On it. Hang in there, bbak.`, alt:`One freezing-cold rescue snack, coming right up!` },
 ];
 // A reaction PER FOOD TYPE — bbak actually comments on whatever she tossed him,
 // instead of a generic "nope, try again" regardless of what it was.
@@ -3554,10 +3566,10 @@ const DOODLES_CFG = { name:'doodles', glb:'doodles', speaker:'🦤 Doodles the D
   `You'll… be my family? Really? *sniffle* …okay. Lead the way, take me to your friend.` ] };
 const PERCY_INTRO = [
   `Coo! Rachel, you found me! 🕊️`,
-  { speaker:'Rachel 💫', text:`Percy! Wow, you're bigger than I imagined. What's going on?` },
+  { speaker:'Rachel 💫', text:`Percy! Wow, you're bigger than I imagined. What's going on?`, alt:`You're Percy? Okay—you're magnificent. What happened?` },
   `Listen… long, long ago I had a dear, dear friend. We were inseparable.`,
   `I've looked all over this plaza and I just can't find him. Would you help me look?`,
-  { speaker:'Rachel 💫', text:`Of course I'll help. We'll find your friend, Percy.` },
+  { speaker:'Rachel 💫', text:`Of course I'll help. We'll find your friend, Percy.`, alt:`Nobody gets left behind. Let's find your friend together.` },
   `Go say hello to the pigeons around here, maybe one of them is him!` ];
 const PERCY_NUDGE_SEARCH = [ `Keep saying hello to the pigeons, one of them might be my friend!` ];
 const PERCY_GIVEUP = [
@@ -3568,9 +3580,9 @@ const PERCY_NUDGE_DOODLES = [ `A name starting with "D"… from way back in 1690
 const PERCY_REUNION = [
   `…Doodles? DOODLES! Oh, it's really you! 🥹`,
   `I thought I'd lost you forever, old friend.`,
-  { speaker:'Rachel 💫', text:`I'm so glad I could bring you two back together.` },
+  { speaker:'Rachel 💫', text:`I'm so glad I could bring you two back together.`, alt:`You found each other again—that makes every step worth it.` },
   `Rachel, you brought my family back to me. I could never thank you enough. 🤍`,
-  { speaker:'Rachel 💫', text:`Alright, Percy — where to next?` },
+  { speaker:'Rachel 💫', text:`Alright, Percy — where to next?`, alt:`I'm ready for the next adventure. Lead the way, Percy!` },
   `Now: hop on my back and hold tight. I know EXACTLY where Bred is!` ];
 
 const plazaQuest = { phase:'intro', step:0, decoyHolders:[], active:null, doodles:null, talkingPigeon:null };
@@ -4097,6 +4109,8 @@ let camYaw = 0, camPitch = 0.3, camDist = 9;
 const camPos = camera.position.clone();
 const camUp = V().set(0,1,0);
 function followCam(dt, pos, up, fwd, dist, snap=false){
+  camera.fov += (55 - camera.fov) * (snap ? 1 : Math.min(1, dt*8));
+  camera.updateProjectionMatrix();
   cA.copy(fwd).multiplyScalar(-1);
   tmpQ.setFromAxisAngle(up, camYaw);
   cA.applyQuaternion(tmpQ);                       // yaw around avatar
@@ -4122,26 +4136,22 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
   camera.up.copy(camUp);
   camera.lookAt(cC.copy(pos).addScaledVector(up, 1.5));
 }
-/* Conversation camera: a fixed two-shot. Beanie stands screen-LEFT, turned
-   DIAGONALLY toward the NPC (a 3/4 glance, not a full profile, so her face
-   still reads); the NPC stands screen-right and turns to face Beanie head-on.
+/* Conversation camera: a fixed screen direction. Beanie stands screen-LEFT
+   and faces screen-RIGHT; the NPC stands screen-RIGHT and faces screen-LEFT.
    Nearby props are hidden while talking so nothing covers either of them. */
 // Immutable global staging rule for EVERY NPC conversation: Beanie projects
 // screen-left and whoever she is speaking with projects screen-right. It also
 // matches the messenger landing camera's side of the character line, so that
 // first handoff is a gentle slide rather than a POV flip.
 const CONVO_BEANIE_LEFT = -1;
-const TALK_DIAG_ANGLE = Math.PI/180 * 38;   // Beanie's turn is partial, not a full face-to-face
 function updateTalkCam(dt){
   const npc = (dialog && dialog.npcPos) ? dialog.npcPos() : null;
   if (!npc){ followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 3.3); return; }
   const up = herUp(new THREE.Vector3());
   const toNpc = tangentToward(her.position, up, npc);   // along-surface dir Beanie -> NPC
-  // Beanie turns only PART-way toward the NPC (a diagonal glance), biased toward
-  // the camera's side so her face stays readable instead of going profile.
-  const diagQ = new THREE.Quaternion().setFromAxisAngle(up, TALK_DIAG_ANGLE*CONVO_BEANIE_LEFT);
-  const herFacing = toNpc.clone().applyQuaternion(diagQ);
-  orientation.copy(quatFromBasis(up, herFacing));
+  // True face-to-face profiles. Camera-side offsets never change sign, so
+  // Beanie always reads left→right and every speaker reads right→left.
+  orientation.copy(quatFromBasis(up, toNpc));
   updatePose();
   // The NPC (if it's a real Object3D, not just a position) turns to face Beanie directly.
   // Chippy is exempt from the generic version below: he's perched on a lumpy
@@ -4181,12 +4191,15 @@ function updateTalkCam(dt){
   // right at 6.0.
   const gap  = Math.max(7.2, her.position.distanceTo(npc));
   const goal = new THREE.Vector3().copy(mid)
-    .addScaledVector(side, gap*0.62 + 2.6)     // pull to one side so both are in frame
-    .addScaledVector(up,   gap*0.24 + 1.65)
-    .addScaledVector(toNpc, -gap*0.22 - 0.6);  // pull back a touch for headroom
-  const look = new THREE.Vector3().copy(mid)
-    .addScaledVector(up,    0.95)
-    .addScaledVector(toNpc, gap*0.06);
+    .addScaledVector(side, gap*0.42 + 2.0)
+    .addScaledVector(up, gap*0.18 + 1.3)
+    .addScaledVector(toNpc, -gap*0.12 - 0.4);
+  // Speaker-focused composition like Genshin, but only the LOOK target moves;
+  // the camera never crosses the character line. While response choices are
+  // open, keep the NPC featured until Beanie actually picks a reply.
+  const beanieFocus = isBeanieSpeaking() && !dialog.awaitingChoice;
+  const focus = new THREE.Vector3().copy(mid).lerp(beanieFocus ? her.position : npc, 0.25);
+  const look = focus.addScaledVector(up, 1.05);
   // A slower ease keeps the hand-off from a preceding cinematic shot from
   // snapping into the dialogue two-shot.
   camPos.lerp(goal, 1 - Math.exp(-2.8*dt));
@@ -4194,6 +4207,8 @@ function updateTalkCam(dt){
   camera.position.copy(camPos);
   camera.up.copy(camUp);
   camera.lookAt(look);
+  camera.fov += (40 - camera.fov) * Math.min(1, dt*6);
+  camera.updateProjectionMatrix();
 }
 // Hide props near Beanie during a conversation so nothing covers her; the
 // speaker (npcObj) and the planet base are never hidden.
@@ -4889,6 +4904,31 @@ function isBeanieSpeaking(){
   if (!dialog || !dialog.lines || dialog.idx >= dialog.lines.length) return false;
   return isBeanieSpeakerName(lineSpeaker(dialog.lines[dialog.idx], dialog.defaultSpeaker));
 }
+function currentDialogText(){
+  if (!dialog) return '';
+  return dialog.chosenResponses.get(dialog.idx) || lineText(dialog.lines[dialog.idx]);
+}
+function showResponseChoices(line){
+  dialog.awaitingChoice = true;
+  const options = [line.text, line.alt || `I think… ${line.text}`];
+  dialogChoicesEl.innerHTML = '';
+  options.forEach((text, i) => {
+    const button = document.createElement('button');
+    button.className = 'dialogChoice';
+    button.type = 'button';
+    button.textContent = text;
+    button.addEventListener('click', () => chooseDialogResponse(text));
+    dialogChoicesEl.appendChild(button);
+  });
+  dialogChoicesEl.classList.remove('hidden');
+}
+function chooseDialogResponse(text){
+  if (!dialog || !dialog.awaitingChoice) return;
+  dialog.chosenResponses.set(dialog.idx, text);
+  dialog.awaitingChoice = false;
+  dialogChoicesEl.classList.add('hidden');
+  showDialogLine();
+}
 function startDialog(lines, onDone, opts={}){
   state = 'talk';
   ensureTalkDistance(opts.npcPos ? opts.npcPos() : null);
@@ -4900,7 +4940,7 @@ function startDialog(lines, onDone, opts={}){
   reticleEl.classList.add('hidden');
   dialogEl.classList.remove('hidden');
   dialog = { lines, idx:0, onDone, coo: opts.coo !== false, npcPos: opts.npcPos || null, npcObj: opts.npcObj || null,
-    defaultSpeaker: opts.speaker || 'Percy 🕊️' };
+    defaultSpeaker: opts.speaker || 'Percy 🕊️', chosenResponses:new Map(), awaitingChoice:false };
   hideNearbyObstacles(opts.npcObj || null);   // clear props so nothing covers Beanie
   showDialogLine();
 }
@@ -4909,8 +4949,13 @@ function percyWorldPos(out){
     .addScaledVector(worldRefs.pigeon.percyN, bodies[PIGEON_I].r);
 }
 function showDialogLine(){
+  const line = dialog.lines[dialog.idx];
+  if (isBeanieSpeaking() && line && typeof line === 'object' && !dialog.chosenResponses.has(dialog.idx)){
+    showResponseChoices(line);
+    return;
+  }
   if (dialog.coo) playCoo();
-  dialogNameEl.textContent = lineSpeaker(dialog.lines[dialog.idx], dialog.defaultSpeaker);
+  dialogNameEl.textContent = lineSpeaker(line, dialog.defaultSpeaker);
   dialogTextEl.textContent = '';
   dialog.lineT = 0;
   // Begin each of Beanie's replies at the start of the gesture instead of
@@ -4926,7 +4971,8 @@ function showDialogLine(){
 // at a rate derived from simulated dt rather than a wall-clock setInterval.
 function updateDialogTyping(dt){
   if (!dialog) return;
-  const line = lineText(dialog.lines[dialog.idx]);
+  if (dialog.awaitingChoice) return;
+  const line = currentDialogText();
   const fullT = line.length * DIALOG_CHAR_SECONDS;
   if (dialog.lineT >= fullT) return;   // already fully revealed, nothing to do
   dialog.lineT = Math.min(fullT, dialog.lineT + dt);
@@ -4935,7 +4981,8 @@ function updateDialogTyping(dt){
 }
 function advanceDialog(){
   if (!dialog) return;
-  const line = lineText(dialog.lines[dialog.idx]);
+  if (dialog.awaitingChoice) return;
+  const line = currentDialogText();
   if (dialogTextEl.textContent.length < line.length){   // still typing → reveal all first
     dialogTextEl.textContent = line;
     dialog.lineT = line.length * DIALOG_CHAR_SECONDS;   // mark fully revealed so the per-frame update doesn't fight it
@@ -4944,6 +4991,7 @@ function advanceDialog(){
   dialog.idx++;
   if (dialog.idx < dialog.lines.length){ showDialogLine(); return; }
   dialogEl.classList.add('hidden');
+  dialogChoicesEl.classList.add('hidden');
   missionEl.classList.remove('mission-hide');
   const cb = dialog.onDone;
   dialog = null;
@@ -5342,24 +5390,32 @@ function updateMessengerCutsceneCam(dt){
   const up = herUp(new THREE.Vector3());
   const pgPos = m.pg.position;
   const toPg = tangentToward(her.position, up, pgPos);
-  // Place the landing camera on the pigeon's left-profile side. The pigeon
-  // faces back toward Beanie, so using this un-negated tangent is the mirror
-  // of the conversation camera's side and shows its left flank on touchdown.
-  const side = new THREE.Vector3().crossVectors(up, toPg).normalize();
+  // The exact SAME side as updateTalkCam. Multiplying by the immutable
+  // Beanie-left sign is the key detail: the previous un-negated vector put
+  // Beanie screen-right during landing, forcing a visible 180° flip when
+  // dialogue began. This camera never crosses that character line.
+  const side = new THREE.Vector3().crossVectors(up, toPg).normalize().multiplyScalar(CONVO_BEANIE_LEFT);
   const settleBlend = m.settling ? Math.min(1, (m.settleT || 0) / MESSENGER_SETTLE_SECONDS) : 0;
-  const focus = new THREE.Vector3().copy(pgPos).lerp(
-    new THREE.Vector3().addVectors(pgPos, her.position).multiplyScalar(0.5),
-    settleBlend * 0.72);
-  const goal = new THREE.Vector3().copy(pgPos)
+  const mid = new THREE.Vector3().addVectors(pgPos, her.position).multiplyScalar(0.5);
+  const gap = Math.max(7.2, her.position.distanceTo(pgPos));
+  const talkGoal = new THREE.Vector3().copy(mid)
+    .addScaledVector(side, gap*0.42 + 2.0)
+    .addScaledVector(up, gap*0.18 + 1.3)
+    .addScaledVector(toPg, -gap*0.12 - 0.4);
+  const closeGoal = new THREE.Vector3().copy(pgPos)
     .addScaledVector(side, 4.1 + settleBlend*2.2)
     .addScaledVector(up, 1.35 + settleBlend*1.0)
     .addScaledVector(toPg, -1.15 - settleBlend*0.75);
-  const look = focus.addScaledVector(up, 0.45 + settleBlend*0.4);
+  const goal = closeGoal.lerp(talkGoal, settleBlend);
+  const look = new THREE.Vector3().copy(pgPos).addScaledVector(up, 0.48)
+    .lerp(new THREE.Vector3().copy(mid).addScaledVector(up, 1.05), settleBlend);
   camPos.lerp(goal, 1 - Math.exp(-2.15*dt));
   camUp.lerp(up, 1 - Math.exp(-2.2*dt)).normalize();
   camera.position.copy(camPos);
   camera.up.copy(camUp);
   camera.lookAt(look);
+  camera.fov += (40 - camera.fov) * Math.min(1, dt*6);
+  camera.updateProjectionMatrix();
 }
 function updateWalk(dt){
   const b = bodies[curI];
@@ -5575,6 +5631,7 @@ const reticleEl = document.getElementById('reticle');
 const dialogEl = document.getElementById('dialog');
 const dialogTextEl = document.getElementById('dialogText');
 const dialogNameEl = document.getElementById('dialogName');
+const dialogChoicesEl = document.getElementById('dialogChoices');
 const irisEl = document.getElementById('iris');
 const cardOverlay = document.getElementById('cardOverlay');
 
@@ -5709,15 +5766,15 @@ function showBookPop(color, title){
 /* ---------- Chicago intro: Bred's messenger pigeon + letter ---------- */
 const CHICAGO_LETTER_LINES = [
   `Coo! Rachel? …Rachel! Oh good, I found you. *pant pant*`,
-  { speaker:'Rachel 💫', text:`Whoa — a pigeon? Are you… okay? You look like you flew all the way here.` },
+  { speaker:'Rachel 💫', text:`Whoa — a pigeon? Are you… okay? You look like you flew all the way here.`, alt:`Easy, little pigeon—catch your breath. Did you come here for me?` },
   `I flew a LONG way. I have something for you… a letter. 💌 It's from Bred.`,
-  { speaker:'Rachel 💫', text:`From Bred? What is all this…` },
+  { speaker:'Rachel 💫', text:`From Bred? What is all this…`, alt:`Bred sent you? Okay, now I really need to hear this.` },
   `He couldn't FaceTime today, so he wrote this instead:`,
   `"Beanie, I built you a little universe. Every world is something you love. Leap across them all and follow them to the very end…"`,
   `"…and I'll be waiting for you there. Come find me. 🤍 Bred"`,
-  { speaker:'Rachel 💫', text:`He built me a whole universe? …okay. Okay! I'm doing this.` },
+  { speaker:'Rachel 💫', text:`He built me a whole universe? …okay. Okay! I'm doing this.`, alt:`A whole universe from Bred… there's no way I'm turning back now.` },
   `Oh — almost forgot! He also sent this tiny notebook. 📔 Somewhere to keep records of things, he said, for whatever you find along the way.`,
-  { speaker:'Rachel 💫', text:`Thank you for carrying all that this far, little pigeon.` },
+  { speaker:'Rachel 💫', text:`Thank you for carrying all that this far, little pigeon.`, alt:`You flew all this way for me. Thank you—you did amazing.` },
   `So don't stop, okay? Aim at the next little world and leap. Off you go!`,
 ];
 // A small folded letter, clamped in the messenger's beak — this pigeon is
