@@ -1081,6 +1081,81 @@ function playStamp(){
   clickGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.03);
   click.connect(clickGain); clickGain.connect(master); click.start(t0); click.stop(t0 + 0.04);
 }
+let lastMissionTickAt = -1;
+let lastSpeechSquealAt = -1;
+function playTypewriterTick(ch, index=0){
+  if (!audio || muted || !/[A-Za-z0-9]/.test(ch || '')) return;
+  const { ctx, master, noise } = audio, t0 = ctx.currentTime;
+  if (t0 - lastMissionTickAt < 0.034) return;   // crisp keys, never a harsh 45Hz buzz
+  lastMissionTickAt = t0;
+  const src = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), gn = ctx.createGain();
+  src.buffer = noise;
+  filter.type = 'bandpass'; filter.frequency.value = 1850 + (index%3)*170; filter.Q.value = 1.8;
+  gn.gain.setValueAtTime(0.014, t0);
+  gn.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.022);
+  src.connect(filter); filter.connect(gn); gn.connect(master);
+  src.start(t0); src.stop(t0 + 0.026);
+  const key = ctx.createOscillator(), kg = ctx.createGain();
+  key.type = 'sine'; key.frequency.value = 760 + (index%2)*90;
+  kg.gain.setValueAtTime(0.006, t0);
+  kg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.026);
+  key.connect(kg); kg.connect(master); key.start(t0); key.stop(t0 + 0.03);
+}
+function speechVoiceBase(speaker){
+  const name = (speaker || '').toLowerCase();
+  if (/rachel|beanie/.test(name)) return 720;
+  if (/chippy/.test(name)) return 590;
+  if (/bbak|polar bear/.test(name)) return 330;
+  if (/doodles|dodo/.test(name)) return 410;
+  if (/bred|justin/.test(name)) return 440;
+  if (/percy|pigeon|dove|vanessa|nibbles|alfred|sunny|otto|mochi|buckle/.test(name)) return 520;
+  return 560;
+}
+function playSpeechSqueal(speaker, ch, index=0){
+  if (!audio || muted || !/[A-Za-z0-9]/.test(ch || '')) return;
+  const { ctx, master } = audio, t0 = ctx.currentTime;
+  if (t0 - lastSpeechSquealAt < 0.032) return;
+  lastSpeechSquealAt = t0;
+  const steps = [0, 2, 4, 7, 9];
+  const code = ch.charCodeAt(0) + index*3;
+  const freq = speechVoiceBase(speaker) * Math.pow(2, steps[Math.abs(code)%steps.length]/12);
+  const voice = ctx.createOscillator(), sparkle = ctx.createOscillator(), gn = ctx.createGain();
+  voice.type = 'triangle'; sparkle.type = 'sine';
+  voice.frequency.setValueAtTime(freq, t0);
+  voice.frequency.exponentialRampToValueAtTime(freq*1.055, t0 + 0.052);
+  sparkle.frequency.setValueAtTime(freq*2.01, t0);
+  sparkle.frequency.exponentialRampToValueAtTime(freq*1.92, t0 + 0.045);
+  gn.gain.setValueAtTime(0.0001, t0);
+  gn.gain.linearRampToValueAtTime(0.026, t0 + 0.006);
+  gn.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.058);
+  voice.connect(gn); sparkle.connect(gn); gn.connect(master);
+  voice.start(t0); sparkle.start(t0);
+  voice.stop(t0 + 0.062); sparkle.stop(t0 + 0.062);
+}
+function playButtonSound(kind='button'){
+  if (!ensureAudio() || muted) return;
+  const { ctx, master } = audio;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  const t0 = ctx.currentTime;
+  const notes = kind === 'choice' ? [620, 930] : [520, 780];
+  notes.forEach((freq, i) => {
+    const o = ctx.createOscillator(), gn = ctx.createGain(), when = t0 + i*0.035;
+    o.type = i ? 'sine' : 'triangle';
+    o.frequency.setValueAtTime(freq, when);
+    o.frequency.exponentialRampToValueAtTime(freq*1.06, when + 0.085);
+    gn.gain.setValueAtTime(0.0001, when);
+    gn.gain.linearRampToValueAtTime(i ? 0.026 : 0.038, when + 0.007);
+    gn.gain.exponentialRampToValueAtTime(0.0001, when + 0.13);
+    o.connect(gn); gn.connect(master); o.start(when); o.stop(when + 0.15);
+  });
+}
+// Any visible HTML control gets the same soft confirm. Dialogue choices play
+// their own slightly brighter variant in chooseDialogResponse().
+addEventListener('click', (e) => {
+  const hit = e.target && e.target.closest
+    ? e.target.closest('button,[role="button"],#intro,#planetTitleContinue,#envelope') : null;
+  if (hit && !hit.classList.contains('dialogChoice')) playButtonSound();
+});
 function footstep(kind, weight=1){
   if (!audio || muted) return;
   const { ctx, master, noise } = audio, t0 = ctx.currentTime;
@@ -5445,6 +5520,7 @@ function showResponseChoices(line){
 }
 function chooseDialogResponse(text){
   if (!dialog || !dialog.awaitingChoice) return;
+  playButtonSound('choice');
   dialog.chosenResponses.set(dialog.idx, text);
   dialog.awaitingChoice = false;
   dialogChoicesEl.classList.add('hidden');
@@ -5477,10 +5553,10 @@ function showDialogLine(){
     showResponseChoices(line);
     return;
   }
-  if (dialog.coo) playCoo();
   dialogNameEl.textContent = lineSpeaker(line, dialog.defaultSpeaker);
   dialogTextEl.textContent = '';
   dialog.lineT = 0;
+  dialog.revealCount = 0;
   // Begin each of Beanie's replies at the start of the gesture instead of
   // resuming halfway through an arm sweep from a previous line.
   if (herTalkAction && isBeanieSpeaking()){
@@ -5501,14 +5577,28 @@ function updateDialogTyping(dt){
   dialog.lineT = Math.min(fullT, dialog.lineT + dt);
   const revealCount = Math.min(line.length, Math.floor(dialog.lineT / DIALOG_CHAR_SECONDS));
   dialogTextEl.textContent = line.slice(0, revealCount);
+  if (revealCount > (dialog.revealCount || 0)){
+    // Use the newest pronounceable character from this frame. The audio-side
+    // rate limit turns the very fast 11ms text reveal into cheerful, readable
+    // Animal-Crossing-style syllable squeals instead of a continuous buzz.
+    for (let i = revealCount - 1; i >= (dialog.revealCount || 0); i--){
+      if (/[A-Za-z0-9]/.test(line[i])){
+        playSpeechSqueal(lineSpeaker(dialog.lines[dialog.idx], dialog.defaultSpeaker), line[i], i);
+        break;
+      }
+    }
+    dialog.revealCount = revealCount;
+  }
 }
 function advanceDialog(){
   if (!dialog) return;
   if (dialog.awaitingChoice) return;
+  playButtonSound('choice');
   const line = currentDialogText();
   if (dialogTextEl.textContent.length < line.length){   // still typing → reveal all first
     dialogTextEl.textContent = line;
     dialog.lineT = line.length * DIALOG_CHAR_SECONDS;   // mark fully revealed so the per-frame update doesn't fight it
+    dialog.revealCount = line.length;
     return;
   }
   dialog.idx++;
@@ -6295,6 +6385,9 @@ function typewriterHTML(el, html, speed){
   missionTyping = setInterval(() => {
     i++;
     render();
+    const typed = chars[i - 1];
+    if (typed && !el.classList.contains('hidden') && !el.classList.contains('mission-hide'))
+      playTypewriterTick(typed.ch, i - 1);
     if (i >= chars.length) clearInterval(missionTyping);
   }, speed);
 }
