@@ -21,10 +21,10 @@ engine.attach(piano); engine.attach(bass); engine.attach(drums); engine.attach(e
 let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2)!
 room.loadFactoryPreset(.mediumRoom)
 room.wetDryMix = 14
-piano.masterGain = 10
-bass.masterGain = 11
-drums.masterGain = 11
-mastering.globalGain = 20
+piano.masterGain = 4
+bass.masterGain = 0
+drums.masterGain = -6
+mastering.globalGain = 12
 engine.connect(piano, to: ensemble, fromBus: 0, toBus: 0, format: format)
 engine.connect(bass, to: ensemble, fromBus: 0, toBus: 1, format: format)
 engine.connect(drums, to: ensemble, fromBus: 0, toBus: 2, format: format)
