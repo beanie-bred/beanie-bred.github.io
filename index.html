@@ -98,6 +98,9 @@
   #muteBtn{position:fixed;top:16px;right:16px;z-index:20;width:40px;height:40px;border-radius:50%;
     border:1px solid rgba(255,255,255,.18);background:rgba(30,32,64,.5);backdrop-filter:blur(8px);
     color:#fff;font-size:17px;cursor:pointer}
+  #musicCredits{position:fixed;right:12px;bottom:10px;z-index:18;max-width:330px;text-align:right;
+    font-size:9px;line-height:1.35;color:rgba(255,255,255,.52);pointer-events:auto}
+  #musicCredits a{color:rgba(220,235,255,.7);text-decoration:none}
 
   /* ---------- journal / sticker collection ---------- */
   #journalBtn{position:fixed;top:16px;right:64px;z-index:20;width:40px;height:40px;border-radius:50%;
@@ -406,6 +409,12 @@
   </div>
 </div>
 
+<div id="musicCredits">
+  Music from <b>Uppbeat</b>:
+  <a href="https://uppbeat.io/t/dan-barton/the-executive-lounge" target="_blank" rel="noopener">The Executive Lounge — Dan Barton</a><br>
+  <a href="https://uppbeat.io/t/color-parade/pixeltown" target="_blank" rel="noopener">Pixeltown — Color Parade</a>
+</div>
+
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -441,9 +450,9 @@ function loadModelFull(url){        // like loadModel, but keeps gltf.animations
 
 /* ═══════════════ EDIT ME ═══════════════ */
 const CONFIG = {
-  herName:  'Rachel',
+  herName:  'Rachel 🐰',
   herNick:  'Beanie',
-  yourName: 'Bred',
+  yourName: 'Bred 🍞',
   cardMessage:
 `You made it, through the gray little city, the wobbly book towers,
 the flying cucumbers, the whales, and roughly four hundred pigeons.
@@ -855,7 +864,39 @@ function applyWorldSky(bi){
 
 /* ═══════════════ AUDIO ═══════════════ */
 let audio = null, muted = false, melodyGain = null, melodyWet = null, melodyTimer = null;
-let bgmRecording = null;
+let bgmRecording = null, bgmPrevious = null, bgmFadeFrame = null, bgmKey = null;
+const BGM_TRACKS = {
+  executive:'audio/executive-lounge.mp3',
+  pixeltown:'audio/pixeltown.mp3'
+};
+function playBgm(key, fadeSeconds=2.5){
+  if (bgmKey === key && bgmRecording) return;
+  const next = new Audio(BGM_TRACKS[key]);
+  next.loop = true; next.preload = 'auto'; next.volume = fadeSeconds ? 0 : .52; next.muted = muted;
+  next.play().catch(() => {});
+  if (bgmFadeFrame) cancelAnimationFrame(bgmFadeFrame);
+  const old = bgmRecording;
+  bgmPrevious = old;
+  bgmRecording = next;
+  bgmKey = key;
+  if (!fadeSeconds){
+    if (old) old.pause();
+    bgmPrevious = null;
+    return;
+  }
+  const started = performance.now(), oldStart = old ? old.volume : 0;
+  const fade = (now) => {
+    const p = Math.min(1, (now-started)/(fadeSeconds*1000));
+    next.volume = .52*p;
+    if (old) old.volume = oldStart*(1-p);
+    if (p < 1) bgmFadeFrame = requestAnimationFrame(fade);
+    else {
+      if (old){ old.pause(); old.currentTime = 0; }
+      bgmPrevious = null; bgmFadeFrame = null;
+    }
+  };
+  bgmFadeFrame = requestAnimationFrame(fade);
+}
 function ensureAudio(){
   if (audio) return true;
   try{
@@ -921,7 +962,7 @@ function playMelody(mel){
   if (mel.score){
     clearTimeout(melodyTimer);
     if (bgmRecording) bgmRecording.pause();
-    bgmRecording = new Audio('audio/popo-simple-cafe-v13.m4a');
+    bgmRecording = new Audio('audio/popo-high-bright-v20.m4a');
     bgmRecording.loop = true;
     bgmRecording.volume = .62;
     bgmRecording.muted = muted;
@@ -3188,9 +3229,9 @@ const booksQuest = { phase:0, got:0, need:5 };   // 0=find Chippy, 1=collecting,
 function chippyPos(out){ return worldRefs.books.chippy.getWorldPosition(out || new THREE.Vector3()); }
 const CHIPPY_ASK_LINES = [
   `Oh! Hello Rachel. *yaaawn* …I was just about to make some tea. 🍵`,
-  { speaker:'Rachel 💫', text:`Chippy! I didn't expect to find you way out here, buried in books.`, alt:`Of course I'd find you in the coziest pile of books imaginable, Chippy.` },
+  { speaker:'Rachel 🐰', text:`Chippy! I didn't expect to find you way out here, buried in books.`, alt:`Of course I'd find you in the coziest pile of books imaginable, Chippy.` },
   `Say, while the kettle boils, would you fetch me something to read?`,
-  { speaker:'Rachel 💫', text:`Of course — this whole place is basically ours to raid, right?`, alt:`Five favourites coming right up. Save me a cup of tea!` },
+  { speaker:'Rachel 🐰', text:`Of course — this whole place is basically ours to raid, right?`, alt:`Five favourites coming right up. Save me a cup of tea!` },
   `Bring me 5 of your favourite books from around here. The glowy ones! ✨`,
   `Press A to pick each one up, then come back to me. Off you pop!`,
 ];
@@ -3198,9 +3239,9 @@ const CHIPPY_NEED_MORE = [
   `Mmm, a lovely start… but that's not 5 yet. Keep looking! 📚`,
 ];
 const CHIPPY_DONE_LINES = [
-  `Ooh! Now THESE are good picks. *happy squeak* 🐿️`,
+  `Ooh! Now THESE are good picks. *happy squeak* 🥔`,
   `Perfect reading for a slow afternoon. Thank you, Rachel!`,
-  { speaker:'Rachel 💫', text:`Happy to help. Enjoy your tea, Chippy.`, alt:`Anytime, Chippy. Those books better be worth staying awake for!` },
+  { speaker:'Rachel 🐰', text:`Happy to help. Enjoy your tea, Chippy.`, alt:`Anytime, Chippy. Those books better be worth staying awake for!` },
   `Now, the way onward. Aim past the tallest stack and leap. Go find him! 🤍`,
 ];
 bodies[1].guideNear = 3.6;
@@ -3225,13 +3266,13 @@ function refreshBooksGuide(){
     bodies[1].guideLabel = `✨ glowing book (${booksQuest.got}/${booksQuest.need}), press A to collect`;
     bodies[1].guideFn = () => { const gb = nearestUncollected(); return gb ? gb.holder.getWorldPosition(new THREE.Vector3()) : chippyPos(); };
   } else {
-    bodies[1].guideLabel = '🐿️ find Chippy';
+    bodies[1].guideLabel = '🥔 find Chippy';
     bodies[1].guideFn = () => chippyPos();
   }
 }
 refreshBooksGuide();
 function talkChippy(){
-  const npc = { npcPos: () => chippyPos(), speaker:'🐿️ Chippy', npcObj: worldRefs.books.chippy };
+  const npc = { npcPos: () => chippyPos(), speaker:'Chippy 🥔', npcObj: worldRefs.books.chippy };
   if (booksQuest.phase === 0){
     meetFriend('chippy');
     startDialog(CHIPPY_ASK_LINES, () => { booksQuest.phase = 1; refreshBooksGuide(); setMission(bodies[1].mission); }, npc);
@@ -3274,12 +3315,12 @@ const bbakQuest = { phase:0, tries:0, need:4, holding:null, cukeRevealed:false }
 function bbakPos(out){ return worldRefs.cucumber.bbak.getWorldPosition(out || new THREE.Vector3()); }
 const BBAK_INTRO = [
   `Hnngh… oh, hi Rachel. *pant pant* It is SO hot out here… 🥵`,
-  { speaker:'Rachel 💫', text:`Oh no, bbak! I've never seen a polar bear look this... melted.`, alt:`bbak, you look like you're about to become a polar-bear puddle!` },
+  { speaker:'Rachel 🐰', text:`Oh no, bbak! I've never seen a polar bear look this... melted.`, alt:`bbak, you look like you're about to become a polar-bear puddle!` },
   `This whole place used to be solid ice and snow, believe it or not. Now it's all melted into... this. A meadow.`,
-  { speaker:'Rachel 💫', text:`That's awful. There has to be SOMETHING I can do for you.`, alt:`Tell me what you need. I'm not leaving you to melt out here.` },
+  { speaker:'Rachel 🐰', text:`That's awful. There has to be SOMETHING I can do for you.`, alt:`Tell me what you need. I'm not leaving you to melt out here.` },
   `This global-warming business is melting my brain, too. I need something COLD.`,
   `Fetch me a cold treat? Grab a glowy snack (press A) and bring it back to me.`,
-  { speaker:'Rachel 💫', text:`On it. Hang in there, bbak.`, alt:`One freezing-cold rescue snack, coming right up!` },
+  { speaker:'Rachel 🐰', text:`On it. Hang in there, bbak.`, alt:`One freezing-cold rescue snack, coming right up!` },
 ];
 // A reaction PER FOOD TYPE — bbak actually comments on whatever she tossed him,
 // instead of a generic "nope, try again" regardless of what it was.
@@ -3691,10 +3732,10 @@ const DOODLES_CFG = { name:'doodles', glb:'doodles', speaker:'🦤 Doodles the D
   `You'll… be my family? Really? *sniffle* …okay. Lead the way, take me to your friend.` ] };
 const PERCY_INTRO = [
   `Coo! Rachel, you found me! 🐦`,
-  { speaker:'Rachel 💫', text:`Percy! Wow, you're bigger than I imagined. What's going on?`, alt:`You're Percy? Okay—you're magnificent. What happened?` },
+  { speaker:'Rachel 🐰', text:`Percy! Wow, you're bigger than I imagined. What's going on?`, alt:`You're Percy? Okay—you're magnificent. What happened?` },
   `Listen… long, long ago I had a dear, dear friend. We were inseparable.`,
   `I've looked all over this plaza and I just can't find him. Would you help me look?`,
-  { speaker:'Rachel 💫', text:`Of course I'll help. We'll find your friend, Percy.`, alt:`Nobody gets left behind. Let's find your friend together.` },
+  { speaker:'Rachel 🐰', text:`Of course I'll help. We'll find your friend, Percy.`, alt:`Nobody gets left behind. Let's find your friend together.` },
   `Go say hello to the pigeons around here, maybe one of them is him!` ];
 const PERCY_NUDGE_SEARCH = [ `Keep saying hello to the pigeons, one of them might be my friend!` ];
 const PERCY_GIVEUP = [
@@ -3705,9 +3746,9 @@ const PERCY_NUDGE_DOODLES = [ `A name starting with "D"… from way back in 1690
 const PERCY_REUNION = [
   `…Doodles? DOODLES! Oh, it's really you! 🥹`,
   `I thought I'd lost you forever, old friend.`,
-  { speaker:'Rachel 💫', text:`I'm so glad I could bring you two back together.`, alt:`You found each other again—that makes every step worth it.` },
+  { speaker:'Rachel 🐰', text:`I'm so glad I could bring you two back together.`, alt:`You found each other again—that makes every step worth it.` },
   `Rachel, you brought my family back to me. I could never thank you enough. 🤍`,
-  { speaker:'Rachel 💫', text:`Alright, Percy — where to next?`, alt:`I'm ready for the next adventure. Lead the way, Percy!` },
+  { speaker:'Rachel 🐰', text:`Alright, Percy — where to next?`, alt:`I'm ready for the next adventure. Lead the way, Percy!` },
   `Now: hop on my back and hold tight. I know EXACTLY where Bred is!` ];
 
 const plazaQuest = { phase:'intro', step:0, decoyHolders:[], active:null, doodles:null, talkingPigeon:null };
@@ -5278,6 +5319,7 @@ function finalizeLanding(){
 }
 function arrive(bi){
   curI = bi;
+  playBgm(bi === GARDEN_I ? 'pixeltown' : 'executive', bi === GARDEN_I ? 3.5 : 1.5);
   state = 'walk';
   camYaw = 0;
   // backstop: normally startLandingSequence() already set this world's sky,
@@ -5621,7 +5663,7 @@ function arriveGarden(){
   const couchPos = V().copy(g.center).addScaledVector(worldRefs.garden.couchN, g.r);
   orientation.copy(quatFromBasis(g.landN, tangentToward(landPos, g.landN, couchPos)));
   hemi.intensity = 1.85; sun.intensity = 1.25;   // golden-hour warmth, still low-contrast
-  playMelody(MELODY_BDAY);          // ...now it can be the birthday song
+  // Garden music is handled by arrive(GARDEN_I), which crossfades to Pixeltown.
   // Same fall-on-face / impact / get-up / orbit / title beat every other
   // world gets (startLandingSequence() picks Summer's own retargeted
   // LandFallGetUp automatically — see updateLandingAnim()) — she used to
@@ -6393,6 +6435,7 @@ function startJourney(){
   noticeBubbleEl.classList.remove('hidden');
   her.userData.sit(false);
   ensureAudio();
+  playBgm('executive', 0);
   const b0 = bodies[0];
   const startPos = V().copy(b0.center).addScaledVector(CHICAGO_START_N, b0.r);
   orientation.copy(quatFromBasis(CHICAGO_START_N,
@@ -6500,6 +6543,7 @@ muteBtn.addEventListener('click', () => {
   muteBtn.textContent = muted ? '🔇' : '🔊';
   if (audio) audio.master.gain.value = muted ? 0 : 0.55;
   if (bgmRecording) bgmRecording.muted = muted;
+  if (bgmPrevious) bgmPrevious.muted = muted;
 });
 
 /* ---------- journal / sticker collection ----------

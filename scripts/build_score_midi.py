@@ -33,8 +33,8 @@ for page in range(1, 4):
         if copied.duration.quarterLength == 0:
             copied.duration.quarterLength = .0625
         if isinstance(copied, note.Note):
-            # Keep the lead sheet's natural singing register. The previous
-            # octave lift pushed the outro as high as E7 and sounded piercing.
+            # Bright, child-friendly register requested: melody one octave up.
+            copied.transpose(12, inPlace=True)
             beat = float(item.offset) % 4
             absolute_start = cursor + float(item.offset)
             phrase_entrance = absolute_start - last_melody_end > .32
@@ -77,7 +77,7 @@ for item in source_left.notesAndRests:
                      if start <= event_start < end]
     melody_active = bool(active_melody)
     if isinstance(copied, note.Note):
-        if copied.pitch.midi < 48:
+        while copied.pitch.midi < 67:
             copied.transpose(12, inPlace=True)
         copied.volume.velocity = 36 if melody_active else 53
     elif isinstance(copied, chord.Chord):
@@ -86,15 +86,14 @@ for item in source_left.notesAndRests:
         for p in copied.pitches:
             if p.midi < 48:
                 p.midi += 12
-        # Keep every accompaniment voice under the active melody, with an open
-        # but warm C3-G4 working register and minimal inner-voice movement.
-        ceiling = min(active_melody)-3 if active_melody else 67
+        # Keep all harmony above G4. No low-mid chord tones remain.
+        ceiling = 88
         arranged = []
         for pitch in sorted(copied.pitches, key=lambda p: p.midi):
             p = deepcopy(pitch)
-            while p.midi < 48: p.midi += 12
+            while p.midi < 67: p.midi += 12
             while p.midi > ceiling: p.midi -= 12
-            if p.midi >= 43: arranged.append(p)
+            if p.midi >= 67: arranged.append(p)
         arranged = sorted({p.midi: p for p in arranged}.values(), key=lambda p: p.midi)
         if not arranged:
             continue
@@ -132,63 +131,7 @@ right.makeMeasures(inPlace=True)
 score.insert(0, left)
 score.insert(0, right)
 
-# Rhythmic electric-bass foundation. Root notes anchor 1/3 with a tiny pickup
-# into the next bar, while still leaving the piano melody plenty of space.
-bass = stream.Part()
-bass.partName = "Electric bass"
-bass.insert(0, instrument.ElectricBass())
-for beat_start in range(0, int(cursor), 2):
-    sounding = [e for e in source_left.notes
-                if float(e.offset) <= beat_start < float(e.offset + e.duration.quarterLength)]
-    if not sounding:
-        continue
-    source = sounding[-1]
-    pitches = list(source.pitches) if isinstance(source, chord.Chord) else [source.pitch]
-    root = min(p.midi for p in pitches)
-    while root > 47: root -= 12
-    while root < 36: root += 12
-    b = note.Note(root)
-    active = any(start <= beat_start < end for start, end, _ in melody_intervals)
-    b.volume.velocity = 24 if active else 31
-    b.duration.quarterLength = 1.68
-    bass.insert(beat_start, b)
-    if beat_start % 4 == 2:
-        pickup = note.Note(root)
-        pickup.volume.velocity = 19 if active else 25
-        pickup.duration.quarterLength = .38
-        bass.insert(beat_start+1.5, pickup)
-bass.makeMeasures(inPlace=True)
-score.insert(0, bass)
 
-# Lush but unobtrusive city-pop color: a warm pad held under every two bars.
-pad = stream.Part(); pad.partName = "Warm synth pad"
-for bar_start in range(0, int(cursor), 8):
-    sounding = [e for e in source_left.notes
-                if float(e.offset) <= bar_start < float(e.offset + e.duration.quarterLength)]
-    if not sounding: continue
-    source = sounding[-1]
-    pitches = list(source.pitches) if isinstance(source, chord.Chord) else [source.pitch]
-    chosen = max(pitches, key=lambda p:p.midi).midi
-    while chosen < 60: chosen += 12
-    while chosen > 72: chosen -= 12
-    p = note.Note(chosen); p.volume.velocity = 13; p.duration.quarterLength = min(7.5,cursor-bar_start)
-    pad.insert(bar_start,p)
-pad.makeMeasures(inPlace=True); score.insert(0,pad)
-
-# Occasional clean-guitar offbeats, deliberately sparse and single-note.
-guitar = stream.Part(); guitar.partName = "Clean electric guitar"
-for measure_start in range(0, int(cursor), 8):
-    sounding = [e for e in source_left.notes
-                if float(e.offset) <= measure_start < float(e.offset + e.duration.quarterLength)]
-    if not sounding: continue
-    source=sounding[-1]
-    pitches=list(source.pitches) if isinstance(source,chord.Chord) else [source.pitch]
-    color=max(p.midi for p in pitches)
-    while color < 60: color += 12
-    for offset in (1.5,3.5):
-        g=note.Note(color); g.volume.velocity=18; g.duration.quarterLength=.28
-        guitar.insert(measure_start+offset,g)
-guitar.makeMeasures(inPlace=True); score.insert(0,guitar)
 # The PDF/song tempo is held at a steady 85 BPM. No swing or rubato is added;
 # note starts, durations and rests remain on the written rhythmic grid.
 score.insert(0, tempo.MetronomeMark(number=85))
@@ -210,7 +153,9 @@ for track_index, track in enumerate(midi.tracks[1:]):
         if hasattr(message, "channel"):
             message = message.copy(channel=hand_channel)
         events.append((absolute, 1, message.copy(time=0)))
-    if track_index < 2:
+    # Pedal only the singing melody hand. Sustaining the chord hand created
+    # the dark, church-like harmonic wash in the previous mix.
+    if track_index == 1:
         pedal_ticks = sorted({round(change*midi.ticks_per_beat) for change in harmony_changes})
         for beat_tick in pedal_ticks:
             if beat_tick:
@@ -230,8 +175,8 @@ for track_index, track in enumerate(midi.tracks[1:]):
         track.append(message.copy(time=tick-previous))
         previous = tick
 
-# Simple café pulse: quarter-note brush texture, a tiny kick only on beat 1,
-# and cross-stick on 2/4. No busy eighth-note pattern fighting the melody.
+# High-frequency pulse only: closed hat and occasional tambourine. No kick,
+# bass drum, tom, snare or other low/dark percussion remains.
 drum_events = []
 for quarter in range(int(cursor)):
     tick = quarter*midi.ticks_per_beat
@@ -241,9 +186,9 @@ for quarter in range(int(cursor)):
     drum_events += [(tick,1,mido.Message("note_on",channel=9,note=42,velocity=hat,time=0)),
                     (tick+38,0,mido.Message("note_off",channel=9,note=42,velocity=0,time=0))]
     beat_in_bar = quarter % 4
-    if beat_in_bar in (0,1,3):
-        drum_note = 36 if beat_in_bar == 0 else 37
-        vel = (12 if active else 16) if drum_note == 36 else (15 if active else 19)
+    if beat_in_bar in (1,3):
+        drum_note = 54
+        vel = 13 if active else 17
         drum_events += [(tick,1,mido.Message("note_on",channel=9,note=drum_note,velocity=vel,time=0)),
                         (tick+55,0,mido.Message("note_off",channel=9,note=drum_note,velocity=0,time=0))]
 drum_events.sort(key=lambda event:(event[0],event[1]))
