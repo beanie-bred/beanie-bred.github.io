@@ -4075,9 +4075,11 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
    DIAGONALLY toward the NPC (a 3/4 glance, not a full profile, so her face
    still reads); the NPC stands screen-right and turns to face Beanie head-on.
    Nearby props are hidden while talking so nothing covers either of them. */
-// Matches the messenger landing camera's side of the character line, so the
-// handoff into dialogue is a gentle slide—not a fast orbit/POV flip.
-let TALK_CAM_SIDE = -1;
+// Immutable global staging rule for EVERY NPC conversation: Beanie projects
+// screen-left and whoever she is speaking with projects screen-right. It also
+// matches the messenger landing camera's side of the character line, so that
+// first handoff is a gentle slide rather than a POV flip.
+const CONVO_BEANIE_LEFT = -1;
 const TALK_DIAG_ANGLE = Math.PI/180 * 38;   // Beanie's turn is partial, not a full face-to-face
 function updateTalkCam(dt){
   const npc = (dialog && dialog.npcPos) ? dialog.npcPos() : null;
@@ -4086,7 +4088,7 @@ function updateTalkCam(dt){
   const toNpc = tangentToward(her.position, up, npc);   // along-surface dir Beanie -> NPC
   // Beanie turns only PART-way toward the NPC (a diagonal glance), biased toward
   // the camera's side so her face stays readable instead of going profile.
-  const diagQ = new THREE.Quaternion().setFromAxisAngle(up, TALK_DIAG_ANGLE*TALK_CAM_SIDE);
+  const diagQ = new THREE.Quaternion().setFromAxisAngle(up, TALK_DIAG_ANGLE*CONVO_BEANIE_LEFT);
   const herFacing = toNpc.clone().applyQuaternion(diagQ);
   orientation.copy(quatFromBasis(up, herFacing));
   updatePose();
@@ -4119,7 +4121,7 @@ function updateTalkCam(dt){
     const toHer = tangentToward(npcPos3, up, her.position);
     dialog.npcObj.quaternion.copy(quatFromBasis(up, toHer));
   }
-  const side = new THREE.Vector3().crossVectors(up, toNpc).normalize().multiplyScalar(TALK_CAM_SIDE);
+  const side = new THREE.Vector3().crossVectors(up, toNpc).normalize().multiplyScalar(CONVO_BEANIE_LEFT);
   const mid  = new THREE.Vector3().addVectors(her.position, npc).multiplyScalar(0.5);
   // floor the effective gap well above realistic close-talk distances so the
   // two-shot still composes cleanly (both in frame) even when she walked up
@@ -6124,7 +6126,7 @@ window.__world = {
     if (npc){
       const up = herUp(new THREE.Vector3());
       const toNpc = tangentToward(her.position, up, npc);
-      const side = new THREE.Vector3().crossVectors(up, toNpc).normalize().multiplyScalar(TALK_CAM_SIDE);
+      const side = new THREE.Vector3().crossVectors(up, toNpc).normalize().multiplyScalar(CONVO_BEANIE_LEFT);
       const mid = new THREE.Vector3().addVectors(her.position, npc).multiplyScalar(0.5);
       const gap = Math.max(7.2, her.position.distanceTo(npc));
       const goal = new THREE.Vector3().copy(mid)
