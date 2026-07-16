@@ -3826,7 +3826,7 @@ function talkPercy(){
   }
   if (plazaQuest.phase === 'seek-doodles'){ startDialog(PERCY_NUDGE_DOODLES, null, npc); return; }
   if (plazaQuest.phase === 'bring-doodles'){
-    startDialog(PERCY_REUNION, () => { plazaQuest.phase = 'done'; bodies[PIGEON_I].missionDone = true; doReunion(); }, npc);
+    startDoodlesReunion();
     return;
   }
 }
@@ -3841,6 +3841,191 @@ function talkActivePigeon(){
   } else {
     startDialog(cfg.lines, () => { plazaQuest.talkingPigeon = null; plazaQuest.step++; spawnNextDecoy(); }, npc);
   }
+}
+
+/* Once Doodles has been found, he becomes a real little companion instead
+   of staying behind at his spawn point. He follows Beanie along Pigeon
+   Plaza's curved surface until the two of them get close enough to Percy to
+   begin the reunion cinematic. */
+const DOODLES_FOLLOW_GAP = 2.75;
+const DOODLES_REUNION_TRIGGER = 10.5;
+const DOODLES_APPROACH_SECONDS = 4.8;
+const DOODLES_HAPPY_SECONDS = 4.5;
+let doodlesReunion = null;
+function plazaOffsetNormal(originN, tangent, distance, out=new THREE.Vector3()){
+  const t = new THREE.Vector3().copy(tangent).addScaledVector(originN, -tangent.dot(originN)).normalize();
+  const angle = distance / bodies[PIGEON_I].r;
+  return out.copy(originN).multiplyScalar(Math.cos(angle)).addScaledVector(t, Math.sin(angle)).normalize();
+}
+function setPlazaHolderPose(holder, n, facing, lift=0){
+  const R = bodies[PIGEON_I].r;
+  holder.position.copy(n).multiplyScalar(R + 0.02 + lift);
+  holder.quaternion.copy(quatFromBasis(n, facing));
+  if (holder.userData.n) holder.userData.n.copy(n);
+}
+function updateDoodlesFollow(dt){
+  const holder = plazaQuest.doodles;
+  if (curI !== PIGEON_I || plazaQuest.phase !== 'bring-doodles' || !holder || doodlesReunion) return;
+  const b = bodies[PIGEON_I], R = b.r;
+  const herUpN = herUp(new THREE.Vector3());
+  const herForward = herFwd(new THREE.Vector3());
+  const desiredWorld = new THREE.Vector3().copy(her.position).addScaledVector(herForward, -DOODLES_FOLLOW_GAP);
+  const desiredN = desiredWorld.sub(b.center).normalize();
+  const currentN = holder.position.clone().normalize();
+  const remaining = currentN.angleTo(desiredN) * R;
+  const inner = holder.children[0];
+  if (remaining > 0.12){
+    const currentWorld = new THREE.Vector3().copy(b.center).addScaledVector(currentN, R);
+    const direction = tangentToward(currentWorld, currentN, new THREE.Vector3().copy(b.center).addScaledVector(desiredN, R));
+    const axis = new THREE.Vector3().crossVectors(currentN, direction).normalize();
+    // Fast enough to keep the intended short trailing gap even while Beanie
+    // keeps walking, with a gentle catch-up only when Doodles falls behind.
+    const followSpeed = remaining > 5 ? 10.5 : 8.2;
+    const stepAngle = Math.min(currentN.angleTo(desiredN), followSpeed*dt/R);
+    const nextN = currentN.clone().applyAxisAngle(axis, stepAngle).normalize();
+    const nextWorld = new THREE.Vector3().copy(b.center).addScaledVector(nextN, R);
+    const faceBeanie = tangentToward(nextWorld, nextN, her.position);
+    setPlazaHolderPose(holder, nextN, faceBeanie);
+    inner.position.y = Math.abs(Math.sin(simT*7.2))*0.14;
+  } else {
+    inner.position.y += (0 - inner.position.y) * Math.min(1, dt*9);
+    const holderWorld = holder.getWorldPosition(new THREE.Vector3());
+    holder.quaternion.copy(quatFromBasis(currentN, tangentToward(holderWorld, currentN, her.position)));
+  }
+}
+function setBeaniePlazaPose(n, facing){
+  const b = bodies[PIGEON_I];
+  her.position.copy(b.center).addScaledVector(n, b.r);
+  her.quaternion.copy(quatFromBasis(n, facing));
+}
+function startDoodlesReunion(forceNear=false){
+  if (doodlesReunion || state !== 'walk' || curI !== PIGEON_I || plazaQuest.phase !== 'bring-doodles') return;
+  const doodles = plazaQuest.doodles, percy = worldRefs.pigeon.percyHolder;
+  if (!doodles || !percy) return;
+  const b = bodies[PIGEON_I], R = b.r;
+  const percyN = worldRefs.pigeon.percyN.clone();
+  const percyWorld = percyWorldPos(new THREE.Vector3());
+  let herStartN = her.position.clone().sub(b.center).normalize();
+  let approach = tangentToward(percyWorld, percyN, her.position);
+  if (approach.lengthSq() < 0.001) approach = arbitraryPerp(percyN);
+  if (forceNear && her.position.distanceTo(percyWorld) > DOODLES_REUNION_TRIGGER + 1){
+    approach = arbitraryPerp(percyN);
+    herStartN = plazaOffsetNormal(percyN, approach, 9.6);
+    const forcedDoodlesN = plazaOffsetNormal(percyN, approach, 12.1);
+    const forcedHerWorld = new THREE.Vector3().copy(b.center).addScaledVector(herStartN, R);
+    setBeaniePlazaPose(herStartN, tangentToward(forcedHerWorld, herStartN, percyWorld));
+    const forcedDoodlesWorld = new THREE.Vector3().copy(b.center).addScaledVector(forcedDoodlesN, R);
+    setPlazaHolderPose(doodles, forcedDoodlesN, tangentToward(forcedDoodlesWorld, forcedDoodlesN, her.position));
+  }
+  const side = new THREE.Vector3().crossVectors(percyN, approach).normalize();
+  const beanieLane = approach.clone().addScaledVector(side, 0.32).normalize();
+  const herTargetN = plazaOffsetNormal(percyN, beanieLane, 5.0);
+  const doodlesStartN = doodles.position.clone().normalize();
+  const doodlesApproachN = plazaOffsetNormal(percyN, approach, 6.4);
+  const doodlesHappyN = plazaOffsetNormal(percyN, approach, 2.7);
+  const percyHappyN = plazaOffsetNormal(percyN, approach, 0.55);
+  doodlesReunion = {
+    phase:'approach', t:0, lastStep:-1, hearts:false, cooed:false,
+    percy, doodles, up:percyN, approach, side,
+    herStartN, herTargetN, doodlesStartN, doodlesApproachN, doodlesHappyN,
+    percyStartN:percyN.clone(), percyHappyN
+  };
+  state = 'doodlesreunion';
+  her.userData.moving = true;
+  her.userData.running = false;
+  her.userData.movingBackward = false;
+  promptEl.classList.remove('show');
+  guideEl.classList.remove('show');
+  missionEl.classList.add('hidden');
+  targetRing.visible = false;
+  reticleEl.classList.add('hidden');
+}
+function finishDoodlesReunion(){
+  const r = doodlesReunion; if (!r) return;
+  const b = bodies[PIGEON_I], R = b.r;
+  worldRefs.pigeon.percyN.copy(r.percyHappyN);
+  const percyWorld = new THREE.Vector3().copy(b.center).addScaledVector(r.percyHappyN, R);
+  const doodlesWorld = new THREE.Vector3().copy(b.center).addScaledVector(r.doodlesHappyN, R);
+  setPlazaHolderPose(r.percy, r.percyHappyN,
+    tangentToward(percyWorld, r.percyHappyN, doodlesWorld));
+  setPlazaHolderPose(r.doodles, r.doodlesHappyN,
+    tangentToward(doodlesWorld, r.doodlesHappyN, percyWorld));
+  orientation.copy(her.quaternion);
+  her.userData.moving = false;
+  noticeBubbleEl.classList.remove('show');
+  doodlesReunion = null;
+  const npc = { npcPos: () => percyWorldPos(new THREE.Vector3()), speaker:'Percy 🐦',
+    npcObj:r.percy, extraVisible:[r.doodles] };
+  startDialog(PERCY_REUNION, () => {
+    plazaQuest.phase = 'done';
+    bodies[PIGEON_I].missionDone = true;
+    doReunion();
+  }, npc);
+}
+function updateDoodlesReunion(dt){
+  const r = doodlesReunion; if (!r) return;
+  const b = bodies[PIGEON_I], R = b.r;
+  r.t += dt;
+  if (r.phase === 'approach'){
+    const k = Math.min(1, r.t/DOODLES_APPROACH_SECONDS);
+    const e = k*k*(3 - 2*k);
+    const herN = new THREE.Vector3().lerpVectors(r.herStartN, r.herTargetN, e).normalize();
+    const doodlesN = new THREE.Vector3().lerpVectors(r.doodlesStartN, r.doodlesApproachN, e).normalize();
+    const percyWorld = new THREE.Vector3().copy(b.center).addScaledVector(r.percyStartN, R);
+    const herWorld = new THREE.Vector3().copy(b.center).addScaledVector(herN, R);
+    const doodlesWorld = new THREE.Vector3().copy(b.center).addScaledVector(doodlesN, R);
+    setBeaniePlazaPose(herN, tangentToward(herWorld, herN, percyWorld));
+    setPlazaHolderPose(r.doodles, doodlesN, tangentToward(doodlesWorld, doodlesN, percyWorld));
+    r.doodles.children[0].position.y = Math.abs(Math.sin(k*Math.PI*8))*0.15;
+    const step = Math.min(7, Math.floor(k*8));
+    if (step !== r.lastStep){
+      r.lastStep = step;
+      footstep(b.step, 0.82);
+      spawnDust(b.step, her.position, herN, tangentToward(herWorld, herN, percyWorld));
+    }
+    const focus = new THREE.Vector3().copy(percyWorld).addScaledVector(r.approach, 3.2).addScaledVector(r.up, 1.1);
+    const goal = focus.clone().addScaledVector(r.side, 13).addScaledVector(r.approach, 5.5).addScaledVector(r.up, 6.2);
+    camPos.lerp(goal, 1 - Math.exp(-1.8*dt));
+    camUp.lerp(r.up, 1 - Math.exp(-2.0*dt)).normalize();
+    camera.position.copy(camPos); camera.up.copy(camUp); camera.lookAt(focus);
+    camera.fov += (42 - camera.fov) * Math.min(1, dt*3.5); camera.updateProjectionMatrix();
+    if (k >= 1){
+      r.phase = 'happy'; r.t = 0;
+      her.userData.moving = false;
+      r.doodles.children[0].position.y = 0;
+      noticeBubbleEl.textContent = '💕';
+      noticeBubbleEl.classList.add('show');
+    }
+    return;
+  }
+  const k = Math.min(1, r.t/DOODLES_HAPPY_SECONDS);
+  const e = k*k*(3 - 2*k);
+  const doodlesN = new THREE.Vector3().lerpVectors(r.doodlesApproachN, r.doodlesHappyN, e).normalize();
+  const percyN = new THREE.Vector3().lerpVectors(r.percyStartN, r.percyHappyN, e).normalize();
+  const hop = Math.abs(Math.sin(k*Math.PI*3))*0.62*(1 - k*0.28);
+  const doodlesWorld = new THREE.Vector3().copy(b.center).addScaledVector(doodlesN, R);
+  const percyWorld = new THREE.Vector3().copy(b.center).addScaledVector(percyN, R);
+  setPlazaHolderPose(r.doodles, doodlesN, tangentToward(doodlesWorld, doodlesN, percyWorld), hop);
+  setPlazaHolderPose(r.percy, percyN, tangentToward(percyWorld, percyN, doodlesWorld), hop*0.9);
+  if (!r.cooed && k > 0.16){ r.cooed = true; playCoo(); }
+  if (!r.hearts && k > 0.55){
+    r.hearts = true;
+    playChime();
+    const mid = doodlesWorld.clone().add(percyWorld).multiplyScalar(0.5).addScaledVector(r.up, 1.0);
+    for (let i = 0; i < 14; i++){
+      const heart = new THREE.Mesh(heartGeo, heartBurstMat);
+      heart.scale.setScalar(0.14 + Math.random()*0.14);
+      spawnEphemeral(heart, mid, randDir().multiplyScalar(0.65).addScaledVector(r.up, 0.85 + Math.random()*0.7),
+        2.2 + Math.random(), 1.2 + Math.random()*2.0);
+    }
+  }
+  const mid = doodlesWorld.clone().add(percyWorld).multiplyScalar(0.5).addScaledVector(r.up, 0.75);
+  const goal = mid.clone().addScaledVector(r.side, 9.5).addScaledVector(r.approach, 4.0).addScaledVector(r.up, 4.0);
+  camPos.lerp(goal, 1 - Math.exp(-1.8*dt));
+  camUp.lerp(r.up, 1 - Math.exp(-2.0*dt)).normalize();
+  camera.position.copy(camPos); camera.up.copy(camUp); camera.lookAt(mid);
+  camera.fov += (39 - camera.fov) * Math.min(1, dt*3.5); camera.updateProjectionMatrix();
+  if (k >= 1) finishDoodlesReunion();
 }
 function doReunion(){
   const pN = worldRefs.pigeon.percyN, R = bodies[PIGEON_I].r;
@@ -3919,8 +4104,8 @@ function qaGiveNext(){
       showToast('🦤 QA: met Doodles', 'bring back to Percy'); return;
     }
     if (plazaQuest.phase === 'bring-doodles'){
-      plazaQuest.phase = 'done'; bodies[PIGEON_I].missionDone = true; doReunion();
-      showToast('🐦 QA: reunion!', 'quest complete');
+      startDoodlesReunion(true);
+      showToast('🐦 QA: reunion scene', 'walking Doodles back to Percy');
     }
   }
 }
@@ -4094,7 +4279,8 @@ function animBeanieSkinned(dt){
   // She only "moves" while actually walking. While talking (state='talk') she
   // plays the Talking gesture instead of a static Idle hold — Winter only for
   // now, since Summer's model has no Talking clip exported yet.
-  const moving = (state === 'walk') && u.moving && !u.sitting;
+  const moving = (state === 'walk' || (state === 'doodlesreunion' && doodlesReunion?.phase === 'approach'))
+    && u.moving && !u.sitting;
   const talking = (state === 'talk') && isBeanieSpeaking() && !showSummer && !!herTalkAction;
   const run = moving && u.running;
   if (moving) u.walkP += dt*(run ? 31.5 : 21);   // footstep cadence follows walk/run
@@ -4199,7 +4385,7 @@ const X_AXIS = new THREE.Vector3(1,0,0), Y_AXIS = new THREE.Vector3(0,1,0),
       Z_AXIS = new THREE.Vector3(0,0,1);
 const orientation = new THREE.Quaternion();
 let curI = 0;
-let state = 'intro';       // intro | walk | fly | talk | percyfly | finale
+let state = 'intro';       // intro | walk | fly | talk | doodlesreunion | percyfly | finale
 // True for the gap between arrive(0) (which must set state='walk' for camera/
 // HUD setup) and the messenger pigeon's letter dialogue actually starting —
 // without this, arrow keys worked during that ~1s window before the intro
@@ -4310,7 +4496,7 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
 // first handoff is a gentle slide rather than a POV flip.
 const CONVO_BEANIE_LEFT = -1;
 let conversationStage = null;
-function enterConversationStage(npcObj){
+function enterConversationStage(npcObj, extraVisible=[]){
   if (conversationStage || !npcObj || !npcObj.isObject3D) return;
   const b = bodies[curI], up = herUp(new THREE.Vector3());
   const originalNpcWorld = npcObj.getWorldPosition(new THREE.Vector3());
@@ -4323,7 +4509,7 @@ function enterConversationStage(npcObj){
   scene.add(floor);
   const hidden = [];
   b.group.children.forEach((child, i) => {
-    if (i === 0 || child === npcObj || !child.visible) return;
+    if (i === 0 || child === npcObj || extraVisible.includes(child) || !child.visible) return;
     child.visible = false; hidden.push(child);
   });
   conversationStage = {
@@ -4348,82 +4534,92 @@ function exitConversationStage(){
   }
   conversationStage = null;
 }
+function dialogueSubjectHeight(obj, fallback){
+  if (!obj || !obj.isObject3D) return fallback;
+  if (!dialog.subjectHeights) dialog.subjectHeights = new WeakMap();
+  if (dialog.subjectHeights.has(obj)) return dialog.subjectHeights.get(obj);
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = box.getSize(new THREE.Vector3());
+  const height = Number.isFinite(size.y) && size.y > 0.1 ? Math.max(0.8, Math.min(5.2, size.y)) : fallback;
+  dialog.subjectHeights.set(obj, height);
+  return height;
+}
 function updateTalkCam(dt){
   const npc = (dialog && dialog.npcPos) ? dialog.npcPos() : null;
   if (!npc){ followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 3.3); return; }
   const up = herUp(new THREE.Vector3());
   const toNpc = tangentToward(her.position, up, npc);   // along-surface dir Beanie -> NPC
-  // True face-to-face profiles. Camera-side offsets never change sign, so
-  // Beanie always reads left→right and every speaker reads right→left.
-  orientation.copy(quatFromBasis(up, toNpc));
+  // Never cross the conversation line: even as the speaker changes, this
+  // remains the same camera-side vector, preserving Beanie-left / NPC-right.
+  const side = new THREE.Vector3().crossVectors(up, toNpc).normalize().multiplyScalar(CONVO_BEANIE_LEFT);
+  const beanieFocus = isBeanieSpeaking() && !dialog.awaitingChoice;
+  const subject = beanieFocus ? her.position : npc;
+  const subjectObj = beanieFocus ? her : dialog.npcObj;
+  const subjectHeight = dialogueSubjectHeight(subjectObj, beanieFocus ? 4.1 : 1.8);
+  // Genshin-like upper-body framing. Small characters such as pigeons get an
+  // actually close camera rather than inheriting Beanie's much larger scale.
+  const closeDistance = Math.max(2.7, Math.min(5.6, subjectHeight*0.96 + 0.85));
+  const focusLift = Math.max(0.55, Math.min(2.45, subjectHeight*0.58));
+  const towardPartner = beanieFocus ? toNpc : toNpc.clone().negate();
+  const goal = new THREE.Vector3().copy(subject)
+    .addScaledVector(side, closeDistance)
+    .addScaledVector(up, focusLift + 0.12)
+    .addScaledVector(towardPartner, -0.22);
+  const look = new THREE.Vector3().copy(subject)
+    .addScaledVector(up, focusLift)
+    .addScaledVector(towardPartner, 0.18);
+
+  // Keep the face-to-face read, then open both characters about 15–20°
+  // toward the lens. They still face one another—just no longer in a rigid
+  // mugshot profile that hides half their expressions.
+  const faceCameraFromBeanie = tangentToward(her.position, up, goal);
+  const beanieFacing = toNpc.clone().lerp(faceCameraFromBeanie, 0.28).normalize();
+  orientation.copy(quatFromBasis(up, beanieFacing));
   updatePose();
-  // The NPC (if it's a real Object3D, not just a position) turns to face Beanie directly.
-  // Chippy is exempt from the generic version below: he's perched on a lumpy
-  // book pile at a hand-tuned seated orientation (orientToNormal + rotateY in
-  // buildBooks), and that generic override uses HER local up rather than the
-  // pile's own surface normal — reorienting his whole seat would make him
-  // look like he'd popped up off it. Instead, only his loaded model (a CHILD
-  // of the seated group, so the seat itself never moves) gets a heading-only
-  // rotation around the pile's own normal, computed as a DELTA from his
-  // known-good default facing rather than rebuilt from scratch — sidesteps
-  // ever needing to know his model's raw-front offset (the seated group's
-  // own fixed rotateY(2.4) already bakes that correction in).
+
+  // Chippy is perched at a hand-tuned seated angle, so only rotate his loaded
+  // model around the pile's own normal. Every other NPC can turn as a whole.
   const isChippy = worldRefs.books && dialog.npcObj === worldRefs.books.chippy;
   if (isChippy && worldRefs.books.chippyModel){
     const cN = worldRefs.books.chippyN;
     const chippyModelObj = worldRefs.books.chippyModel;
     const chippyPos3 = dialog.npcObj.getWorldPosition(new THREE.Vector3());
     const toHerChippy = tangentToward(chippyPos3, cN, her.position);
+    const toCameraChippy = tangentToward(chippyPos3, cN, goal);
+    const desiredChippy = toHerChippy.lerp(toCameraChippy, 0.28).normalize();
     const baseWorldQuat = dialog.npcObj.getWorldQuaternion(new THREE.Quaternion());
     const baseForward = new THREE.Vector3(0,0,1).applyQuaternion(baseWorldQuat);
     const delta = Math.atan2(
-      new THREE.Vector3().crossVectors(baseForward, toHerChippy).dot(cN),
-      baseForward.dot(toHerChippy));
+      new THREE.Vector3().crossVectors(baseForward, desiredChippy).dot(cN),
+      baseForward.dot(desiredChippy));
     chippyModelObj.rotation.set(0, 0, 0);
     chippyModelObj.rotateY(delta);
   } else if (dialog.npcObj && dialog.npcObj.isObject3D && !isChippy){
     const npcPos3 = dialog.npcObj.getWorldPosition(new THREE.Vector3());
     const toHer = tangentToward(npcPos3, up, her.position);
-    dialog.npcObj.quaternion.copy(quatFromBasis(up, toHer));
+    const toCamera = tangentToward(npcPos3, up, goal);
+    dialog.npcObj.quaternion.copy(quatFromBasis(up, toHer.lerp(toCamera, 0.28).normalize()));
   }
-  const side = new THREE.Vector3().crossVectors(up, toNpc).normalize().multiplyScalar(CONVO_BEANIE_LEFT);
-  const mid  = new THREE.Vector3().addVectors(her.position, npc).multiplyScalar(0.5);
-  // floor the effective gap well above realistic close-talk distances so the
-  // two-shot still composes cleanly (both in frame) even when she walked up
-  // right next to the NPC before pressing space — bumped a touch further
-  // (6.0->7.2) since small NPCs (the plaza pigeons) still read as cramped
-  // right at 6.0.
-  const gap  = Math.max(7.2, her.position.distanceTo(npc));
-  const goal = new THREE.Vector3().copy(mid)
-    .addScaledVector(side, gap*0.42 + 2.0)
-    .addScaledVector(up, gap*0.08 + 1.15)
-    .addScaledVector(toNpc, -gap*0.12 - 0.4);
-  // Speaker-focused composition like Genshin, but only the LOOK target moves;
-  // the camera never crosses the character line. While response choices are
-  // open, keep the NPC featured until Beanie actually picks a reply.
-  const beanieFocus = isBeanieSpeaking() && !dialog.awaitingChoice;
-  const focus = new THREE.Vector3().copy(mid).lerp(beanieFocus ? her.position : npc, 0.72);
-  goal.addScaledVector(toNpc, beanieFocus ? -gap*0.2 : gap*0.2);
-  const look = focus.addScaledVector(up, 1.05);
-  // A slower ease keeps the hand-off from a preceding cinematic shot from
-  // snapping into the dialogue two-shot.
-  camPos.lerp(goal, 1 - Math.exp(-2.8*dt));
-  camUp.lerp(up, 1 - Math.exp(-2.6*dt)).normalize();
+
+  // A soft ease reads as a deliberate cut/dolly between speakers while the
+  // fixed side vector prevents the forbidden POV flip.
+  camPos.lerp(goal, 1 - Math.exp(-3.25*dt));
+  camUp.lerp(up, 1 - Math.exp(-2.8*dt)).normalize();
   camera.position.copy(camPos);
   camera.up.copy(camUp);
   camera.lookAt(look);
-  camera.fov += (40 - camera.fov) * Math.min(1, dt*6);
+  camera.fov += (36 - camera.fov) * Math.min(1, dt*6);
   camera.updateProjectionMatrix();
 }
 // Hide props near Beanie during a conversation so nothing covers her; the
 // speaker (npcObj) and the planet base are never hidden.
 let hiddenObstacles = [];
-function hideNearbyObstacles(npcObj){
+function hideNearbyObstacles(npcObj, extraVisible=[]){
   restoreObstacles();
   const b = bodies[curI]; if (!b || !b.group) return;
   const hp = her.position, tmp = new THREE.Vector3();
   b.group.children.forEach((c, i) => {
-    if (i === 0 || !c.visible || c === npcObj) return;   // skip base sphere + the speaker
+    if (i === 0 || !c.visible || c === npcObj || extraVisible.includes(c)) return;   // skip base sphere + story cast
     c.getWorldPosition(tmp);
     if (tmp.distanceTo(hp) < 7.5){ c.visible = false; hiddenObstacles.push(c); }
   });
@@ -5224,8 +5420,9 @@ function startDialog(lines, onDone, opts={}){
   dialogEl.classList.remove('hidden');
   dialog = { lines, idx:0, onDone, coo: opts.coo !== false, npcPos: opts.npcPos || null, npcObj: opts.npcObj || null,
     defaultSpeaker: opts.speaker || 'Percy 🐦', chosenResponses:new Map(), awaitingChoice:false };
-  hideNearbyObstacles(opts.npcObj || null);   // clear props so nothing covers Beanie
-  enterConversationStage(opts.npcObj || null);
+  const extraVisible = opts.extraVisible || [];
+  hideNearbyObstacles(opts.npcObj || null, extraVisible);   // clear props so nothing covers Beanie
+  enterConversationStage(opts.npcObj || null, extraVisible);
   showDialogLine();
 }
 function percyWorldPos(out){
@@ -5761,6 +5958,19 @@ function updateWalk(dt){
   orientation.normalize();
   u.inner.rotation.y *= Math.exp(-10*dt);
   updatePose();
+  updateDoodlesFollow(dt);
+  // Bringing Doodles back is the one plaza objective that resolves by
+  // physically arriving together. Wait until BOTH of them are near Percy,
+  // then take control for the slow reunion scene automatically.
+  if (curI === PIGEON_I && plazaQuest.phase === 'bring-doodles' && plazaQuest.doodles){
+    const percyPos = percyWorldPos(new THREE.Vector3());
+    const doodlesPos = plazaQuest.doodles.getWorldPosition(new THREE.Vector3());
+    if (her.position.distanceTo(percyPos) < DOODLES_REUNION_TRIGGER
+      && doodlesPos.distanceTo(percyPos) < DOODLES_REUNION_TRIGGER + 3.0){
+      startDoodlesReunion();
+      return;
+    }
+  }
   // footsteps synced to the walk cycle
   if (u.moving && !u.sitting){
     const step = Math.floor(u.walkP/Math.PI);
@@ -6403,7 +6613,7 @@ function step(dt){
   // does it); this rule's only job is guaranteeing it can't stay/become
   // visible during an actual cutscene.
   const isCutsceneState = state === 'intro' || state === 'fly' || state === 'landing'
-    || state === 'percyfly' || state === 'finale' || state === 'cukeReveal' || state === 'theend'
+    || state === 'doodlesreunion' || state === 'percyfly' || state === 'finale' || state === 'cukeReveal' || state === 'theend'
     || state === 'bredgreet';
   if (isCutsceneState) missionEl.classList.add('hidden');
 
@@ -6432,6 +6642,7 @@ function step(dt){
   else if (state === 'fly')      updateFlight(dt);
   else if (state === 'landing')  updateLanding(dt);
   else if (state === 'talk')     { updateTalkCam(dt); updateDialogTyping(dt); }
+  else if (state === 'doodlesreunion') updateDoodlesReunion(dt);
   else if (state === 'percyfly') updatePercyFlight(dt, t);
   else if (state === 'finale')   updateFinale(dt, t);
   else if (state === 'bredgreet') updateBredGreet(dt);
