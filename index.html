@@ -66,7 +66,8 @@
     max-width:80vw;width:max-content;text-align:center;
     background:rgba(255,255,255,.92);color:#3a3048;
     box-shadow:0 8px 26px rgba(0,0,0,.25);
-    opacity:0;transition:opacity .35s,transform .35s;pointer-events:none}
+    opacity:0;transition:top .55s ease,opacity .35s,transform .35s;pointer-events:none}
+  #noticeBubble.portrait{top:11%}
   #noticeBubble.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
   #noticeBubble::after{content:'';position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);
     border-width:10px 9px 0 9px;border-style:solid;border-color:rgba(255,255,255,.92) transparent transparent transparent}
@@ -4732,15 +4733,17 @@ function startNotice(targetPos, subject, npcObj=null){
   notice = { t:0, targetPos:targetPos.clone(), npcObj, sideSign, faceObj,
     faceQuaternion:faceObj ? faceObj.quaternion.clone() : null };
   her.userData.moving = false;
-  // Preserve the resulting gameplay facing after the portrait hands control
-  // back, even though the notice camera itself is no longer a follow camera.
-  const up = herUp(tmpV), fwd = herFwd(tmpV2);
+  // Beanie genuinely turns toward the person she noticed. The portrait then
+  // follows that same sightline, and normal gameplay resumes facing them.
+  const up = herUp(tmpV);
   const toward = tangentToward(her.position, up, targetPos);
-  camYaw = Math.atan2(V().crossVectors(fwd, toward).dot(up), fwd.dot(toward));
+  orientation.copy(quatFromBasis(up, toward));
+  updatePose();
+  camYaw = 0;
   camPitch = 0.22;
   state = 'notice';
   noticeBubbleEl.textContent = `💭 Hmm… I should go talk to ${subject}!`;
-  noticeBubbleEl.classList.add('show');
+  noticeBubbleEl.classList.add('portrait', 'show');
 }
 function updateNotice(dt){
   notice.t += dt;
@@ -4783,7 +4786,7 @@ function updateNotice(dt){
   camera.fov += (36 - camera.fov)*Math.min(1, dt*5);
   camera.updateProjectionMatrix();
   if (notice.t > NOTICE_DURATION){
-    noticeBubbleEl.classList.remove('show');
+    noticeBubbleEl.classList.remove('portrait', 'show');
     restoreNoticeFacing();
     notice = null;
     state = 'walk';
@@ -5629,8 +5632,9 @@ function resetEmeraldMeadowForQA(){
   const b = bodies[2], def = WORLD_DEFS[2], wr = worldRefs.cucumber;
   // Cancel whichever cinematic/input state was active so repeated presses
   // always converge on exactly one clean Emerald landing sequence.
+  restoreNoticeFacing();
   flight = null; cukeReveal = null; notice = null; percyFly = null; bredGreet = null;
-  noticeBubbleEl.classList.remove('show');
+  noticeBubbleEl.classList.remove('portrait', 'show');
   planetTitleEl.classList.remove('show');
   restoreObstacles();
   // Remove any staggered sprouts left running by an interrupted reveal.
