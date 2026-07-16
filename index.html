@@ -5224,12 +5224,20 @@ function spawnChicagoMessenger(onLanded){
     const m = chicagoMessenger;
     if (!m || m.pg !== pg) return;
     const w = pg.userData.wings;
-    if (w) for (let i = 0; i < 2; i++) w[i].rotation.z = (i===0?1:-1)*Math.sin(t*(m.landed?7:16))*0.95;
-    if (!m.landed){
+    if (w) for (let i = 0; i < 2; i++) w[i].rotation.z = (i===0?1:-1)*Math.sin(t*((m.landed||m.settling)?7:16))*0.95;
+    if (!m.landed && !m.settling){
       m.t += dt/1.15;
       const k = Math.min(1, m.t), e = k*k*(3-2*k);
       pg.position.lerpVectors(m.startPos, m.landPos, e);
-      if (k >= 1){ m.landed = true; const cb = m.onLanded; m.onLanded = null; if (cb) cb(); }
+      // Used to set landed=true (which fires onLanded()/starts the dialogue)
+      // the instant k hit 1 — she'd swoop down and start talking in the same
+      // frame, no beat to actually register "oh, a pigeon landed" first. A
+      // short settle pause (catch breath, fold wings) before it begins.
+      if (k >= 1) m.settling = true;
+    } else if (m.settling){
+      pg.position.copy(m.landPos).addScaledVector(m.groundN, -0.02 + Math.sin(t*2.2)*0.012);
+      m.settleT = (m.settleT || 0) + dt;
+      if (m.settleT > 0.85){ m.settling = false; m.landed = true; const cb = m.onLanded; m.onLanded = null; if (cb) cb(); }
     } else {
       // planted flush on the ground — feet down, no hover (just a barely-there settle)
       pg.position.copy(m.landPos).addScaledVector(m.groundN, -0.02 + Math.sin(t*2.2)*0.012);

@@ -1,4 +1,98 @@
 # ROADMAP
+- [x] Landing-camera reference match, Bred stand-and-wave scene, a real
+      ending, journal redesign, messenger pacing (2026-07-16): Bred rejected
+      the previous round's 90°-rolled landing camera outright ("아니 이게 아니라")
+      and gave a Blender reference screenshot instead — a level, near-ground,
+      3/4-back shot of her lying pose with a gentle horizon curve, nothing
+      like the steep Dutch-angle roll that shipped before. Also asked for
+      Bred to stand beside the couch instead of sitting on it (with a proper
+      "notice him, then he waves" beat), a real closing cutscene after his
+      birthday card — Beanie and Bred standing together holding hands under
+      a "THE END" title, same treatment every world's arrival gets — a
+      genuine redesign of the journal interface, and a slower messenger-
+      pigeon landing beat. The Garden flower-sway request in this same
+      message was explicitly deferred to a scheduled 4am pass (see the entry
+      below — it ended up running mid-session, since a scheduled task reads
+      whatever is on disk at fire time, not a snapshot from when it was
+      requested, and picked up everything below already in place).
+      - **Landing camera**: dropped the 90° image roll entirely rather than
+        adjusting its angle — re-reading the reference, the dramatic diagonal
+        was never supposed to come from rotating the CAMERA (a real Dutch
+        angle rolls the horizon too, which the reference clearly doesn't
+        have); it comes from her own fallen body reading diagonally against
+        an otherwise level shot. `camera.up` is now just her true up vector,
+        matching every other camera in the game. Repositioned lower/closer
+        behind-and-to-one-side for a 3/4 back angle, and flipped which side
+        the camera favors so her head lands on the right of frame (reference:
+        head-right/legs-left) instead of the left.
+      - **Bred stands beside the couch**: moved off the cushion to stand on
+        the ground next to it (Percy and Chippy still sit — only Bred was
+        asked to stand). His model has no rig at all (a single fused mesh,
+        confirmed by traversing it live), so "happily waving" couldn't be a
+        real arm animation — it's a whole-body rock/tilt instead, triggered
+        once she's close. Reused the existing per-world `guideFn`/
+        `guideLabel` compass system (previously unset for the Garden, so she
+        got zero notice/compass guidance toward him at all) to get the
+        generic "spotted them" glance for free, then added a second, closer-
+        range beat (`startBredGreet`/`updateBredGreet`, `BRED_GREET_DIST=9`)
+        specifically for his wave, ahead of the existing 5.5-unit finale-
+        embrace trigger — notice, then wave, then embrace, in that order.
+      - **A real ending**: after the birthday card's message finishes typing,
+        a new "💛 close the letter" button (previously the ONLY option there
+        was an instant restart) hides the card and starts `startTheEnd()` —
+        the same orbit-camera + big-title treatment every world's arrival
+        gets (`showPlanetTitle`), pointed at Beanie and Bred standing
+        together instead of a planet, titled "THE END." **Hit the exact same
+        position bug documented elsewhere in this file's spirit but never
+        actually written down before now**: `updatePose()` unconditionally
+        rebuilds `her.position` from `orientation` + the body's own
+        center/radius every time it's called — setting `her.position`
+        directly and then calling `updatePose()` right after just gets
+        silently overwritten, collapsing her back onto emptiness or, in this
+        case, exactly onto Bred's own position (confirmed live: a 0.75-unit
+        intended offset came out as 0.09 actual). Fixed by deriving a
+        genuinely distinct point's own up-vector FIRST (`bp + side*0.9`, then
+        its own `normalize(pos - center)`), and building her orientation from
+        THAT, so `updatePose()` lands her at the right spot instead of
+        re-deriving Bred's. Neither character has a rig for actually clasping
+        hands, so it's sold with close standing proximity plus a couple of
+        drifting hearts between them — reused the finale's own heart-particle
+        system rather than inventing a new one. The old "click to continue"
+        prompt text now reads "click to play again" and reloads, since
+        continuing to gameplay doesn't apply once the game has actually
+        ended.
+      - **Journal redesign**: the two-page-book structure from an earlier
+        round was structurally already a book (rotateY hinge, spine), but
+        with no cover, no page-stack depth, and flat colors it read as "two
+        beige rounded rectangles," not a keepsake journal. Added a proper
+        hardcover shell (`#journalCover`, warm leather-brown gradient with an
+        inset gold border) that pops in before the pages swing open (staged
+        with a `transition-delay` so the two motions read as distinct beats
+        instead of happening simultaneously), a woodgrain spine with
+        stitching detail, a pink ribbon bookmark peeking out the top, and
+        layered box-shadows on each page's outer edge to suggest a stack of
+        paper rather than one flat card.
+      - **Messenger pigeon pacing**: the swoop-down landing used to call the
+        "start talking" callback in the exact same frame `k` (the landing
+        lerp progress) crossed 1 — she'd touch down and start talking with
+        zero beat to register a pigeon had even landed. Added a 0.85s
+        settle pause (folded wings, small idle bob) between landing and the
+        letter conversation actually starting.
+      - **Testing gotcha worth keeping**: this round's browser tests kept
+        reading `document.documentElement.outerHTML` to confirm a fresh
+        reload actually picked up the latest edit before trusting any
+        result — the local dev-server tab silently served a stale cached
+        copy more than once mid-session despite repeated `navigate()` calls
+        to the same URL; only a brand new tab (`tabs_create` + navigate)
+        reliably picked up new bytes. Separately, real-wall-clock-gated
+        things (the birthday card's `setInterval` typewriter, and this
+        round's new messenger settle timer while testing via `waitFor`)
+        crawled far slower than requested with multiple background tabs
+        open — closing the unused ones and switching dt-gated checks to
+        `pump()` instead of `waitFor` resolved it; `requestAnimationFrame`-
+        driven game state apparently throttles hard in a backgrounded tab
+        even when plain `setTimeout` in the same tab still fires close to
+        on-time.
 - [x] Garden flowers sway away from Beanie as she walks by (2026-07-16):
       Bred asked (2026-07-15, explicitly deferred to a later pass) for the
       flower field to bend away from Beanie "like how a person would walk by a
