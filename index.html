@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Beanie's Little Universe 💫</title>
+<title>Beanie &amp; Bred World 🐰🍞🌎🩷</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=Playfair+Display:wght@700;800&family=Comfortaa:wght@600;700&family=Bungee&family=Cormorant+Garamond:wght@700&display=swap" rel="stylesheet">
@@ -27,6 +27,9 @@
   #introLogo{width:clamp(280px,42vw,520px);max-width:88vw;height:auto;
     filter:drop-shadow(0 6px 30px rgba(0,0,0,.35)) drop-shadow(0 0 60px rgba(150,180,255,.25));
     animation:logoFloat 4.2s ease-in-out infinite}
+  #gameSubtitle{margin-top:-4px;font-family:'Comfortaa','Arial Rounded MT Bold',sans-serif;
+    font-size:clamp(21px,3.2vw,32px);font-weight:700;letter-spacing:.06em;color:#fff1f6;
+    text-shadow:0 3px 14px rgba(92,52,105,.62),0 0 24px rgba(255,172,210,.45)}
   @keyframes logoFloat{50%{transform:translateY(-10px)}}
   #pressSpace{margin-top:2.4vh;font-size:clamp(22px,4.2vw,34px);font-weight:700;color:#fff6e6;
     letter-spacing:1.5px;animation:pulseTxt 1.6s ease-in-out infinite}
@@ -343,7 +346,8 @@
 <body>
 
 <div id="intro">
-  <img id="introLogo" src="./logo.png" alt="Beanie & Bred"/>
+  <img id="introLogo" src="./logo.png" alt="Beanie &amp; Bred World 🐰🍞🌎🩷"/>
+  <div id="gameSubtitle">World 🐰🍞🌎🩷</div>
   <div id="pressSpace">press SPACE to start</div>
 </div>
 
@@ -455,6 +459,7 @@ function loadModelFull(url){        // like loadModel, but keeps gltf.animations
 }
 
 /* ═══════════════ EDIT ME ═══════════════ */
+const GAME_TITLE = 'Beanie & Bred World 🐰🍞🌎🩷';
 const CONFIG = {
   herName:  'Rachel 🐰',
   herNick:  'Beanie',
@@ -472,7 +477,7 @@ Happy birthday, my Beanie. 🤍`,
 };
 /* ═══════════════════════════════════════ */
 
-document.title = `${CONFIG.herNick}'s Little Universe 💫`;
+document.title = GAME_TITLE;
 document.getElementById('cardTitle').textContent = `Happy Birthday, ${CONFIG.herName} ❤️`;
 document.getElementById('cardSig').textContent = `${CONFIG.yourName}`;
 

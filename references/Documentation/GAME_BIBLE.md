@@ -1,4 +1,4 @@
-# GAME BIBLE — Beanie's Little Universe
+# GAME BIBLE — Beanie & Bred World 🐰🍞🌎🩷
 
 ## Why
 A birthday gift for exactly one person: Beanie (Rachel). The game is a love letter

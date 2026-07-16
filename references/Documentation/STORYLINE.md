@@ -1,4 +1,4 @@
-# STORYLINE — Beanie's Little Universe
+# STORYLINE — Beanie & Bred World 🐰🍞🌎🩷
 
 The authoritative, current narrative design doc. Supersedes the "Story flow"
 section of `GAME_BIBLE.md` (which is now a stale early pitch — worlds/radii
