@@ -194,6 +194,18 @@
     background:var(--tape,rgba(255,209,102,.7));opacity:.62;border-radius:1px;
     box-shadow:0 1px 2px rgba(0,0,0,.12)}
   .jsticker.badge.got::before{content:none}   /* a pinned badge doesn't need washi tape */
+  /* real photos, taped in like an actual Polaroid - white card, thick
+     bottom border for the caption (the filename itself, exactly as typed) */
+  .jpolaroid{position:absolute;transform:translate(-50%,-50%) rotate(var(--rot));
+    aspect-ratio:.82;background:#fff;box-sizing:border-box;padding:6% 6% 25% 6%;
+    box-shadow:0 10px 22px rgba(0,0,0,.32),0 2px 5px rgba(0,0,0,.18)}
+  .jpolaroid .jphoto{width:100%;height:100%;object-fit:cover;display:block;background:#ddd}
+  .jpolaroid .jcaption{position:absolute;left:6%;right:6%;bottom:5%;text-align:center;
+    font-family:'Caveat',cursive;font-weight:600;font-size:15px;line-height:1.15;color:#3a3530;
+    overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .jpolaroid::before{content:'';position:absolute;top:-5%;left:50%;transform:translateX(-50%) rotate(-4deg);
+    width:34%;height:9%;background:var(--tape,rgba(255,209,102,.7));opacity:.68;border-radius:1px;
+    box-shadow:0 1px 2px rgba(0,0,0,.12)}
   .jpageFoot{font-size:11.5px;opacity:.6;text-align:right;margin-top:4px}
   /* side-by-side halves are too cramped on a narrow phone screen - stack
      them instead so each gets the FULL width (taller book to compensate) */
@@ -6968,7 +6980,7 @@ const STICKER_FILES = {
   cucumber:'meadow stickers/cucumber-sticker.png', boba:'meadow stickers/boba-sticker.png',
   burger:'meadow stickers/burgers-sticker.png', icecream:'meadow stickers/ice cream-sticker.png',
   pizza:'meadow stickers/pizza-sticker.png', fries:'meadow stickers/frenchfries-sticker.png',
-  popsicle:'meadow stickers/popsicle-sticker.png',
+  popsicle:'meadow stickers/popsicle-sticker.png', donut:'meadow stickers/donut sticker.png',
 };
 const STICKER_LABELS = { chippy:'Chippy', bbak:'bbak', percy:'Percy', vanessa:'Vanessa',
   nibbles:'Nibbles', alfred:'Alfred', sam:'Sam', sunny:'Sunny', otto:'Otto', mochi:'Mochi',
@@ -6978,7 +6990,7 @@ const STICKER_LABELS = { chippy:'Chippy', bbak:'bbak', percy:'Percy', vanessa:'V
   book1:'Knits for Cold Cities', book2:'Pigeons: A Love Story', book3:'The Deep Blue: a Whale Tale',
   book4:'A Field Guide to Cucumbers', book5:'Percy the Brave',
   cucumber:'Cucumber', boba:'Boba', burger:'Burger', icecream:'Ice Cream', pizza:'Pizza',
-  fries:'Fries', popsicle:'Popsicle' };
+  fries:'Fries', popsicle:'Popsicle', donut:'Donut' };
 // One themed scrapbook PAGE per planet — each with its own font/texture/accent
 // (see the .theme-* CSS) and its own collage of the friends that live there.
 const JOURNAL_PAGES = [
@@ -6987,32 +6999,74 @@ const JOURNAL_PAGES = [
     decor:['📚','📖','✒️','🔖','📚'], chars:['chippy','book1','book2','book3','book4','book5'],
     entry:[`Bred's letter found me here, carried by the most out-of-breath little pigeon I've ever met.`,
       `Chippy is, somehow, an actual potato in an actual newsboy cap, napping on his own pile of books. He gave me this very notebook and told me to fill it up.`,
-      `Found five books hidden around the stacks for him, one very sleepy new friend, and the start of everything.`] },
+      `Found five books hidden around the stacks for him, one very sleepy new friend, and the start of everything.`],
+    photos:['mainstacks stickers/birthday party with chippy.jpg', 'mainstacks stickers/our walk from mainstacks.jpg'] },
   { key:'cucumber', theme:'theme-cucumber', title:'Emerald Meadow', kicker:'Chapter II · 🌱',
     tag:'a whole planet ringed in cucumbers', tape:'rgba(150,198,108,.6)',
     decor:['🥒','🌿','🍃','☘️','🥒','🌱'],
-    chars:['bbak','cucumber','boba','burger','icecream','pizza','fries','popsicle'],
+    chars:['bbak','cucumber','boba','burger','icecream','pizza','fries','popsicle','donut'],
     entry:[`An entire planet ringed in cucumbers. I did not ask questions.`,
       `bbak is a real polar bear who is somehow always melting. I brought him pizza, boba, popsicles — all wrong, he was very clear about that.`,
-      `One perfect cucumber later, we were friends for life.`] },
+      `One perfect cucumber later, we were friends for life.`],
+    photos:[`meadow stickers/bbak's birth.jpeg`, 'meadow stickers/pizza at 3 pm.jpg', 'meadow stickers/pizza at capecod!.JPG'] },
   { key:'pigeon', theme:'theme-pigeon', title:'Pigeon Plaza', kicker:'Chapter III · 🕊️',
     tag:'so, SO many birds to say hi to', tape:'rgba(150,176,216,.66)',
     decor:['🪶','🕊️','🌰','🪶'], chars:['percy','vanessa','nibbles','alfred','sam','sunny','otto','mochi','buckle','doodles'],
     entry:[`So many birds. SO many. Percy was looking for a lost friend, and I met the whole plaza trying to help — Vanessa, Nibbles, Alfred, Sam, Sunny, Otto, Mochi, Buckle.`,
       `Every single one of them was convinced I'd come just for them. (Fair, honestly.)`,
-      `Then Doodles — one lonely dodo who thought no one was coming for him. We told him he had a family now. He grew Percy huge enough to carry us both home.`] },
+      `Then Doodles — one lonely dodo who thought no one was coming for him. We told him he had a family now. He grew Percy huge enough to carry us both home.`],
+    photos:[] },
   { key:'garden', theme:'theme-garden', title:'The Garden', kicker:'Chapter IV · 💐',
     tag:'happy birthday, Beanie 🤍', tape:'rgba(240,168,194,.62)',
     decor:['🌸','💐','🌷','🦋','🌼'], chars:['bred'],
     entry:[`And then — Bred. Standing by the couch like he'd been waiting the whole time, because he had.`,
       `He built me an entire universe, one little world at a time, just so I'd have somewhere to leap to.`,
-      `I don't think I've ever felt this loved. Happy birthday to me, I guess. 🤍`] },
+      `I don't think I've ever felt this loved. Happy birthday to me, I guess. 🤍`],
+    photos:[] },
 ];
 const JOURNAL_TOTAL = JOURNAL_PAGES.reduce((n, p) => n + p.chars.length, 0);
+// Flatten JOURNAL_PAGES into individual two-page SPREADS - normally just one
+// (chapter text + sticker collage), but a planet with real photos gets a
+// second, dedicated spread for them too rather than cramming everything onto
+// one page ("everything has to be visible"). journalPageIndex indexes into
+// THIS flat list, not directly into JOURNAL_PAGES.
+const JOURNAL_SPREADS = JOURNAL_PAGES.flatMap((page) => {
+  const spreads = [{ page, part:'main' }];
+  if (page.photos && page.photos.length) spreads.push({ page, part:'photos' });
+  return spreads;
+});
 // Encode each path segment separately - some sticker files live in a
 // subfolder (e.g. 'meadow stickers/cucumber-sticker.png'), and a plain
 // encodeURIComponent on the whole string would also escape the '/' itself.
 function stickerURL(file){ return './stickers/' + file.split('/').map(encodeURIComponent).join('/'); }
+// Bred's own instruction: the photo's filename (minus extension) IS its
+// caption, exactly as typed - no reformatting.
+function captionFromFile(file){
+  return file.slice(file.lastIndexOf('/')+1).replace(/\.[^.]+$/, '');
+}
+// Real photos taped in like actual Polaroids. Reuses collagePlace()'s
+// margin-safe, rotation-aware placement (same guarantees as the sticker
+// collage) but with its own size range - there are only ever a couple of
+// photos per half-page, so they can sit big rather than needing a dense grid.
+function renderPhotoCollage(container, photos, seed, tape){
+  if (!photos.length) return;
+  const opts = photos.length === 1 ? { hero:55 } : { cols:2, sizeMin:34, sizeMax:40, rotMax:10 };
+  const pos = collagePlace(photos.length, seed, opts);
+  photos.forEach((file, i) => {
+    const p = document.createElement('div');
+    p.className = 'jpolaroid';
+    p.style.cssText = `left:${pos[i].x}%;top:${pos[i].y}%;width:${pos[i].size}%;--rot:${pos[i].rot}deg;--tape:${tape}`;
+    const img = document.createElement('img');
+    img.className = 'jphoto';
+    img.src = stickerURL(file); img.alt = captionFromFile(file);
+    p.appendChild(img);
+    const cap = document.createElement('div');
+    cap.className = 'jcaption';
+    cap.textContent = captionFromFile(file);
+    p.appendChild(cap);
+    container.appendChild(p);
+  });
+}
 // In-memory only, on purpose - the journal is meant to reset to empty on
 // every reload/restart, not persist across sessions.
 let metFriends = new Set();
@@ -7123,45 +7177,64 @@ const JOURNAL_LAYOUT = {
   garden:   { hero:64 },
 };
 function renderJournalPage(){
-  const page = JOURNAL_PAGES[journalPageIndex];
-  // left page: her own handwritten account of that world
-  journalPageLEl.className = 'jpage jpage-l ' + page.theme;
-  journalPageLEl.innerHTML =
-    `<div class="jpageKicker">${page.kicker}</div>
-     <div class="jpageTitle">${page.title}</div>
-     <div class="jpageTag">${page.tag}</div>
-     <div class="jjournal">${page.entry.map(p => `<p>${p}</p>`).join('')}</div>`;
-  // right page: the sticker collage
-  journalPageREl.className = 'jpage jpage-r ' + page.theme;
-  journalPageREl.innerHTML =
-    `<div class="jcollage"></div>
-     <div class="jpageFoot">${page.chars.filter(k=>metFriends.has(k)).length} / ${page.chars.length} collected here</div>`;
-  const collage = journalPageREl.querySelector('.jcollage');
-  // faint themed doodles behind the stickers
-  const decorPos = collagePlace(page.decor.length, journalPageIndex*10+3, { sizeMin:10, sizeMax:22, rotMax:40, wide:1.4 });
-  page.decor.forEach((emoji, i) => {
-    const d = document.createElement('div');
-    d.className = 'jdoodle';
-    d.style.cssText = `left:${decorPos[i].x}%;top:${decorPos[i].y}%;font-size:${18+decorPos[i].size}px;--rot:${decorPos[i].rot}deg`;
-    d.textContent = emoji;
-    collage.appendChild(d);
-  });
-  // the character stickers
-  const pos = collagePlace(page.chars.length, journalPageIndex*100+17, JOURNAL_LAYOUT[page.key]);
-  page.chars.forEach((key, i) => {
-    const got = metFriends.has(key);
-    const st = document.createElement('div');
-    st.className = 'jsticker ' + (got ? 'got' : 'locked') + (page.key === 'pigeon' ? ' badge' : '');
-    st.style.cssText = `left:${pos[i].x}%;top:${pos[i].y}%;width:${pos[i].size}%;aspect-ratio:1;--rot:${pos[i].rot}deg;--tape:${page.tape}`;
-    const img = document.createElement('img');
-    img.src = stickerURL(STICKER_FILES[key]); img.alt = got ? STICKER_LABELS[key] : '???';
-    st.appendChild(img);
-    collage.appendChild(st);
-  });
-  journalPageLabelEl.textContent = `${journalPageIndex+1} / ${JOURNAL_PAGES.length} · ${metFriends.size}/${JOURNAL_TOTAL} collected`;
+  const spread = JOURNAL_SPREADS[journalPageIndex];
+  const page = spread.page;
+  if (spread.part === 'main'){
+    // left page: her own handwritten account of that world
+    journalPageLEl.className = 'jpage jpage-l ' + page.theme;
+    journalPageLEl.innerHTML =
+      `<div class="jpageKicker">${page.kicker}</div>
+       <div class="jpageTitle">${page.title}</div>
+       <div class="jpageTag">${page.tag}</div>
+       <div class="jjournal">${page.entry.map(p => `<p>${p}</p>`).join('')}</div>`;
+    // right page: the sticker collage
+    journalPageREl.className = 'jpage jpage-r ' + page.theme;
+    journalPageREl.innerHTML =
+      `<div class="jcollage"></div>
+       <div class="jpageFoot">${page.chars.filter(k=>metFriends.has(k)).length} / ${page.chars.length} collected here</div>`;
+    const collage = journalPageREl.querySelector('.jcollage');
+    // faint themed doodles behind the stickers
+    const decorPos = collagePlace(page.decor.length, JOURNAL_PAGES.indexOf(page)*10+3, { sizeMin:10, sizeMax:22, rotMax:40, wide:1.4 });
+    page.decor.forEach((emoji, i) => {
+      const d = document.createElement('div');
+      d.className = 'jdoodle';
+      d.style.cssText = `left:${decorPos[i].x}%;top:${decorPos[i].y}%;font-size:${18+decorPos[i].size}px;--rot:${decorPos[i].rot}deg`;
+      d.textContent = emoji;
+      collage.appendChild(d);
+    });
+    // the character stickers
+    const pos = collagePlace(page.chars.length, JOURNAL_PAGES.indexOf(page)*100+17, JOURNAL_LAYOUT[page.key]);
+    page.chars.forEach((key, i) => {
+      const got = metFriends.has(key);
+      const st = document.createElement('div');
+      st.className = 'jsticker ' + (got ? 'got' : 'locked') + (page.key === 'pigeon' ? ' badge' : '');
+      st.style.cssText = `left:${pos[i].x}%;top:${pos[i].y}%;width:${pos[i].size}%;aspect-ratio:1;--rot:${pos[i].rot}deg;--tape:${page.tape}`;
+      const img = document.createElement('img');
+      img.src = stickerURL(STICKER_FILES[key]); img.alt = got ? STICKER_LABELS[key] : '???';
+      st.appendChild(img);
+      collage.appendChild(st);
+    });
+  } else {
+    // photos spread: a small recurring header on the left so it's still
+    // identifiable at a glance, real captioned photos taped across both
+    // halves (split roughly evenly between them)
+    journalPageLEl.className = 'jpage jpage-l ' + page.theme;
+    journalPageLEl.innerHTML =
+      `<div class="jpageKicker">${page.kicker}</div>
+       <div class="jpageTitle">${page.title}</div>
+       <div class="jpageTag">a few real photos along the way</div>
+       <div class="jcollage"></div>`;
+    journalPageREl.className = 'jpage jpage-r ' + page.theme;
+    journalPageREl.innerHTML = `<div class="jcollage"></div>`;
+    const pageIdx = JOURNAL_PAGES.indexOf(page);
+    const half = Math.ceil(page.photos.length / 2);
+    renderPhotoCollage(journalPageLEl.querySelector('.jcollage'), page.photos.slice(0, half), pageIdx*100+41, page.tape);
+    renderPhotoCollage(journalPageREl.querySelector('.jcollage'), page.photos.slice(half), pageIdx*100+61, page.tape);
+  }
+  journalPageLabelEl.textContent = `${journalPageIndex+1} / ${JOURNAL_SPREADS.length} · ${metFriends.size}/${JOURNAL_TOTAL} collected`;
 }
 function turnJournalPage(delta){
-  journalPageIndex = (journalPageIndex + delta + JOURNAL_PAGES.length) % JOURNAL_PAGES.length;
+  journalPageIndex = (journalPageIndex + delta + JOURNAL_SPREADS.length) % JOURNAL_SPREADS.length;
   renderJournalPage();
   journalPageLEl.classList.remove('turning'); void journalPageLEl.offsetWidth; journalPageLEl.classList.add('turning');
   journalPageREl.classList.remove('turning'); void journalPageREl.offsetWidth; journalPageREl.classList.add('turning');
@@ -7169,7 +7242,7 @@ function turnJournalPage(delta){
 }
 function worldToJournalPage(){
   const key = { 1:'books', 2:'cucumber', 3:'pigeon', 4:'garden' }[curI];
-  const idx = JOURNAL_PAGES.findIndex(p => p.key === key);
+  const idx = JOURNAL_SPREADS.findIndex(s => s.page.key === key && s.part === 'main');
   return idx < 0 ? 0 : idx;
 }
 journalBtn.addEventListener('click', () => {
