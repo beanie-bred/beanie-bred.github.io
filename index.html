@@ -2610,6 +2610,9 @@ function buildPigeons(g, R, ctx){
   // Percy remains the easy-to-find central character. The named pigeons and
   // doves are placed on a much wider ring around this exact point below.
   const percyN = dirNear(plazaN, 0.2);
+  // Only named story friends are solid. The hundreds of anonymous pigeons
+  // deliberately stay passable so the plaza never becomes a crowded maze.
+  const colliders = [];
   // plaza tiles + fountain
   for (let i = 0; i < 8; i++){
     const tile = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.95, 0.14, 8),
@@ -2785,6 +2788,8 @@ function buildPigeons(g, R, ctx){
   const percyHolder = new THREE.Group(); percyHolder.add(percy);
   percyHolder.userData.dialogueBird = true;
   placeOn(g, percyHolder, percyN, R, 0.02);
+  addCollider(colliders, percyN, 1.75, R);
+  percyHolder.userData.collider = colliders[colliders.length - 1];
   percyHolder.userData.percy = percy;
   animators.push((t) => {
     if (percyHolder.userData.flying) return;
@@ -2793,7 +2798,7 @@ function buildPigeons(g, R, ctx){
     percy.position.y += (0 - percy.position.y)*0.18;
     percy.rotation.y += (0 - percy.rotation.y)*0.18;
   });
-  return { percyHolder, percyN, plazaN, crowd, flying };
+  return { percyHolder, percyN, plazaN, crowd, flying, colliders };
 }
 // Nearby crowd pigeons scatter outward (frightened by the impact) then
 // resettle a moment later - unlike percyScatter (beginPercyFlight), this is
@@ -3309,6 +3314,7 @@ const GARDEN_I = 4, PIGEON_I = 3;
   bodies[1].colliders = worldRefs.books.colliders;
   worldRefs.cucumber = buildCucumber(bodies[2].group, bodies[2].r);
   worldRefs.pigeon = buildPigeons(bodies[PIGEON_I].group, bodies[PIGEON_I].r);
+  bodies[PIGEON_I].colliders = worldRefs.pigeon.colliders;
   worldRefs.garden = buildGarden(bodies[GARDEN_I].group, bodies[GARDEN_I].r,
     { gardenLandN: bodies[GARDEN_I].landN });
   // Drives both the walk-screen "find Bred, N steps away" compass chip AND
@@ -3624,7 +3630,8 @@ let cukeReveal = null;
 function startCukeRevealCutscene(){
   state = 'cukeReveal';
   guideEl.classList.remove('show'); promptEl.classList.remove('show');
-  cukeReveal = { t:0, basisA:null, basisB:null, surpriseShown:false };
+  noticeBubbleEl.classList.remove('show');
+  cukeReveal = { t:0, basisA:null, basisB:null };
   const up = herUp(new THREE.Vector3());
   cukeReveal.basisA = arbitraryPerp(up);
   cukeReveal.basisB = new THREE.Vector3().crossVectors(up, cukeReveal.basisA).normalize();
@@ -3683,15 +3690,6 @@ function updateCukeReveal(dt, t){
     camera.position.copy(camPos);
     camera.up.copy(camUp);
     camera.lookAt(tmpV2.copy(her.position).addScaledVector(up, 0.62));
-    if (cr.t >= 0.9 && cr.t < 4.2){
-      if (!cr.surpriseShown){
-        cr.surpriseShown = true;
-        noticeBubbleEl.textContent = '❗';
-        noticeBubbleEl.classList.add('show');
-      }
-    } else if (cr.surpriseShown){
-      noticeBubbleEl.classList.remove('show');
-    }
     // the solid ring's spin winds down to a stop before the transformation begins…
     wr.setSolidSpinScale(Math.max(0, 1 - k1*2.2));
     // Ground growth remains the strong first beat. Its material stays fully
@@ -3919,7 +3917,13 @@ function spawnStoryPigeon(cfg){
     if (plazaQuest.talkingPigeon === holder)
       holder.quaternion.copy(quatFromBasis(n, tangentToward(holder.getWorldPosition(tmpVP), n, her.position)));
   });
-  holder.userData = { cfg, n, dialogueBird:true };
+  // Give each named pigeon/dove a real footprint while every anonymous
+  // background bird remains non-solid. Larger friends get a little more
+  // personal space, but all stay easy to approach for conversation.
+  const footprint = (cfg.scale || 1) >= 1.4 ? 1.35 : 1.05;
+  addCollider(bodies[PIGEON_I].colliders, n, footprint, R);
+  holder.userData = { cfg, n, dialogueBird:true,
+    collider:bodies[PIGEON_I].colliders[bodies[PIGEON_I].colliders.length - 1] };
   return holder;
 }
 const tmpVP = new THREE.Vector3();
@@ -4003,6 +4007,7 @@ function setPlazaHolderPose(holder, n, facing, lift=0){
   holder.position.copy(n).multiplyScalar(R + 0.02 + lift);
   holder.quaternion.copy(quatFromBasis(n, facing));
   if (holder.userData.n) holder.userData.n.copy(n);
+  if (holder.userData.collider) holder.userData.collider.n.copy(n);
 }
 function updateDoodlesFollow(dt){
   const holder = plazaQuest.doodles;
@@ -4511,13 +4516,17 @@ function updateLandingAnim(){
   if (idleAction) idleAction.setEffectiveWeight(fadeOut);
   // The fall clip's own root motion was authored for a flat ground plane and
   // doesn't quite reach this planet-scale surface, so lying flat read as
-  // floating just above it. Sink the model down while that pose actually
-  // dominates (this weight peaks mid-cutscene, at the flattest point, and
-  // eases back to 0 as she stands - HER_MODEL_LIFT's normal idle height -
-  // by the time the cutscene ends) so her body visibly touches down.
+  // floating just above it. Sink the model only during the grounded part of
+  // the performance, then return that offset gradually WHILE she pushes up.
+  // Previously the full sink remained until the final Idle crossfade, so she
+  // finished standing and was visibly elevated as a separate second motion.
   // (0.6 overshot into visibly burying her face-down pose - 0.22 still reads
   // as touching the ground without her sinking most of the way in.)
-  if (modelGroup) modelGroup.position.y = HER_MODEL_LIFT - 0.22*w;
+  if (modelGroup){
+    const riseRaw = Math.max(0, Math.min(1, (landing.t - dur*0.55)/(dur*0.33)));
+    const rise = riseRaw*riseRaw*(3 - 2*riseRaw);
+    modelGroup.position.y = HER_MODEL_LIFT - 0.22*w*(1 - rise);
+  }
 }
 
 /* ---------- movement / state ---------- */
