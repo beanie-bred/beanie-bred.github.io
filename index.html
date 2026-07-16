@@ -3979,6 +3979,9 @@ let state = 'intro';       // intro | walk | fly | talk | percyfly | finale
 // conversation ever opened.
 let introLocked = false;
 const visitedWorlds = new Array(WORLD_DEFS.length).fill(false);
+// Session-only discovery: reloading starts a fresh trial with every future
+// destination secret again. No localStorage or cookie is used.
+const discoveredWorlds = new Set();
 const keys = {};
 // Slowed from 12.0 per request ("she moves too fast, no sense of weight") —
 // combined with the per-step camera "punch" in updateWalk (see u.stepPunch)
@@ -4717,7 +4720,10 @@ function arrive(bi){
   hudEl.classList.remove('hidden');   // re-reveal after showPlanetTitle() hid it for the title card
   refreshFoodPocket();   // the held-food chip only ever makes sense on the cucumber/bbak world
   const b = bodies[bi];
-  planetNameEl.textContent = `${b.emoji} ${b.name}`;
+  // Fallback arrivals can skip the title card, but still count because Beanie
+  // is physically standing on the destination surface at this point.
+  if (b.isWorld) discoveredWorlds.add(b.worldIndex);
+  planetNameEl.textContent = discoveredWorlds.has(b.worldIndex) ? `${b.emoji} ${b.name}` : '✨ ???';
   // no arrival toast here — the big planetTitle card already announces the
   // world by name, and a toast at the same time would sit right on top of
   // the mission banner/guide chip and visually collide with them.
@@ -5457,6 +5463,9 @@ const cardOverlay = document.getElementById('cardOverlay');
 const WORLD_FONT_CLASS = { chicago:'font-chicago', books:'font-books',
   cucumber:'font-cucumber', pigeon:'font-pigeon', garden:'font-garden' };
 function showPlanetTitle(b){
+  // Reached only after the physical landing/fall beat: the arrival title is
+  // the first moment this destination's story name may be revealed.
+  if (b.isWorld) discoveredWorlds.add(b.worldIndex);
   planetTitleNameEl.textContent = b.name;   // no emoji in the big cinematic title
   planetTitleNameEl.className = WORLD_FONT_CLASS[b.key] || '';
   planetTitleEl.classList.add('show');
@@ -5962,7 +5971,7 @@ window.__world = {
   get body(){ return bodies[curI].name; },
   get bodyIndex(){ return curI; },
   get visited(){ return [...visitedWorlds]; },
-  get target(){ return target ? target.name : null; },
+  get target(){ return target ? (discoveredWorlds.has(target.worldIndex) ? target.name : '???') : null; },
   pos(){ return her.position.toArray().map(v => +v.toFixed(2)); },
   lookAt(x, y, z){                  // point the raw camera at a world position (debug only)
     camera.lookAt(x, y, z);
