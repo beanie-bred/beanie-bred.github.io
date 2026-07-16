@@ -1,4 +1,52 @@
 # ROADMAP
+- [x] Conversation camera pulled back, BGM ducked during dialogue, 2x
+      typewriter, Chippy sways instead of bouncing (2026-07-16): follow-up
+      to the glare/choice-button round below - Bred sent screenshots showing
+      the talk-cam still framing extreme close-ups (Beanie's hood/Chippy's
+      hat filling the whole frame, not "her upper body" as asked), plus the
+      BGM burying dialogue sound effects, a typewriter still too slow, and a
+      request to make Chippy sway rather than bounce while talking.
+      - **Camera framing**: measured real subject heights live via a new
+        `talkFrameDebug()` hook rather than guessing - Beanie's own group
+        measures ~2.43 units, the messenger pigeon ~1.15, Chippy's model
+        ~0.98, and the OLD `closeDistance` formula (`height*0.72+0.55`,
+        clamped 1.9-4.3) pinned every subject under ~1.9 units tall to the
+        1.9 floor — i.e. nearly every conversation in the game. Rewrote it
+        (`height*1.6+1.6`, clamped 3.6-8) and lowered the focus point toward
+        the chest (`faceFraction` 0.72→0.62 for Beanie, 0.76→0.68 for NPCs)
+        so more of the upper body actually lands in frame. Verified visually
+        against the exact same pigeon and Chippy shots from the reports —
+        both now show head-to-torso (Chippy) or head-to-waist (Beanie)
+        instead of a single filled-frame close-up of one body part.
+      - **BGM ducking**: `playBgm` only ever set one fixed volume (.52) with
+        no ongoing management once a track-switch fade finished, so it
+        played at the same loud level during dialogue as during a cutscene.
+        Added `updateBgmDucking(dt)` (called every frame from `step`):
+        ducks to 0.14 during `walk`/`talk`, full 0.52 everywhere else
+        (cutscenes, the menu) - enumerated as the quiet EXCEPTION rather
+        than listing every loud state, so any new state defaults loud.
+        Confirmed live: 0.14 settled during talk, ramps back to 0.52 during
+        a landing sequence.
+      - **Button click sounds**: investigated "add sound effects to
+        buttons" by instrumenting `AudioContext.createOscillator` and
+        clicking mute/journal buttons directly - every real button already
+        correctly plays `playButtonSound()` via a generic delegated
+        listener. The actual issue was that BGM buried it, per above; no
+        code gap found once toggled unmuted.
+      - **Typewriter**: `DIALOG_CHAR_SECONDS` 0.011→0.0055 (2x, as asked).
+      - **Chippy**: swapped his `position.y = abs(sin(t*5))*0.18` hop for a
+        gentle `rotateZ` sway (same restrained technique the dialogue birds
+        already use), composed after his face-Beanie heading rotation in
+        `updateTalkCam` so the two don't fight.
+      - **Process note, not a code fix**: testing this file audibly played
+        music at least once this session despite the established "mute
+        right after `start()`" habit - the `muteBtn.click()` approach races
+        against the AudioContext's own async resume. Found and switched to
+        an existing, better mechanism: loading the page with `?qa=claude`
+        in the URL forces `muted=true` synchronously before any audio code
+        runs at all (`QA_AUDIO_MUTED` already recognized `'claude'`/`'codex'`
+        as valid QA flags - this just wasn't being used). Use this for all
+        future local testing instead.
 - [x] Conversation lighting rescaled to fix glare; dialogue choice buttons
       shrunk and repositioned above the dialogue box (2026-07-16): user sent
       screenshots of an overexposed pigeon close-up ("my eyes hurt") and
