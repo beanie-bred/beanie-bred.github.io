@@ -207,16 +207,16 @@
   #toast .tag{display:block;font-size:12.5px;color:#c8d4ee;margin-top:4px;font-weight:400}
 
   /* ---------- dialogue ---------- */
-  /* Genshin-style cinematic lower third: the world remains visible behind a
-     soft bottom gradient instead of being covered by a floating opaque card. */
-  #dialog{position:fixed;bottom:0;left:50%;transform:translateX(-50%);z-index:30;
-    width:100vw;text-align:center;padding:42px max(8vw,60px) 20px;
-    background:linear-gradient(180deg,transparent,rgba(7,10,24,.5) 28%,rgba(7,10,24,.88));
-    border:none;border-radius:0;text-shadow:0 2px 8px rgba(0,0,0,.9)}
-  #dialogName{font-family:'Playfair Display',serif;font-weight:700;color:#f5d487;
-    font-size:clamp(16px,2vw,20px);margin-bottom:7px;letter-spacing:.02em}
-  #dialogText{font-size:clamp(15px,1.8vw,18px);line-height:1.55;min-height:28px;color:#fff}
-  #dialogNext{text-align:right;font-size:12px;color:#e2def8;margin-top:8px;
+  /* Rounded glass dialogue box restored, while the camera itself now provides
+     the speaker-focused cinematic composition. */
+  #dialog{position:fixed;bottom:38px;left:50%;transform:translateX(-50%);z-index:30;
+    width:min(680px,90vw);padding:16px 26px 13px;text-align:left;
+    background:rgba(28,26,54,.86);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border:1.5px solid rgba(255,255,255,.25);border-radius:20px;
+    box-shadow:0 12px 38px rgba(0,0,0,.34)}
+  #dialogName{font-weight:700;color:#8fd8d0;font-size:15px;margin-bottom:5px}
+  #dialogText{font-size:clamp(15px,1.8vw,17px);line-height:1.55;min-height:26px;color:#f4f1ff}
+  #dialogNext{text-align:right;font-size:12px;color:#c9c3ea;margin-top:8px;
     animation:pulseTxt 1.4s ease-in-out infinite}
   #dialogChoices{position:fixed;right:clamp(24px,7vw,110px);top:46%;z-index:34;
     width:min(390px,46vw);display:flex;flex-direction:column;gap:12px;pointer-events:auto}
@@ -916,7 +916,7 @@ function playMelody(mel){
   if (mel.score){
     clearTimeout(melodyTimer);
     if (bgmRecording) bgmRecording.pause();
-    bgmRecording = new Audio('audio/popo-romantic-jazz-v6.m4a');
+    bgmRecording = new Audio('audio/popo-premium-cafe-v9.m4a');
     bgmRecording.loop = true;
     bgmRecording.volume = .62;
     bgmRecording.muted = muted;
@@ -3344,6 +3344,7 @@ function talkBbak(){
   state = 'talk';
   dialog = { npcPos: npc.npcPos, npcObj: npc.npcObj };
   hideNearbyObstacles(npc.npcObj);
+  enterConversationStage(npc.npcObj);
   // she hands it over — clear the pocket right away, then toss the exact food
   // she was holding through the air into bbak's mouth before he reacts to it.
   bbakQuest.holding = null; refreshFoodPocket();
@@ -4144,6 +4145,45 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
 // matches the messenger landing camera's side of the character line, so that
 // first handoff is a gentle slide rather than a POV flip.
 const CONVO_BEANIE_LEFT = -1;
+let conversationStage = null;
+function enterConversationStage(npcObj){
+  if (conversationStage || !npcObj || !npcObj.isObject3D) return;
+  const b = bodies[curI], up = herUp(new THREE.Vector3());
+  const originalNpcWorld = npcObj.getWorldPosition(new THREE.Vector3());
+  const toward = tangentToward(her.position, up, originalNpcWorld);
+  const base = b.group.children[0];
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(64, 64), mat(b.col, { roughness:0.95 }));
+  floor.position.copy(her.position).addScaledVector(up, -0.015);
+  floor.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), up);
+  floor.receiveShadow = true;
+  scene.add(floor);
+  const hidden = [];
+  b.group.children.forEach((child, i) => {
+    if (i === 0 || child === npcObj || !child.visible) return;
+    child.visible = false; hidden.push(child);
+  });
+  conversationStage = {
+    floor, base, baseWasVisible:base.visible, hidden, npcObj,
+    npcParent:npcObj.parent, npcPosition:npcObj.position.clone(), npcQuaternion:npcObj.quaternion.clone()
+  };
+  base.visible = false;
+  // Put the NPC on Beanie's tangent plane at a comfortable profile distance.
+  // This is presentation-only; its exact local transform is restored later.
+  const flatNpcWorld = new THREE.Vector3().copy(her.position).addScaledVector(toward, 4.5);
+  npcObj.position.copy(npcObj.parent.worldToLocal(flatNpcWorld.clone()));
+}
+function exitConversationStage(){
+  const s = conversationStage; if (!s) return;
+  scene.remove(s.floor);
+  s.floor.geometry.dispose(); s.floor.material.dispose();
+  s.base.visible = s.baseWasVisible;
+  for (const child of s.hidden) child.visible = true;
+  if (s.npcObj && s.npcObj.parent === s.npcParent){
+    s.npcObj.position.copy(s.npcPosition);
+    s.npcObj.quaternion.copy(s.npcQuaternion);
+  }
+  conversationStage = null;
+}
 function updateTalkCam(dt){
   const npc = (dialog && dialog.npcPos) ? dialog.npcPos() : null;
   if (!npc){ followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 3.3); return; }
@@ -4198,7 +4238,8 @@ function updateTalkCam(dt){
   // the camera never crosses the character line. While response choices are
   // open, keep the NPC featured until Beanie actually picks a reply.
   const beanieFocus = isBeanieSpeaking() && !dialog.awaitingChoice;
-  const focus = new THREE.Vector3().copy(mid).lerp(beanieFocus ? her.position : npc, 0.25);
+  const focus = new THREE.Vector3().copy(mid).lerp(beanieFocus ? her.position : npc, 0.72);
+  goal.addScaledVector(toNpc, beanieFocus ? -gap*0.2 : gap*0.2);
   const look = focus.addScaledVector(up, 1.05);
   // A slower ease keeps the hand-off from a preceding cinematic shot from
   // snapping into the dialogue two-shot.
@@ -4942,6 +4983,7 @@ function startDialog(lines, onDone, opts={}){
   dialog = { lines, idx:0, onDone, coo: opts.coo !== false, npcPos: opts.npcPos || null, npcObj: opts.npcObj || null,
     defaultSpeaker: opts.speaker || 'Percy 🕊️', chosenResponses:new Map(), awaitingChoice:false };
   hideNearbyObstacles(opts.npcObj || null);   // clear props so nothing covers Beanie
+  enterConversationStage(opts.npcObj || null);
   showDialogLine();
 }
 function percyWorldPos(out){
@@ -4996,6 +5038,7 @@ function advanceDialog(){
   const cb = dialog.onDone;
   dialog = null;
   state = 'walk';
+  exitConversationStage();
   restoreObstacles();
   if (cb) cb();
 }
@@ -5298,16 +5341,22 @@ addEventListener('keydown', (e) => {
       else pickupBook(pickTarget);
     }
   }
-  // QA shortcut + reset: every number starts a completely fresh page trial
-  // on that planet. Reloading is intentional—it resets every mission object,
-  // spawned story NPC, pickup, introduction/name, and interrupted cinematic
-  // instead of trying to maintain a fragile hand-written reset per world.
-  if (e.key >= '1' && e.key <= String(WORLD_DEFS.length)){
-    const url = new URL(location.href);
-    url.search = '';
-    url.searchParams.set('qaPlanet', String(Number(e.key) - 1));
-    location.replace(url.href);
-    return;
+  // QA shortcut: instant in-place warp, no page reload. A full-page-reload
+  // version of this shortcut existed briefly — every single press reloaded
+  // the whole page (all models/textures/audio from scratch) AND had no state
+  // guard at all, so it fired even mid-cutscene/mid-dialogue. Both combined
+  // to feel like exactly what got reported: shortcuts "lag," and the game
+  // "freezes after the title scene" — the forced full reload is slow, and
+  // because it wiped noticedGuides (see startNotice below) every single
+  // warp now ALSO forced a fresh 2.4s non-interactive "notice" beat with no
+  // strong "you're in a cutscene" affordance, reading as a hang. Back to the
+  // fast, state-guarded, in-place warp; noticedGuides again persists for the
+  // session, so a world already "noticed" doesn't force that beat every time.
+  if ((state === 'walk' || state === 'talk' || state === 'intro' || state === 'landing')
+      && e.key >= '1' && e.key <= String(WORLD_DEFS.length)){
+    const i = Number(e.key) - 1;
+    if (i === 2) resetEmeraldMeadowForQA();   // Emerald's cucumber-reveal/quest state needs an explicit reset
+    qaWarp(i);
   }
 });
 function qaWarp(i){
@@ -6531,17 +6580,6 @@ if (new URLSearchParams(location.search).get('test') === '1'){
   });
 }
 
-// Number-key QA reload destination. The query string is the only handoff
-// across the reload; no mission/name state is stored, so every reload starts
-// with an empty journal and no introductions exactly like a brand-new trial.
-const qaPlanetRaw = new URLSearchParams(location.search).get('qaPlanet');
-const qaPlanetBoot = qaPlanetRaw === null ? NaN : Number(qaPlanetRaw);
-if (Number.isInteger(qaPlanetBoot) && qaPlanetBoot >= 0 && qaPlanetBoot < WORLD_DEFS.length){
-  setTimeout(() => {
-    if (qaPlanetBoot === 0) startJourney();
-    else qaWarp(qaPlanetBoot);
-  }, 0);
-}
 </script>
 </body>
 </html>
