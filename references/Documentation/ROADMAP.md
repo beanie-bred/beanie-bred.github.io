@@ -1,4 +1,56 @@
 # ROADMAP
+- [x] Journal: gift books and Emerald Meadow foods now earn their own
+      stickers on pickup (2026-07-16): Bred added new sticker art -
+      `stickers/mainstacks stickers/` (book 1-5) and `stickers/meadow
+      stickers/` (boba, burgers, cucumber, frenchfries, ice cream, pizza,
+      popsicle) - and asked for each to be awarded the moment she picks up
+      the matching real-world item, plus an updated journal layout to fit.
+      - **Wiring**: `pickupBook(gb)` (Main Stacks' 5 floating gift books),
+        `pickupFood(f)` and `pickupCuke()` (Emerald Meadow's scattered cold
+        treats and the special reveal cucumber) each now award a sticker
+        keyed to the specific item picked up - gift books via a new `idx`
+        field set at construction (`giftBooks.push({..., idx:i})`, mapping
+        to `book1`-`book5`), foods/cucumber via their existing `.name`
+        field (already `'cucumber'`, `'pizza'`, etc.), so both the one
+        dedicated glowing cucumber AND any of the ~24 ground cucumbers that
+        grow in during the reveal correctly converge on the same
+        `cucumber` sticker key. Only 6 of the 11 real food types have
+        sticker art delivered so far (boba, burger, icecream, pizza,
+        fries, popsicle) - the rest (cake, donut, sushi, watermelon,
+        hotdog) simply have no sticker to award yet; the dedup/lookup
+        already no-ops safely for any key with no matching art, so nothing
+        else needed to change for that.
+      - **No redundant toast**: `meetFriend()` (used for NPCs) pops a
+        `#friendToast` card - but book/food pickups already show their own
+        dedicated toast (`showBookPop()` / `showToast()`) at the EXACT same
+        screen position, so calling `meetFriend()` there would visibly
+        stack two toasts on top of each other. Split it into a silent
+        `earnSticker()` (dedup + add to the collection + re-render the
+        journal if it's open, no toast) that both `meetFriend()` and the
+        three pickup functions now call - existing NPC-meeting behavior is
+        unchanged, item pickups just quietly bank the sticker under
+        whatever feedback they already had.
+      - **Layout**: `collagePlace()` now supports a "hero" sticker (the
+        friend actually met on that world) sized bigger while still
+        sharing the same jittered grid cell math as everyone else, so
+        Main Stacks reads as Chippy (big) + his 5 books (smaller, scattered
+        around him), and Emerald Meadow as bbak (big) + cucumber + 6 foods.
+        `JOURNAL_TOTAL` auto-updated from 13 to 25 since it's already a
+        generic sum over every page's item list. Reworded the page-footer/
+        nav copy from "met here" / "N friends" to "collected here" / "N
+        collected" since half of what's tracked now are picked-up items,
+        not characters.
+      - **Asset path fix**: the new art lives in subfolders (Bred's own
+        organization choice, e.g. `meadow stickers/cucumber-sticker.png`)
+        - `stickerURL()` previously ran the whole filename through a single
+        `encodeURIComponent()`, which also escapes `/` and would have 404'd
+        every nested sticker. Fixed to encode each path segment separately
+        and rejoin with a literal `/`. Confirmed `stickers/**/*.png` in
+        `.gitattributes` already globs subfolders too, so these stay plain
+        git blobs (servable by GitHub Pages) rather than LFS pointers.
+      - Verified live: real book pickups via `qaGiveNext()`'s real
+        `pickupBook()` call path (6/6 collected, zero console errors), and
+        the Emerald Meadow layout with a locked/got mix via a debug hook.
 - [x] Journal: Pigeon Plaza stickers reworked into a uniform circular badge
       treatment (2026-07-16): Bred sent a screenshot of the locked Pigeon
       Plaza page looking "ugly" - a scatter of irregular gray blobs with
