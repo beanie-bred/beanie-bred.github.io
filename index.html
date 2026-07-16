@@ -904,7 +904,7 @@ function playMelody(mel){
   if (mel.score){
     clearTimeout(melodyTimer);
     if (bgmRecording) bgmRecording.pause();
-    bgmRecording = new Audio('audio/popo-jazz-loop.m4a');
+    bgmRecording = new Audio('audio/popo-piano-score-v2.m4a');
     bgmRecording.loop = true;
     bgmRecording.volume = .62;
     bgmRecording.muted = muted;
@@ -1526,7 +1526,7 @@ function makeCucumber(scale=1){
   return g;
 }
 // cute stylized foods for the Food world
-const FOOD_TYPES = ['burger','icecream','cake','donut','pizza','fries','sushi','popsicle','watermelon','hotdog'];
+const FOOD_TYPES = ['burger','icecream','cake','donut','pizza','fries','sushi','popsicle','watermelon','hotdog','boba'];
 function makeFood(type){
   const g = new THREE.Group();
   const M = (c, o={}) => mat(c, { roughness:0.8, ...o });
@@ -1585,6 +1585,25 @@ function makeFood(type){
     flesh.rotation.x=-Math.PI/2; flesh.position.y=0.06; g.add(flesh);
     for (let i=0;i<8;i++){ const a=Math.random()*6.28, r=Math.random()*0.28;
       const seed=new THREE.Mesh(new THREE.SphereGeometry(0.025,6,5),M(0x1a1a1a)); seed.position.set(Math.cos(a)*r,0.07,Math.sin(a)*r); g.add(seed); }
+  } else if (type === 'boba'){
+    // Clear takeaway cup with milk tea, dark tapioca pearls, sealed lid and a
+    // wide pastel straw. The contents are separate solids inside the glass so
+    // it remains unmistakably boba from every camera angle.
+    const cup=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.2,0.62,16),
+      mat(0xf2fbff,{roughness:0.18,transparent:true,opacity:0.5,depthWrite:false,side:THREE.DoubleSide}));
+    cup.position.y=0.33; g.add(cup);
+    const tea=new THREE.Mesh(new THREE.CylinderGeometry(0.225,0.18,0.52,16),M(0xb97854,{transparent:true,opacity:0.88}));
+    tea.position.y=0.3; g.add(tea);
+    const pearlM=M(0x2b1720);
+    for(let i=0;i<12;i++){
+      const pearl=new THREE.Mesh(new THREE.SphereGeometry(0.038,7,5),pearlM);
+      const a=i*2.4, r=0.07+(i%3)*0.045;
+      pearl.position.set(Math.cos(a)*r,0.09+(i%2)*0.055,Math.sin(a)*r); g.add(pearl);
+    }
+    const lid=new THREE.Mesh(new THREE.CylinderGeometry(0.27,0.27,0.045,16),M(0xf5e8dc));
+    lid.position.y=0.655; g.add(lid);
+    const straw=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.72,8),M(0xf29ab2));
+    straw.position.set(0.08,0.91,0); straw.rotation.z=-0.1; g.add(straw);
   } else { // hotdog
     const bun=new THREE.Mesh(new THREE.CapsuleGeometry(0.16,0.55,4,10),M(0xe0b878)); bun.rotation.z=Math.PI/2; bun.position.y=0.18; g.add(bun);
     const sausage=new THREE.Mesh(new THREE.CapsuleGeometry(0.11,0.5,4,10),M(0xa85c40)); sausage.rotation.z=Math.PI/2; sausage.position.y=0.3; g.add(sausage);
@@ -1694,14 +1713,24 @@ function buildChicago(g, R){
   // rippling independently, the design stayed rigid and visibly sheared off
   // the moving cloth. Positions are relative to cloth's own origin now (was
   // flag-relative, hence the -0.33 shift to compensate for cloth's offset).
-  for (const sy of [0.12, -0.12]){
-    const stripe = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.075),
-      mat(0x8fc8e8, { side:THREE.DoubleSide }));
-    stripe.position.set(0, sy, 0.001); cloth.add(stripe);
-  }
-  for (let s = 0; s < 4; s++){
-    const star = new THREE.Mesh(new THREE.SphereGeometry(0.026, 6, 6), mat(0xd84a4a));
-    star.position.set(0.12 + s*0.14 - 0.33, 0, 0.004); cloth.add(star);
+  // A DoubleSide base does not make decorations placed on its FRONT visible
+  // from behind—the cloth depth-tests over them. Build the complete design
+  // once per face, offset in the appropriate direction, so neither side can
+  // lose its blue stripes. Flat six-point stars also read more like Chicago's
+  // real flag than the old red spheres did.
+  const flagStarGeo = starGeometry(0.034, 0.015, 6);
+  for (const face of [1, -1]){
+    for (const sy of [0.12, -0.12]){
+      const stripe = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.075),
+        mat(0x8fc8e8, { side:THREE.DoubleSide }));
+      stripe.position.set(0, sy, face*0.003); cloth.add(stripe);
+    }
+    for (let s = 0; s < 4; s++){
+      const star = new THREE.Mesh(flagStarGeo, mat(0xd84a4a, { side:THREE.DoubleSide }));
+      star.position.set(0.12 + s*0.14 - 0.33, 0, face*0.006);
+      if (face < 0) star.rotation.y = Math.PI;
+      cloth.add(star);
+    }
   }
   animators.push((t) => {
     flag.rotation.y = Math.sin(t*2.2)*0.35;
@@ -2316,8 +2345,8 @@ function buildCucumber(g, R){
   // one-of-each on a whole R=45 planet meant a long walk to find each next
   // try; more instances (cycling through the type list) means there's
   // almost always one within easy reach regardless of which tries are used up.
-  const COLD = ['icecream','cake','donut','pizza','burger','fries','sushi','popsicle','watermelon','hotdog'];
-  const FOOD_PICKUP_COUNT = 14;
+  const COLD = ['icecream','cake','donut','pizza','burger','fries','sushi','popsicle','watermelon','hotdog','boba'];
+  const FOOD_PICKUP_COUNT = 15;
   const foods = [];
   for (let i = 0; i < FOOD_PICKUP_COUNT; i++){
     const type = COLD[i % COLD.length];
@@ -2575,7 +2604,9 @@ function spawnPigeonFleeOnLanding(landPos){
 }
 
 function buildGarden(g, R, ctx){
-  grassField(g, R, 40000, PALETTE.sageGreen);
+  // Still reads as a completely packed meadow, but avoids pushing slower
+  // integrated GPUs through 75k+ instances the instant a QA warp lands here.
+  grassField(g, R, 25000, PALETTE.sageGreen);
   const couchN = V().set(0.2, 1, 0.1).normalize();
   const landN = ctx.gardenLandN;
   const dummy = new THREE.Object3D();
@@ -2605,7 +2636,8 @@ function buildGarden(g, R, ctx){
   // stems for everything
   const stemGeo = new THREE.CylinderGeometry(0.03, 0.045, 0.5, 6);
   stemGeo.translate(0, 0.25, 0);
-  const stems = instanced(stemGeo, 0x5f9f56, 35000);
+  const FLOWER_COUNT = 18000;
+  const stems = instanced(stemGeo, 0x5f9f56, FLOWER_COUNT);
   let stemI = 0;
   const flowerSpots = [];   // reuse spots so heads sit on stems
   // Persistent registry of every flower so the sway animator (below) can bend
@@ -2614,7 +2646,7 @@ function buildGarden(g, R, ctx){
   // to bend a flower together is to record, per spot, every instanced-mesh part
   // (stem, petal, centre, …) that shares its base point.
   const allFlowers = [];
-  scatter(35000, (n) => {
+  scatter(FLOWER_COUNT, (n) => {
     const s = 0.8 + Math.random()*0.7;
     dummy.position.copy(n).multiplyScalar(R);
     dummy.quaternion.setFromUnitVectors(Y, n);
@@ -2653,30 +2685,31 @@ function buildGarden(g, R, ctx){
     }
     if (im.instanceColor) im.instanceColor.needsUpdate = true;
   }
-  // tulips (sphere segments trimmed 8x8 -> 6x5: ~112 tris to ~40, x9500 heads)
+  // Species counts total FLOWER_COUNT. Instancing keeps the field lush while
+  // the lower total makes Garden movement responsive on ordinary laptops.
   const tulipGeo = new THREE.SphereGeometry(0.16, 6, 5); tulipGeo.scale(1, 1.25, 1);
-  heads(instanced(tulipGeo, 0xffffff, 9500, TULIP), 9500, 0.56, 1, TULIP);
+  heads(instanced(tulipGeo, 0xffffff, 4800, TULIP), 4800, 0.56, 1, TULIP);
   // daisies: white petal disc + yellow center
   const discGeo = new THREE.CylinderGeometry(0.17, 0.17, 0.03, 8);
   const centGeo = new THREE.SphereGeometry(0.07, 6, 5);
-  const dDisc = instanced(discGeo, 0xfdfaf2, 8750);
-  const dCent = instanced(centGeo, 0xf2c94a, 8750);
-  heads(dDisc, 8750, 0.52, 1, null, dCent, 0.56, 1);
+  const dDisc = instanced(discGeo, 0xfdfaf2, 4500);
+  const dCent = instanced(centGeo, 0xf2c94a, 4500);
+  heads(dDisc, 4500, 0.52, 1, null, dCent, 0.56, 1);
   // roses: flat-shaded swirl + darker heart
   const roseGeo = new THREE.SphereGeometry(0.15, 7, 5);
   const roseInGeo = new THREE.SphereGeometry(0.07, 6, 5);
-  const rOut = instanced(roseGeo, 0xffffff, 7250, ROSE);
-  const rIn  = instanced(roseInGeo, 0xc4526e, 7250);
-  heads(rOut, 7250, 0.55, 1, ROSE, rIn, 0.62, 1);
+  const rOut = instanced(roseGeo, 0xffffff, 3700, ROSE);
+  const rIn  = instanced(roseInGeo, 0xc4526e, 3700);
+  heads(rOut, 3700, 0.55, 1, ROSE, rIn, 0.62, 1);
   // hydrangea puffs (lumpy flat-shaded balls)
-  heads(instanced('puff', 0xffffff, 5000, HYD), 5000, 0.6, 1, HYD);
+  heads(instanced('puff', 0xffffff, 2700, HYD), 2700, 0.6, 1, HYD);
   // calla lilies: white cone + yellow spadix
   const callaGeo = new THREE.ConeGeometry(0.14, 0.26, 9);
   callaGeo.rotateX(Math.PI); // open upward
   const spadGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.18, 6);
-  const cCone = instanced(callaGeo, 0xfdf8f0, 4250);
-  const cSpad = instanced(spadGeo, 0xf2c94a, 4250);
-  heads(cCone, 4250, 0.58, 1, null, cSpad, 0.62, 1);
+  const cCone = instanced(callaGeo, 0xfdf8f0, 2300);
+  const cSpad = instanced(spadGeo, 0xf2c94a, 2300);
+  heads(cCone, 2300, 0.58, 1, null, cSpad, 0.62, 1);
 
   // ---------- the big white couch ----------
   const couch = new THREE.Group();
@@ -3138,6 +3171,7 @@ const BBAK_FOOD_REACTIONS = {
   popsicle: [`*CATCH* A popsicle! …which already melted into a puddle on the way here. 😅`],
   watermelon:[`*CATCH* Watermelon! Juicy, but it's been baking in the sun same as me. Still warm.`],
   hotdog:   [`*CATCH* A HOT dog?! That is, quite literally, the opposite of what I asked for.`],
+  boba:     [`*CATCH* Boba! The pearls are perfect… but the milk tea got warm out here. Delicious, not cooling. 🧋`],
 };
 const BBAK_HINT = [
   `*flops dramatically* Okay. New plan, let me give you a hint, Rachel.`,
@@ -3237,7 +3271,7 @@ function refreshBbakGuide(){
 bodies[2].guideNear = 3.6;
 // ---- food pocket HUD: shows the single item she's currently carrying ----
 const FOOD_ICONS = { icecream:'🍨', cake:'🍰', donut:'🍩', pizza:'🍕', burger:'🍔', fries:'🍟', cucumber:'🥒',
-  sushi:'🍣', popsicle:'🍡', watermelon:'🍉', hotdog:'🌭' };
+  sushi:'🍣', popsicle:'🍡', watermelon:'🍉', hotdog:'🌭', boba:'🧋' };
 const foodPocketEl = document.getElementById('foodPocket');
 const foodPocketIconEl = document.getElementById('foodPocketIcon');
 const foodPocketLabelEl = document.getElementById('foodPocketLabel');
@@ -3329,7 +3363,7 @@ function startCukeRevealCutscene(){
   cukeReveal.basisA = arbitraryPerp(up);
   cukeReveal.basisB = new THREE.Vector3().crossVectors(up, cukeReveal.basisA).normalize();
 }
-// Two acts, 10s total (the requested minimum). Act 1 (0-5s): a close,
+// Two acts, 16s total. Act 1 (0-7s): a close,
 // ground-level shot — a real change of POV from every other cutscene's wide
 // establishing orbit — watching the cucumbers actually form. The ring's own
 // solid->cucumber crossfade runs inside this act too, kept coupled to the
@@ -3338,24 +3372,25 @@ function startCukeRevealCutscene(){
 // model), so starting them at the same moment reads as one "materializing"
 // event — starting them at DIFFERENT times would make whichever finishes
 // first blink as the other's opacity ramp reset the shared material out from
-// under it. Act 2 (5-10s): a close pass on just the ring band itself — not
-// the whole planet — showing off the now-fully-cucumber result up close.
-const ACT1_DUR = 5.0, ACT2_DUR = 5.0;
-const RING_FADE_START = 0.8, RING_FADE_DUR = 3.2;
+// under it. Act 2 (7-16s): a slow push along the ring band itself — not the
+// whole planet — ending close enough to read the individual cucumbers.
+const ACT1_DUR = 7.0, ACT2_DUR = 9.0;
+const RING_FADE_START = 1.7, RING_FADE_DUR = 5.0;
 function updateCukeReveal(dt, t){
   const cr = cukeReveal, wr = worldRefs.cucumber, b = bodies[2];
   cr.t += dt;
   const up = herUp(tmpV);
   if (cr.t < ACT1_DUR){
     const k1 = cr.t / ACT1_DUR;
-    const dist = 7 + 2*k1, height = 1.6 + 0.6*k1;
-    const angle = cr.t*0.22;
+    const smooth1 = k1*k1*(3-2*k1);
+    const dist = 11 - 4.2*smooth1, height = 2.8 - 1.1*smooth1;
+    const angle = cr.t*0.095;
     const dir = tmpV3.copy(cr.basisA).multiplyScalar(Math.cos(angle)).addScaledVector(cr.basisB, Math.sin(angle));
     camPos.copy(her.position).addScaledVector(up, height).addScaledVector(dir, dist);
     camUp.copy(up);
     camera.position.copy(camPos);
     camera.up.copy(camUp);
-    camera.lookAt(tmpV2.copy(her.position).addScaledVector(dir, -1).addScaledVector(up, 0.4));
+    camera.lookAt(tmpV2.copy(her.position).addScaledVector(dir, -1.6*smooth1).addScaledVector(up, 0.55));
     // the solid ring's spin winds down to a stop before the transformation begins…
     wr.setSolidSpinScale(Math.max(0, 1 - k1*2.2));
     // …then it visibly DISSOLVES over RING_FADE_DUR seconds while the real
@@ -3387,14 +3422,16 @@ function updateCukeReveal(dt, t){
     // equatorial to her local up — rather than replicating that exact local
     // transform here — still reads convincingly as "close to the ring."
     const k2 = (cr.t - ACT1_DUR) / ACT2_DUR;
+    const smooth2 = k2*k2*(3-2*k2);
     const ringR = wr.ringMidR || (b.r + 100);
-    const angle2 = -0.6 + k2*1.3;
+    const angle2 = -0.48 + smooth2*0.82;
     const ringDir = tmpV3.copy(cr.basisA).multiplyScalar(Math.cos(angle2)).addScaledVector(cr.basisB, Math.sin(angle2));
     const ringPoint = tmpV2.copy(b.center).addScaledVector(ringDir, ringR);
-    const nextAngle = angle2 + 0.08;
+    const nextAngle = angle2 + 0.035;
     const nextDir = new THREE.Vector3().copy(cr.basisA).multiplyScalar(Math.cos(nextAngle)).addScaledVector(cr.basisB, Math.sin(nextAngle));
     const nextPoint = new THREE.Vector3().copy(b.center).addScaledVector(nextDir, ringR);
-    camPos.copy(ringPoint).addScaledVector(up, 6).addScaledVector(ringDir, 10);
+    camPos.copy(ringPoint).addScaledVector(up, 5.5 - smooth2*2.2)
+      .addScaledVector(ringDir, 12 - smooth2*7.2);
     camUp.copy(up);
     camera.position.copy(camPos);
     camera.up.copy(camUp);
@@ -3408,7 +3445,7 @@ function updateCukeReveal(dt, t){
 // of an instant mass visibility toggle — self-removing animator, same
 // pattern tossFoodToBbak()'s flight step uses.
 function startGroundCucumberGrowth(cukes, spread){
-  const GROW_DUR = 0.5;
+  const GROW_DUR = 1.15;
   const entries = cukes.map((f) => ({ f, delay: Math.random()*spread, grown:false }));
   for (const e of entries){ e.f.holder.visible = true; e.f.holder.scale.setScalar(0.001); }
   let elapsed = 0;
@@ -4031,11 +4068,11 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
   camera.up.copy(camUp);
   camera.lookAt(cC.copy(pos).addScaledVector(up, 1.5));
 }
-/* Conversation camera: a fixed two-shot. Beanie stands screen-LEFT, turned
+/* Conversation camera: a fixed two-shot. Beanie stands screen-RIGHT, turned
    DIAGONALLY toward the NPC (a 3/4 glance, not a full profile, so her face
-   still reads); the NPC stands screen-right and turns to face Beanie head-on.
+   still reads); the NPC stands screen-left and turns to face Beanie head-on.
    Nearby props are hidden while talking so nothing covers either of them. */
-let TALK_CAM_SIDE = -1;
+let TALK_CAM_SIDE = 1;
 const TALK_DIAG_ANGLE = Math.PI/180 * 38;   // Beanie's turn is partial, not a full face-to-face
 function updateTalkCam(dt){
   const npc = (dialog && dialog.npcPos) ? dialog.npcPos() : null;
@@ -4231,7 +4268,9 @@ function updateAim(t){
     const surf = her.position.distanceTo(b.center) - b.r;
     const ang = aimDir.angleTo(tmpV.normalize());
     const th = Math.max(0.3, Math.atan2(b.r*1.7, d) + 0.12);
-    document.body.dataset.nextBody = b.name;
+    // Keep the destination identity secret until its arrival title. Debug
+    // state records only that a destination exists, never its story name.
+    document.body.dataset.nextBody = 'mystery';
     document.body.dataset.aimAngle = ang.toFixed(3);
     document.body.dataset.aimThreshold = th.toFixed(3);
     document.body.dataset.targetDistance = surf.toFixed(2);
@@ -4639,6 +4678,10 @@ function updateLanding(dt){
     // again corrupted the look-at target into her.position*2.3, sending the
     // orbit camera wildly off toward empty space instead of orbiting her.
     camera.lookAt(tmpV3.copy(her.position).addScaledVector(up, 1.3));
+    // Number-key warps are a QA convenience, so they should never leave the
+    // player apparently frozen behind a title that is waiting indefinitely
+    // for a second input. Preserve the slow title hold, then resume walking.
+    if (landing.autoContinue && landing.t >= 4.5) finalizeLanding();
   }
 }
 function finalizeLanding(){
@@ -4826,21 +4869,32 @@ function beginPercyFlight(){
   const holder = worldRefs.pigeon.percyHolder;
   holder.userData.flying = true;
   scene.attach(holder);
-  // crowd scatters!
-  for (const c of worldRefs.pigeon.crowd){
-    scene.attach(c);
-    const n = V().subVectors(c.position, bodies[PIGEON_I].center).normalize();
-    const vel = n.multiplyScalar(7).addScaledVector(randDir(), 3.5);
-    percyScatter.push({ obj:c, vel, life:3.5 });
-  }
   const p0 = holder.position.clone();
   const up0 = V().subVectors(p0, bodies[PIGEON_I].center).normalize();
   const toGarden = V().subVectors(bodies[GARDEN_I].center, p0).normalize();
   const p1 = V().copy(p0).addScaledVector(up0, 112);
   const p2 = V().copy(p0).addScaledVector(toGarden, 375).addScaledVector(up0, 100);
-  percyFly = { t:0, holder, p0, p1, p2, up0, mounted:false, irisDone:false,
+  const orbitA = tangentToward(p0, up0, her.position);
+  const orbitB = V().crossVectors(up0, orbitA).normalize();
+  const friends = [...plazaQuest.decoyHolders, plazaQuest.doodles].filter(Boolean);
+  friends.forEach((friend) => scene.attach(friend));
+  percyFly = { t:0, phase:'friends', holder, p0, p1, p2, up0, orbitA, orbitB,
+    friends, crowdScattered:false, mounted:false, irisDone:false,
     percy:holder.userData.percy, herStart:her.position.clone() };
   playCoo();
+}
+function scatterNearbyPercyCrowd(center){
+  const bCenter = bodies[PIGEON_I].center;
+  let scattered = 0;
+  for (const c of worldRefs.pigeon.crowd){
+    const wp = c.getWorldPosition(new THREE.Vector3());
+    if (wp.distanceTo(center) > 18 || scattered >= 90) continue;
+    scene.attach(c);
+    const surfaceUp = V().subVectors(wp, bCenter).normalize();
+    const away = V().subVectors(wp, center).addScaledVector(surfaceUp, 5).normalize();
+    percyScatter.push({ obj:c, vel:away.multiplyScalar(10 + Math.random()*4), life:5.5 });
+    scattered++;
+  }
 }
 const percyScatter = [];
 function updatePercyScatter(dt){
@@ -4864,12 +4918,43 @@ function updatePercyFlight(dt, t){
   if (pf.percy.userData.wings)
     for (let w = 0; w < 2; w++)
       pf.percy.userData.wings[w].rotation.z = (w===0?1:-1)*Math.sin(t*10)*0.95;
-  if (pf.t < 2.2){                                     // percy grows!
-    const k = pf.t/2.2, s = k*k*(3-2*k);
+  if (pf.t < 8.0){                                     // named friends circle; camera completes a slow 360
+    const k = pf.t/8.0;
+    const center = tmpV3.copy(pf.p0).addScaledVector(pf.up0, 0.8);
+    pf.friends.forEach((friend, i) => {
+      const a = k*Math.PI*2 + i/pf.friends.length*Math.PI*2;
+      const radial = new THREE.Vector3().copy(pf.orbitA).multiplyScalar(Math.cos(a))
+        .addScaledVector(pf.orbitB, Math.sin(a));
+      friend.position.copy(pf.p0).addScaledVector(radial, 6.2)
+        .addScaledVector(pf.up0, 0.25 + Math.sin(t*2 + i)*0.18);
+      friend.quaternion.copy(quatFromBasis(pf.up0, radial.clone().negate()));
+    });
+    const camDir = new THREE.Vector3().copy(pf.orbitA).multiplyScalar(Math.cos(-k*Math.PI*2))
+      .addScaledVector(pf.orbitB, Math.sin(-k*Math.PI*2));
+    const goal = new THREE.Vector3().copy(center).addScaledVector(camDir, 14).addScaledVector(pf.up0, 6);
+    camPos.lerp(goal, 1-Math.exp(-1.8*dt));
+    camUp.lerp(pf.up0, 1-Math.exp(-2*dt)).normalize();
+    camera.position.copy(camPos); camera.up.copy(camUp); camera.lookAt(center);
+  } else if (pf.t < 13.0){                             // Percy grows; Beanie reacts
+    if (!pf.crowdScattered){
+      pf.crowdScattered = true;
+      scatterNearbyPercyCrowd(pf.p0);
+      noticeBubbleEl.textContent = '❗';
+      noticeBubbleEl.classList.add('show');
+      playCoo();
+    }
+    const k = (pf.t-8.0)/5.0, s = k*k*(3-2*k);
     holder.scale.setScalar(1 + s*3.6);
-    followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), 10);
-  } else if (pf.t < 3.4){                              // beanie hops on
-    const k = (pf.t - 2.2)/1.2, s = k*k*(3-2*k);
+    const side = new THREE.Vector3().crossVectors(pf.up0, pf.orbitA).normalize();
+    const goal = new THREE.Vector3().copy(pf.p0).addScaledVector(side, 13)
+      .addScaledVector(pf.up0, 4.8).addScaledVector(pf.orbitA, -4);
+    camPos.lerp(goal, 1-Math.exp(-1.4*dt));
+    camUp.lerp(pf.up0, 1-Math.exp(-2*dt)).normalize();
+    camera.position.copy(camPos); camera.up.copy(camUp);
+    camera.lookAt(tmpV.copy(pf.p0).addScaledVector(pf.up0, 2.2));
+  } else if (pf.t < 16.0){                             // Beanie takes a breath, then hops on
+    noticeBubbleEl.classList.remove('show');
+    const k = (pf.t - 13.0)/3.0, s = k*k*(3-2*k);
     const mount = tmpV3.set(0, 0.62, -0.05).applyMatrix4(holder.matrixWorld);
     her.position.lerpVectors(pf.herStart, mount, s);
     her.position.addScaledVector(pf.up0, Math.sin(s*Math.PI)*1.6);
@@ -4879,8 +4964,8 @@ function updatePercyFlight(dt, t){
       her.userData.sit(true);
     }
     followCam(dt, holder.position, pf.up0, tangentToward(holder.position, pf.up0, bodies[GARDEN_I].center), 12);
-  } else {                                             // fly away together
-    const fk = Math.min((pf.t - 3.4)/7.0, 1);
+  } else {                                             // long, adventurous fly-away
+    const fk = Math.min((pf.t - 16.0)/11.0, 1);
     const e = fk*fk*(3-2*fk);
     bezier(pf.p0, pf.p1, pf.p2, e, holder.position);
     const fwd = bezierTangent(pf.p0, pf.p1, pf.p2, e, tmpV2);
@@ -4888,11 +4973,11 @@ function updatePercyFlight(dt, t){
     holder.quaternion.copy(quatFromBasis(up, fwd));
     holder.rotateX(0.25 + Math.sin(t*2)*0.06);
     followCam(dt, holder.position, up, fwd, 15);
-    if (pf.t > 8.8 && !pf.irisClosing){
+    if (pf.t > 25.5 && !pf.irisClosing){
       pf.irisClosing = true;
       irisEl.classList.add('closed');
     }
-    if (pf.t > 10.4 && !pf.irisDone){
+    if (pf.t > 27.0 && !pf.irisDone){
       pf.irisDone = true;
       arriveGarden();
     }
@@ -5077,8 +5162,9 @@ addEventListener('keydown', (e) => {
       else pickupBook(pickTarget);
     }
   }
-  // QA shortcut: 1-6 instantly warps to that world AND skips every mission /
-  // gate (including Chicago's letter) so you can free-roam and leap onward.
+  // QA shortcut: 1-5 instantly warps to that world. Earlier worlds are
+  // treated as complete, but the destination's own story still starts
+  // normally so its NPC mission and navigation cannot be skipped by mistake.
   if ((state === 'walk' || state === 'talk' || state === 'intro' || state === 'landing')
       && e.key >= '1' && e.key <= String(WORLD_DEFS.length)){
     qaWarp(Number(e.key) - 1);
@@ -5089,7 +5175,12 @@ function qaWarp(i){
   if (dialog){ dialogEl.classList.add('hidden'); dialog = null; restoreObstacles(); }
   if (chicagoMessenger) dismissChicagoMessenger();
   if (landing){ planetTitleEl.classList.remove('show'); landing = null; }
-  bodies.forEach((b) => { b.missionDone = true; });     // QA: skip every mission/gate
+  // A number key can be pressed while an arrow is still held. Do not carry
+  // stale movement state across the teleport/cutscene boundary.
+  for (const key of Object.keys(keys)) keys[key] = false;
+  bodies.forEach((b) => {
+    b.missionDone = b.worldIndex < i;                   // only worlds before the destination are skipped
+  });
   // The journal notebook is normally only granted mid-letter in Chicago
   // (see CHICAGO_LETTER_LINES) — a QA warp skips that entirely, so the
   // journal button stayed permanently hidden for the rest of the session
@@ -5105,6 +5196,7 @@ function qaWarp(i){
   const faceTo = b.chainNext != null ? bodies[b.chainNext].center : b.center.clone().add(arbitraryPerp(n));
   orientation.copy(quatFromBasis(n, tangentToward(p, n, faceTo)));
   startLandingSequence(i);
+  landing.autoContinue = true;
 }
 addEventListener('keyup', (e) => { keys[e.key] = false; });
 
@@ -5131,7 +5223,7 @@ function updateMessengerCutsceneCam(dt){
   const up = herUp(new THREE.Vector3());
   const pgPos = m.pg.position;
   const toPg = tangentToward(her.position, up, pgPos);
-  const side = new THREE.Vector3().crossVectors(up, toPg).normalize();
+  const side = new THREE.Vector3().crossVectors(up, toPg).normalize().negate();
   const settleBlend = m.settling ? Math.min(1, (m.settleT || 0) / MESSENGER_SETTLE_SECONDS) : 0;
   const focus = new THREE.Vector3().copy(pgPos).lerp(
     new THREE.Vector3().addVectors(pgPos, her.position).multiplyScalar(0.5),
@@ -5267,7 +5359,7 @@ function updateWalk(dt){
     const bearing = Math.atan2(V().crossVectors(gFwd, gToward).dot(gUp), gFwd.dot(gToward));
     guideArrowEl.style.opacity = 1;
     guideArrowEl.style.transform = `rotate(${-bearing}rad)`;
-    guideLabelEl.innerHTML = `🚀 jump to ${nextBody.emoji} ${nextBody.name}`;
+    guideLabelEl.innerHTML = '🚀 a new world is calling…';
     guideEl.classList.add('show');
   } else {
     guideEl.classList.remove('show');

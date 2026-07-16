@@ -10,20 +10,17 @@ let bankURL = URL(fileURLWithPath: "/System/Library/Components/CoreAudio.compone
 
 let engine = AVAudioEngine()
 let piano = AVAudioUnitSampler()
-let sax = AVAudioUnitSampler()
-engine.attach(piano); engine.attach(sax)
+engine.attach(piano)
 let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2)!
 engine.connect(piano, to: engine.mainMixerNode, format: format)
-engine.connect(sax, to: engine.mainMixerNode, format: format)
 try piano.loadSoundBankInstrument(at: bankURL, program: 0, bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(kAUSampler_DefaultBankLSB))
-try sax.loadSoundBankInstrument(at: bankURL, program: 66, bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(kAUSampler_DefaultBankLSB))
 
 let sequencer = AVAudioSequencer(audioEngine: engine)
 try sequencer.load(from: midiURL, options: [])
 let musicTracks = sequencer.tracks
 if musicTracks.count >= 2 {
   musicTracks[0].destinationAudioUnit = piano
-  musicTracks[1].destinationAudioUnit = sax
+  musicTracks[1].destinationAudioUnit = piano
 }
 
 try? FileManager.default.removeItem(at: outputURL)
@@ -33,7 +30,7 @@ try engine.start()
 sequencer.currentPositionInBeats = 0
 try sequencer.start()
 
-let seconds = 8.0 * 4.0 * 60.0 / 82.0
+let seconds = musicTracks.map { $0.lengthInSeconds }.max() ?? 1
 let totalFrames = AVAudioFramePosition(seconds * format.sampleRate)
 let buffer = AVAudioPCMBuffer(pcmFormat: engine.manualRenderingFormat, frameCapacity: 4096)!
 while engine.manualRenderingSampleTime < totalFrames {
