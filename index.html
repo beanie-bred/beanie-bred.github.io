@@ -114,8 +114,8 @@
     transition:opacity .3s ease}
   #journalPanel.show{opacity:1;pointer-events:auto}
   /* Opens like a book: a hardcover shell (#journalCover) pops in first, then
-     the two pages — hinged at a central spine, folded flat against it
-     (rotateY ±100deg) — swing open to 0deg a beat later (transition-delay
+     the two pages - hinged at a central spine, folded flat against it
+     (rotateY ±100deg) - swing open to 0deg a beat later (transition-delay
      below), so the "opening" reads as its own distinct motion instead of
      happening simultaneously with the backdrop fade. The perspective on the
      book (not the page) is what makes that rotation read as a page swinging
@@ -128,7 +128,7 @@
     transition:transform .45s cubic-bezier(.2,1.4,.4,1),opacity .35s ease}
   #journalPanel.show #journalCover{transform:scale(1) translateY(0);opacity:1}
   /* a little gold corner-plate + ribbon bookmark peeking out, purely
-     decorative — sells "keepsake book" more than a plain cover alone would */
+     decorative - sells "keepsake book" more than a plain cover alone would */
   #journalCover::before{content:'';position:absolute;top:10px;left:10px;right:10px;bottom:10px;
     border:1.5px solid rgba(255,224,138,.55);border-radius:14px;pointer-events:none}
   #journalRibbon{position:absolute;top:-6px;right:38px;width:16px;height:46px;
@@ -166,7 +166,7 @@
   .journalSticker.got img{width:100%;height:100%;object-fit:cover}
   #journalClose{margin-top:auto;align-self:center;border:none;cursor:pointer;padding:10px 24px;
     border-radius:999px;font-size:13px;color:#fff;background:linear-gradient(135deg,#ff8fae,#e8547c)}
-  /* "met a new friend" toast — like #toast but with a sticker thumbnail */
+  /* "met a new friend" toast - like #toast but with a sticker thumbnail */
   #friendToast{position:fixed;top:76px;left:50%;transform:translateX(-50%) translateY(-8px);z-index:23;
     display:flex;align-items:center;gap:16px;padding:16px 34px 16px 16px;border-radius:999px;
     background:rgba(30,32,64,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,224,138,.5);
@@ -175,7 +175,7 @@
   #friendToastImg{position:relative;width:70px;height:70px;border-radius:16px;object-fit:contain;
     background:rgba(255,255,255,.12);box-shadow:0 0 18px rgba(255,209,102,.7)}
   /* "stamped" reveal: the sticker slams in oversized and rotated, then
-     settles with a little overshoot bounce — re-triggered every call via a
+     settles with a little overshoot bounce - re-triggered every call via a
      forced reflow (see showFriendToast) so repeat sticker toasts replay it. */
   @keyframes stampIn{
     0%{transform:scale(2.4) rotate(-20deg);opacity:0}
@@ -225,28 +225,28 @@
   #dialogText{font-size:clamp(15px,1.8vw,17px);line-height:1.55;min-height:26px;color:#f4f1ff}
   #dialogNext{text-align:right;font-size:12px;color:#c9c3ea;margin-top:8px;
     animation:pulseTxt 1.4s ease-in-out infinite}
-  #dialogChoices{position:fixed;right:clamp(24px,6vw,96px);top:24%;z-index:34;
-    width:min(560px,56vw);display:flex;flex-direction:column;gap:18px;pointer-events:auto}
-  .dialogChoice{position:relative;min-height:94px;border:2px solid rgba(255,225,239,.76);border-radius:28px;
-    padding:22px 58px 22px 72px;background:linear-gradient(135deg,rgba(91,78,139,.97),rgba(154,91,139,.95));
+  #dialogChoices{position:fixed;right:clamp(24px,5vw,78px);top:50%;transform:translateY(-50%);z-index:34;
+    width:min(440px,45vw);display:flex;flex-direction:column;gap:13px;pointer-events:auto}
+  .dialogChoice{position:relative;min-height:66px;border:2px solid rgba(255,225,239,.76);border-radius:22px;
+    padding:14px 48px 14px 58px;background:linear-gradient(135deg,rgba(91,78,139,.97),rgba(154,91,139,.95));
     color:#fffafd;text-align:left;font-family:'Comfortaa','Arial Rounded MT Bold','Segoe UI Rounded',sans-serif;
-    font-size:clamp(18px,2.05vw,23px);font-weight:700;line-height:1.42;letter-spacing:.005em;cursor:pointer;
+    font-size:clamp(15px,1.55vw,18px);font-weight:700;line-height:1.38;letter-spacing:.005em;cursor:pointer;
     text-shadow:0 2px 8px rgba(35,20,60,.42);
     box-shadow:0 11px 32px rgba(18,12,38,.42),inset 0 2px 0 rgba(255,255,255,.25),inset 0 -2px 0 rgba(40,24,72,.2);
     transition:transform .2s cubic-bezier(.2,1.25,.35,1),background .2s,border-color .2s,box-shadow .2s}
-  .dialogChoice::before{content:'♡';position:absolute;left:22px;top:50%;transform:translateY(-52%);
-    width:36px;height:36px;border-radius:50%;display:grid;place-items:center;
-    color:#ffe6f1;background:rgba(255,255,255,.16);font-size:26px;line-height:1;
+  .dialogChoice::before{content:'♡';position:absolute;left:17px;top:50%;transform:translateY(-52%);
+    width:29px;height:29px;border-radius:50%;display:grid;place-items:center;
+    color:#ffe6f1;background:rgba(255,255,255,.16);font-size:21px;line-height:1;
     box-shadow:inset 0 1px 0 rgba(255,255,255,.2)}
-  .dialogChoice::after{content:'✦';position:absolute;right:23px;top:50%;transform:translateY(-50%);
-    color:#ffe5a8;font-size:20px;opacity:.9}
+  .dialogChoice::after{content:'✦';position:absolute;right:18px;top:50%;transform:translateY(-50%);
+    color:#ffe5a8;font-size:16px;opacity:.9}
   .dialogChoice:hover,.dialogChoice:focus{outline:none;transform:translateX(-12px) scale(1.035);
     background:linear-gradient(135deg,rgba(119,101,171,.99),rgba(184,108,156,.98));
     border-color:#fff0bc;box-shadow:0 14px 38px rgba(35,20,60,.52),0 0 28px rgba(255,188,218,.36)}
-  @media(max-width:700px){#dialogChoices{left:4vw;right:auto;top:auto;bottom:155px;width:92vw}
-    .dialogChoice{min-height:78px;padding:17px 45px 17px 62px;border-radius:23px;
-      font-size:clamp(17px,4.6vw,20px);line-height:1.38}
-    .dialogChoice::before{left:18px;width:32px;height:32px;font-size:23px}
+  @media(max-width:700px){#dialogChoices{left:5vw;right:auto;top:50%;bottom:auto;width:90vw}
+    .dialogChoice{min-height:62px;padding:13px 42px 13px 54px;border-radius:20px;
+      font-size:clamp(15px,4vw,18px);line-height:1.34}
+    .dialogChoice::before{left:16px;width:27px;height:27px;font-size:20px}
     .dialogChoice::after{right:17px;font-size:17px}}
 
   /* ---------- planet-arrival title card (wide establishing orbit shot) ---------- */
@@ -256,7 +256,7 @@
   #planetTitle.show{opacity:1;pointer-events:auto;cursor:pointer}
   /* big, "epic movie transition" title reveal: starts oversized/spread/blurred
      and converges into place. Sized to fill almost the entire top of the
-     screen with near-zero whitespace — fitPlanetTitleOneLine() (JS) shrinks
+     screen with near-zero whitespace - fitPlanetTitleOneLine() (JS) shrinks
      it back down only if a given font/name combo would otherwise overflow or
      wrap, and padding-top is kept low enough that she's always fully visible
      below it (verified against Chicago's tight orbit, the closest framing
@@ -265,14 +265,14 @@
     text-transform:uppercase;letter-spacing:var(--tls);white-space:nowrap;
     text-shadow:0 0 10px rgba(0,0,0,.5),0 3px 10px rgba(0,0,0,.35);
     opacity:0}
-  /* one distinct display font per world — set as a class alongside .play */
+  /* one distinct display font per world - set as a class alongside .play */
   #planetTitleName.font-chicago{--tls:8px;font-family:'Oswald',sans-serif;font-weight:600}
   #planetTitleName.font-books{--tls:4px;font-family:'Playfair Display',serif;font-weight:800}
   #planetTitleName.font-cucumber{--tls:2px;font-family:'Comfortaa',cursive;font-weight:700}
   #planetTitleName.font-pigeon{--tls:3px;font-family:'Bungee',cursive;font-weight:400}
   #planetTitleName.font-garden{--tls:8px;font-family:'Cormorant Garamond',serif;font-weight:700}
   /* .play is toggled off/on in JS each time a new title shows (a plain CSS
-     animation on the element itself only ever plays once — on first paint —
+     animation on the element itself only ever plays once - on first paint -
      so without a retriggerable class every planet after the first would
      just appear at its final resting state with no reveal at all) */
   #planetTitleName.play{animation:titleReveal 1.5s cubic-bezier(.16,1,.3,1) both}
@@ -421,8 +421,8 @@
 
 <div id="musicCredits">
   Music from <b>#Uppbeat</b> (free for Creators!):
-  <a href="https://uppbeat.io/t/dan-barton/the-executive-lounge" target="_blank" rel="noopener">The Executive Lounge — Dan Barton</a><br>
-  <a href="https://uppbeat.io/t/color-parade/pixeltown" target="_blank" rel="noopener">Pixeltown — Color Parade</a>
+  <a href="https://uppbeat.io/t/dan-barton/the-executive-lounge" target="_blank" rel="noopener">The Executive Lounge - Dan Barton</a><br>
+  <a href="https://uppbeat.io/t/color-parade/pixeltown" target="_blank" rel="noopener">Pixeltown - Color Parade</a>
 </div>
 
 <script type="importmap">
@@ -442,7 +442,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 
 // Loader for real (Blender/Rodin-authored) character models, sitting alongside
 // the procedural geometry factories below. Models are Draco-compressed .glb
-// exports from game-assets/ — see Documentation/ART_BIBLE.md for the pipeline.
+// exports from game-assets/ - see Documentation/ART_BIBLE.md for the pipeline.
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/');
 const gltfLoader = new GLTFLoader();
@@ -497,7 +497,7 @@ renderer.toneMappingExposure = 1.14;
 document.body.appendChild(renderer.domElement);
 
 /* ═══════════════ DOLL-DIORAMA PALETTE ═══════════════
-   Handcrafted felt/wool/knit storybook look — Animal Crossing × The Little
+   Handcrafted felt/wool/knit storybook look - Animal Crossing × The Little
    Prince × Scandinavian children's books. Every color carries a little gray;
    nothing pure/neon/metallic. See ART_BIBLE.md "Palette & Lighting". */
 const PALETTE = {
@@ -512,7 +512,7 @@ const PALETTE = {
 const GARDEN_BG = new THREE.Color(PALETTE.skyBlue);
 // Every sky is a vertical gradient (zenith at the top of the screen, horizon
 // at the bottom). scene.background as a plain 2D canvas texture renders as a
-// fixed screen-space backdrop — it doesn't rotate with the camera, which
+// fixed screen-space backdrop - it doesn't rotate with the camera, which
 // reads fine for a stylized, non-directional storybook sky. Each world gets
 // its OWN gradient (see WORLD_SKY below): the journey runs from night at
 // Chicago through a sunrise that begins at Emerald Meadow and opens into a
@@ -527,7 +527,7 @@ function makeSkyGradient(stops){
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
-// Chicago + Main Stacks — deep night, a little richer than a flat navy:
+// Chicago + Main Stacks - deep night, a little richer than a flat navy:
 // near-black indigo at the zenith easing down through navy to a lighter
 // slate blue at the horizon. Also the initial title-screen backdrop.
 const SPACE_BG_TEXTURE = makeSkyGradient([
@@ -545,7 +545,7 @@ addEventListener('resize', () => {
 });
 
 /* ---------- tiny warm bloom (lanterns, fireflies, stars, gate glow only) ----------
-   High threshold so only genuinely bright/emissive things soften-glow — the
+   High threshold so only genuinely bright/emissive things soften-glow - the
    diorama itself should never look blown out, just gently sun-through-curtains. */
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
@@ -602,7 +602,7 @@ function placeOn(group, obj, nLocal, R, lift=0){
 }
 // Solid-object collision: each collider is a circular footprint on a
 // planet's surface (direction + angular radius). Movement toward one is
-// blocked ("bumps back") — see updateWalk(). Water/creatures/decorations
+// blocked ("bumps back") - see updateWalk(). Water/creatures/decorations
 // that shouldn't block her are simply never registered here.
 const HER_FOOTPRINT = 0.4;   // her own half-width, in world units
 function addCollider(list, n, footprintRadius, R){
@@ -656,13 +656,13 @@ const sparkMat = mat(0xffe08a, { emissive:0xffc23e, emissiveIntensity:1.6 });
 const heartBurstMat = mat(0xf2889e, { emissive:0xe86a86, emissiveIntensity:0.7 });
 
 /* ---------- footprints ---------- */
-// A simple flattened oval "impression" per footstep — alternates left/right
+// A simple flattened oval "impression" per footstep - alternates left/right
 // with the same step parity that already drives footstep() sound/dust, sits
 // flush against the local surface, and fades via spawnEphemeral's own
 // life-based opacity ramp (no separate fade timer needed).
 const footprintGeo = new THREE.CircleGeometry(0.14, 10);
 // Default CircleGeometry lies in the XY plane (normal +Z). Pre-rotate it
-// once so its normal becomes +Y instead — matching quatFromBasis's own
+// once so its normal becomes +Y instead - matching quatFromBasis's own
 // up=local-Y, forward=local-Z convention (used for her, every NPC, etc.),
 // so a plain quatFromBasis(up, fwd) here lies the decal flush against the
 // surface with its long axis already pointing the way she's walking,
@@ -672,7 +672,7 @@ const FOOTPRINT_LIFE = 2.0;
 function spawnFootprint(pos, up, fwd, side, leftSide){
   // Softer than pure black so it reads as a faint pressed mark, not a harsh
   // ink blot. NOTE: updateEphemerals overwrites material.opacity every frame
-  // with a fade curve that used to clamp to 1.0 — so the decal peaked FULLY
+  // with a fade curve that used to clamp to 1.0 - so the decal peaked FULLY
   // OPAQUE right after spawn regardless of this base opacity, which is why
   // footprints looked solid black. The maxOpacity arg to spawnEphemeral now
   // caps that fade; 0.5 makes them ~50% more transparent (per request).
@@ -699,7 +699,7 @@ function spawnDust(kind, pos, up, fwd){
     spawnEphemeral(puff, pos, vel, 0.4 + Math.random()*0.25, 1.4);
   }
 }
-// A big impact-dust burst for the planet-landing cutscene — same puff
+// A big impact-dust burst for the planet-landing cutscene - same puff
 // geometry/material as footstep dust, but many more of them thrown outward
 // and upward in a wide radial burst instead of a few kicked backward.
 function spawnLandingDustBurst(pos, up){
@@ -745,7 +745,7 @@ function makeStars(count, rMin, rMax, size, color, opacity){
   return p;
 }
 // radii pushed way out (was 460-980) so the field stays a distant backdrop
-// now that world positions run out past ~1300 (Pigeon Plaza) — otherwise
+// now that world positions run out past ~1300 (Pigeon Plaza) - otherwise
 // she'd be standing farther from the origin than her own stars. Sizes and
 // counts bumped too per request for a more prominent starfield.
 makeStars(2200, 1400, 2600, 2.6, 0xffffff, 0.95);
@@ -756,14 +756,14 @@ makeStars(140, 1400, 2500, 4.2, 0xffffff, 0.85);   // an extra prominent layer, 
 animators.push((t) => { pinkStars.rotation.y = t*0.004; });
 // Every night-only sky element (star point-clouds + constellation anchors and
 // lines below) registers its material here so a single nightFactor can fade
-// them all together — full at night (Chicago/Main Stacks), faint at the
+// them all together - full at night (Chicago/Main Stacks), faint at the
 // Emerald Meadow dawn, gone by the Garden's daytime sky. setNightFactor lives
 // down with the WORLD_SKY table so it can be called from applyWorldSky.
 const nightSkyMats = [];
 for (const p of starLayers) nightSkyMats.push({ m:p.material, base:p.material.opacity });
 // Constellations: small clusters of bright anchor stars connected by faint
 // lines suggesting a star-picture, in the same spirit as (not an attempt at
-// astronomically real) actual constellations — reads as whimsical detail in
+// astronomically real) actual constellations - reads as whimsical detail in
 // the background sky rather than a literal skybox.
 {
   const CONSTELLATION_COUNT = 7, STARS_PER = 5;
@@ -794,7 +794,7 @@ for (const p of starLayers) nightSkyMats.push({ m:p.material, base:p.material.op
   }
 }
 // Shooting stars: a bright streak flies across a random chord of the sky
-// every several seconds and fades — same life-based opacity fade as every
+// every several seconds and fades - same life-based opacity fade as every
 // other ephemeral, just with a custom elongated/oriented mesh and a much
 // longer travel distance than anything else that uses spawnEphemeral.
 const shootingStarGeo = new THREE.ConeGeometry(2.4, 60, 6);
@@ -809,7 +809,7 @@ function spawnShootingStar(){
 let nextShootingStarT = 4 + Math.random()*6;
 animators.push((t) => {
   if (t < nextShootingStarT) return;
-  // no shooting stars once the sky has brightened past a faint dawn — they'd
+  // no shooting stars once the sky has brightened past a faint dawn - they'd
   // look wrong streaking across a morning/daytime sky
   if (nightFactor <= 0.25){ nextShootingStarT = t + 7 + Math.random()*11; return; }
   spawnShootingStar();
@@ -821,9 +821,9 @@ animators.push((t) => {
    night; the sunrise first breaks at Emerald Meadow (cool blue zenith bleeding
    into warm coral/gold along the horizon); it opens further into a golden
    morning at Pigeon Plaza; and by the Garden it's a bright, clear daytime
-   sky-blue. Every one of these is a full multi-stop vertical gradient — even
+   sky-blue. Every one of these is a full multi-stop vertical gradient - even
    the daytime Garden sky is a real gradient, not a flat blue fill. */
-const SKY_DAWN = makeSkyGradient([         // Emerald Meadow — sunrise begins
+const SKY_DAWN = makeSkyGradient([         // Emerald Meadow - sunrise begins
   [0, '#26406b'],   // still-blue dawn zenith
   [0.34, '#4b4f83'],// dusky blue-violet
   [0.56, '#8a6b96'],// mauve where night meets the glow
@@ -831,14 +831,14 @@ const SKY_DAWN = makeSkyGradient([         // Emerald Meadow — sunrise begins
   [0.89, '#f4c58c'],// peach-gold
   [1, '#ffe1a6'],   // warm gold along the horizon
 ]);
-const SKY_MORNING = makeSkyGradient([      // Pigeon Plaza — golden morning
+const SKY_MORNING = makeSkyGradient([      // Pigeon Plaza - golden morning
   [0, '#5f9fd6'],   // opening morning blue
   [0.4, '#a7c7e4'], // pale blue
   [0.62, '#e9caae'],// warm cream
   [0.8, '#f7cf9f'], // apricot
   [1, '#ffe7ba'],   // pale gold horizon
 ]);
-const SKY_DAY = makeSkyGradient([          // The Garden — bright clear day
+const SKY_DAY = makeSkyGradient([          // The Garden - bright clear day
   [0, '#4a90d9'],   // clear sky-blue zenith
   [0.36, '#79b2e6'],
   [0.64, '#aed6f2'],
@@ -861,8 +861,8 @@ function setNightFactor(f){
 // hanging in the sky (small distant discs 800+ units away) should wash out into
 // the blue almost completely, the way you can barely make out anything in a
 // midday sky. A linear fog does this for free: its `near` sits well past the
-// whole Garden sphere — the roaming camera (~9u back) AND the wide arrival-orbit
-// shot (~76u back, content out to ~160u) both stay fully crisp — while its `far`
+// whole Garden sphere - the roaming camera (~9u back) AND the wide arrival-orbit
+// shot (~76u back, content out to ~160u) both stay fully crisp - while its `far`
 // sits short of the nearest other world (~837u), so every planet is blended
 // almost entirely into the sky colour. Only ever active on the Garden; cleared
 // everywhere else (the space/dawn/morning worlds want their planets crisp).
@@ -1092,7 +1092,7 @@ function playCoo(){
 function playStamp(){
   if (!audio || muted) return;
   const { ctx, master } = audio, t0 = ctx.currentTime;
-  // low percussive "thud" (the stamp hitting) — fast attack, quick decay
+  // low percussive "thud" (the stamp hitting) - fast attack, quick decay
   const thud = ctx.createOscillator(), thudGain = ctx.createGain();
   thud.type = 'sine'; thud.frequency.setValueAtTime(160, t0);
   thud.frequency.exponentialRampToValueAtTime(70, t0 + 0.12);
@@ -1223,7 +1223,7 @@ const blobShadowMat = new THREE.MeshBasicMaterial({ color:0x141030, map:dotTex,
 /* Characters rebuilt 1:1 against the turnaround sheet (character designs/):
    ~45% head, real torso, long legs, arms hanging nearly straight.
    Feet at y=0, top of head ≈ 2.1. Face features must clear the head
-   surface (see ART_BIBLE.md) — verified per-feature below. */
+   surface (see ART_BIBLE.md) - verified per-feature below. */
 function makeChibi(style){  // 'beanie' | 'bred'
   const isBred = style === 'bred';
   const av = new THREE.Group();
@@ -1465,7 +1465,7 @@ function plushPigeon(colors={}, o={}){
     ch.scale.set(1.1, 0.9, 0.8); ch.position.set(0, 0.24, 0.22); g.add(ch);
   }
   // Head group: everything that should peck/bob TOGETHER (head, eyes, beak,
-  // ring) lives under one group instead of as loose siblings of `g` — the
+  // ring) lives under one group instead of as loose siblings of `g` - the
   // peck animator only ever moved the bare head sphere, so the eyes/beak
   // stayed floating in place while the head dipped away from them.
   const head = new THREE.Group();
@@ -1648,7 +1648,7 @@ function fillCucumber(g, scale){
   c.scale.setScalar(scale);
   g.add(c);
 }
-// The planetary cucumber RING needs thousands of cucumbers to read as dense —
+// The planetary cucumber RING needs thousands of cucumbers to read as dense -
 // far too many to give each its own cloned Object3D/Mesh hierarchy (a real
 // draw-call/perf risk). Instead we pull one geometry+material out of the
 // loaded model once and drive every ring cucumber off a single
@@ -1656,7 +1656,7 @@ function fillCucumber(g, scale){
 // never loads, so the ring is never silently empty.
 let cucumberGeo = null, cucumberMat = null;
 // The planetary RING is THOUSANDS of tiny, distant, tumbling cucumbers in a
-// Saturn-style band. The loaded cucumber model is ~5,600 triangles EACH —
+// Saturn-style band. The loaded cucumber model is ~5,600 triangles EACH -
 // across the ~4,000-instance ring that was ~22M triangles, by far the single
 // biggest GPU cost in the whole game. At ring distance a low-poly capsule is
 // completely indistinguishable, so the ring is driven off THIS (a ~70-tri
@@ -1672,7 +1672,7 @@ function runPendingRingBuilds(){
 loadModel('./game-assets/cucumber/cucumber.glb').then((model) => {
   cucumberModel = model;
   // Take only the material from the model; the ring uses the low-poly capsule
-  // above (a Y-aligned capsule, which the ring layout already assumes — it's
+  // above (a Y-aligned capsule, which the ring layout already assumes - it's
   // exactly what the procedural fallback below has always used).
   model.traverse((o) => { if (o.isMesh && !cucumberMat){ cucumberMat = o.material; } });
   cucumberGeo = makeRingCukeGeo();
@@ -1724,13 +1724,13 @@ function makeFood(type){
   } else if (type === 'pizza'){
     const sl=new THREE.Mesh(new THREE.CircleGeometry(0.5,16,0,1.1),M(0xf6d28a)); sl.rotation.x=-Math.PI/2; sl.position.y=0.05; g.add(sl);
     // Must match the slice's OWN rotation sign (-PI/2), not its mirror image
-    // (+PI/2) — both share the same thetaLength wedge angle, so a flipped
+    // (+PI/2) - both share the same thetaLength wedge angle, so a flipped
     // sign here rotates the crust arc to the opposite side of the circle
     // than the slice wedge it's supposed to hug, reading as a totally
     // separate floating ring instead of the slice's outer edge.
     const cr=new THREE.Mesh(new THREE.TorusGeometry(0.5,0.05,6,16,1.1),M(0xe0a85c)); cr.rotation.x=-Math.PI/2; cr.position.y=0.05; g.add(cr);
     // pepperoni must land inside the slice's actual wedge (CircleGeometry
-    // thetaLength=1.1 rad sweeping x=r*cos(theta), z=-r*sin(theta)) — placing
+    // thetaLength=1.1 rad sweeping x=r*cos(theta), z=-r*sin(theta)) - placing
     // them with plain independent x/z randomness scatters half of them off
     // the crust entirely, reading as separated floating discs.
     for (let i=0;i<4;i++){ const a=0.15+Math.random()*0.8, r=0.12+Math.random()*0.28;
@@ -1747,7 +1747,7 @@ function makeFood(type){
     const stick=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.35,0.05),M(0xe0c090)); stick.position.y=0.05; g.add(stick);
   } else if (type === 'watermelon'){
     // a half-melon: a dome (rind) + a flat disc (flesh) just above its cut
-    // plane — no wedge angle to align between two pieces (unlike the pizza
+    // plane - no wedge angle to align between two pieces (unlike the pizza
     // slice/crust), so there's no risk of the same mirrored-sign bug.
     const rind=new THREE.Mesh(new THREE.SphereGeometry(0.38,16,10,0,Math.PI*2,0,Math.PI/2),M(0x2e7d3a));
     rind.position.y=0.05; g.add(rind);
@@ -1876,13 +1876,13 @@ function buildChicago(g, R){
     mat(0xf4f4f0, { side:THREE.DoubleSide, roughness:0.8 }));
   cloth.position.x = 0.33; flag.add(cloth);
   // Stripes/stars are children of `cloth` (not `flag`) so they share its extra
-  // sway below — they used to be siblings positioned to line up with cloth's
+  // sway below - they used to be siblings positioned to line up with cloth's
   // span only while cloth had zero rotation of its own; once cloth started
   // rippling independently, the design stayed rigid and visibly sheared off
   // the moving cloth. Positions are relative to cloth's own origin now (was
   // flag-relative, hence the -0.33 shift to compensate for cloth's offset).
   // A DoubleSide base does not make decorations placed on its FRONT visible
-  // from behind—the cloth depth-tests over them. Build the complete design
+  // from behind-the cloth depth-tests over them. Build the complete design
   // once per face, offset in the appropriate direction, so neither side can
   // lose its blue stripes. Flat six-point stars also read more like Chicago's
   // real flag than the old red spheres did.
@@ -1907,7 +1907,7 @@ function buildChicago(g, R){
   placeOn(g, tower, topN, R);
   addCollider(colliders, topN, 1.4, R);   // tower footprint (widest tier ~2.0 wide)
   // Must match CHICAGO_START_N below (declared later in the file, so it can't
-  // be referenced directly here — buildChicago() runs before that const is
+  // be referenced directly here - buildChicago() runs before that const is
   // initialized). Keeps the random skyline blocks from ever landing in her
   // fixed spot and reading as her body merging into a building.
   const beanieSpotN = V().set(0.48, 0.86, 0.18).normalize();
@@ -1930,7 +1930,7 @@ function buildChicago(g, R){
     placeOn(g, b, n, R);
     addCollider(colliders, n, w*0.6, R);
   }
-  // gloomy little clouds — a real cumulus cluster (puffs scattered in a
+  // gloomy little clouds - a real cumulus cluster (puffs scattered in a
   // rough flattened circle, varied sizes) instead of a straight row of
   // same-size spheres, and orbiting well above the tower (~8.7 units tall)
   // instead of level with it.
@@ -2004,7 +2004,7 @@ function buildBooks(g, R){
   const colliders = [];
   const chippyN = V().set(0.3, 1, 0.35).normalize();
   // jumpTo's landing normal for a "regular" body is "back toward wherever
-  // she jumped from" — for the Chicago->Books leg that's approximately this
+  // she jumped from" - for the Chicago->Books leg that's approximately this
   // fixed direction. Keep it clear of book stacks so she always lands on
   // flat open ground (never on top of a pile) and the arrival camera never
   // has a stack blocking its view of her fall/get-up.
@@ -2013,7 +2013,7 @@ function buildBooks(g, R){
   const LAND_CLEAR = 9;
   // A real labyrinth of shelving around Chippy instead of pure random scatter
   // (only a sparse subset of a 420-stack scatter ever actually collided, so
-  // it read as cluttered without being a real obstacle) — but independent
+  // it read as cluttered without being a real obstacle) - but independent
   // per-ring random gaps (the previous version of this maze) leave big,
   // completely bare "moat" bands between rings, since nothing ever gets
   // placed there at all: sparse-looking, and only PROBABLY solvable (gaps
@@ -2021,11 +2021,11 @@ function buildBooks(g, R){
   // following test, see beanie-web-game-gotchas memory).
   //
   // This version is a proper polar maze: an (ring x sector) grid of cells
-  // around chippyN, connected via randomized depth-first search — the same
+  // around chippyN, connected via randomized depth-first search - the same
   // recursive-backtracking algorithm any textbook maze generator uses,
   // just in polar instead of Cartesian coordinates. That guarantees, BY
   // CONSTRUCTION, that every cell (all the way in to the one right next to
-  // Chippy) is reachable from every other cell — no probability involved,
+  // Chippy) is reachable from every other cell - no probability involved,
   // and walls can fill nearly every remaining boundary (dense, "many tall
   // piles") without any risk of sealing off a path, since only exactly the
   // carved spanning-tree edges are ever left open.
@@ -2059,12 +2059,12 @@ function buildBooks(g, R){
   })();
   // Footprint sized against the tightest (innermost-ring) angular spacing,
   // WITH her own footprint buffer included (isBlocked() adds HER_FOOTPRINT/R
-  // on top of every collider's own angRadius — missing that the first time
+  // on top of every collider's own angRadius - missing that the first time
   // left ~0 margin at the innermost ring, effectively sealing her into a
   // trap: every direction fully blocked, not just one clipped corner).
   // At MAZE_RING_MIN/MAZE_N_SECTORS above, half the gap between adjacent
   // wall positions is ~0.077 rad; wall angRadius (worst case, s=1.3) is
-  // 0.35*1.3/R=~0.0256, plus her own ~0.0225, totals ~0.048 — comfortable
+  // 0.35*1.3/R=~0.0256, plus her own ~0.0225, totals ~0.048 - comfortable
   // margin (~35%) instead of the ~0 the previous 0.5 footprint left.
   const MAZE_WALL_FOOTPRINT = 0.35;
   function placeMazeWall(n){
@@ -2090,9 +2090,9 @@ function buildBooks(g, R){
     }
   }
   // A maze-wall pile averages ~8 books @ scale ~1.15 (0.26*1.15*8 ≈ 2.4 tall)
-  // — the OLD landmark (6 books @ 1.5 ≈ 2.34 tall) was barely distinguishable
+  // - the OLD landmark (6 books @ 1.5 ≈ 2.34 tall) was barely distinguishable
   // from an ordinary wall at a glance, exactly the "hard to spot" complaint.
-  // 14 books @ 1.3 ≈ 4.73 tall — a clean two-times-the-average tower, read as
+  // 14 books @ 1.3 ≈ 4.73 tall - a clean two-times-the-average tower, read as
   // one continuous column (the same visual as "several piles combined") but
   // built with makeStack's own existing per-book jitter rather than stacking
   // separate groups, so it still reads as one coherent pile, not a stepped
@@ -2104,12 +2104,12 @@ function buildBooks(g, R){
   // landmark beyond the labyrinth. dirNear() is NOT safe for this: it's
   // n + spread*randomUnitVector renormalized, which for a spread this large
   // does NOT reliably control angular distance from n (it can land almost
-  // anywhere on the sphere) — that's how this once landed at ang~0.8, right
+  // anywhere on the sphere) - that's how this once landed at ang~0.8, right
   // inside ring 2's band, plugging a gap. tiltDir(n, angle, azimuth) is the
   // deterministic one: exactly `angle` from n, only azimuth randomized.
   // landN itself sits at roughly this same ~1.8 rad from chippyN (it's "back
   // toward Chicago"), so a random azimuth alone can still land the tower
-  // right on top of her spawn point — reroll (azimuth only) until it clears
+  // right on top of her spawn point - reroll (azimuth only) until it clears
   // the same LAND_CLEAR zone the maze rings respect, plus the tower's own
   // footprint, same as isBlocked() adding her footprint to a collider's own.
   let grandN;
@@ -2117,7 +2117,7 @@ function buildBooks(g, R){
   while (grandN.angleTo(landN) < LAND_CLEAR/R + 1.35/R);
   placeOn(g, grand, grandN, R);
   addCollider(colliders, grandN, 1.35, R);
-  // The maze only ever covers the disc within MAZE_RING_MAX of chippyN —
+  // The maze only ever covers the disc within MAZE_RING_MAX of chippyN -
   // from a wide view (Chicago, or this world's own title-orbit) everywhere
   // past that ring reads as one bare circle of grass around a single dense
   // maze, not a world that's generally full of books. Smaller, sparser piles
@@ -2131,11 +2131,11 @@ function buildBooks(g, R){
     placeOn(g, makeStack(nb, s, 0.3), n, R);
     addCollider(colliders, n, 0.5*s, R);
   }
-  // chippy napping on his own little stack — bumped from 3 books @ scale 1.1
+  // chippy napping on his own little stack - bumped from 3 books @ scale 1.1
   // (height 0.858) to 5 @ 1.3 (height 1.69): the old seat was so short and
   // neat next to the surrounding randomly-scattered 700-pile stacks (which
   // run up to 6 books @ 1.4, plus a looser tidy jitter that reads as more
-  // voluminous) that it was effectively invisible under him — he looked
+  // voluminous) that it was effectively invisible under him - he looked
   // like he was just standing on bare ground, not resting on his own pile.
   const CHIPPY_SEAT_BOOKS = 5, CHIPPY_SEAT_SCALE = 1.3;
   const seat = makeStack(CHIPPY_SEAT_BOOKS, CHIPPY_SEAT_SCALE, 0.12);
@@ -2147,8 +2147,8 @@ function buildBooks(g, R){
   orientToNormal(chippy, chippyN);
   chippy.rotateY(2.4); // face toward the landing spot; tuned against the model's raw front
   // The seat is a CHILD of chippy (not a separate world-group object placed
-  // via placeOn) so hideNearbyObstacles() — which declutters every OTHER
-  // prop near her during a conversation, exempting only the npcObj itself —
+  // via placeOn) so hideNearbyObstacles() - which declutters every OTHER
+  // prop near her during a conversation, exempting only the npcObj itself -
   // can never hide the pile out from under him; it only ever iterates
   // bodies[curI].group's direct children, and the seat isn't one anymore.
   // Local transform cancels chippy's own rotateY(2.4) and drops back down
@@ -2200,7 +2200,7 @@ function buildBooks(g, R){
     const halo = new THREE.Mesh(new THREE.SphereGeometry(1.5, 14, 12),
       new THREE.MeshBasicMaterial({ color:GIFT_COLORS[i], transparent:true, opacity:0.2, depthWrite:false }));
     halo.position.y = 1.4; holder.add(halo);
-    // a bright beacon that floats above and catches the bloom — a findable landmark
+    // a bright beacon that floats above and catches the bloom - a findable landmark
     const beacon = new THREE.Mesh(new THREE.OctahedronGeometry(0.34),
       mat(GIFT_COLORS[i], { emissive:GIFT_COLORS[i], emissiveIntensity:2.4, roughness:0.3 }));
     beacon.position.y = 3.4; holder.add(beacon);
@@ -2208,7 +2208,7 @@ function buildBooks(g, R){
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.0, 8),
       new THREE.MeshBasicMaterial({ color:GIFT_COLORS[i], transparent:true, opacity:0.35, depthWrite:false }));
     beam.position.y = 2.4; holder.add(beam);
-    // scattered around the planet, well clear of Chippy's own talk spot —
+    // scattered around the planet, well clear of Chippy's own talk spot -
     // the closest one used to land only ~0.9 rad out (~16 units at R=17.8),
     // easily visible in the same shot as him, reading as "conveniently
     // right next to where you talk to him" instead of an actual collect-
@@ -2216,7 +2216,7 @@ function buildBooks(g, R){
     // (see MAZE_RINGS below), so reaching one is itself real navigation.
     // tiltDir (not dirNear) for the same reason as the grand landmark stack:
     // dirNear doesn't reliably control angular distance at this spread, so
-    // it could land a book right on her own landing spot — reproduced live
+    // it could land a book right on her own landing spot - reproduced live
     // as a floating book covering her during the fall/get-up cutscene.
     const giftAngle = 1.3 + (i/5)*1.4 + Math.random()*0.3;
     let n;
@@ -2229,7 +2229,7 @@ function buildBooks(g, R){
       if (!holder.visible) return;
       bk.rotation.y = t*0.9 + ph;
       bk.position.y = 1.4 + 0.2*Math.sin(t*1.6 + ph);
-      // Don't glow/beacon until Chippy has actually asked for these — she
+      // Don't glow/beacon until Chippy has actually asked for these - she
       // shouldn't be able to spot the "glowy ones" before she even knows
       // to look for them.
       const missionActive = booksQuest.phase >= 1;
@@ -2249,7 +2249,7 @@ function buildBooks(g, R){
 }
 
 function grassField(g, R, count, color, skipN=null, skipAng=0){
-  // soft rounded "velvet tuft" instead of a spiky blade — reads like short
+  // soft rounded "velvet tuft" instead of a spiky blade - reads like short
   // brushed fleece rather than individual grass blades (see ART_BIBLE.md).
   // Capsule subdivisions dropped from (3,6)=~156 tris to (1,4)=~30: at these
   // instance counts (tens of thousands) the blade's own poly count was a
@@ -2277,12 +2277,12 @@ function grassField(g, R, count, color, skipN=null, skipAng=0){
 
 function buildCucumber(g, R){
   grassField(g, R, 8000, PALETTE.moss);
-  // ---- the mystery: a SOLID green ring circles the planet from the start —
+  // ---- the mystery: a SOLID green ring circles the planet from the start -
   // she has no idea yet that it (and the ground cucumbers) are cucumbers.
   // The real cucumber-built ring exists the whole time too, just hidden,
   // ready to be revealed by startCukeRevealCutscene() once bbak's final
   // hint lands. Both share the same tilt so the swap reads as one object.
-  // Kept shallow on purpose — a steep tilt (the original 1.15 rad / 66°, then
+  // Kept shallow on purpose - a steep tilt (the original 1.15 rad / 66°, then
   // 0.45 rad / 26°) reads as edge-on / a near-vertical wall from a lot of the
   // vantage points Beanie can actually walk to on the sphere's surface, which
   // both looks like it's touching the planet and can dominate/block the view
@@ -2290,7 +2290,7 @@ function buildCucumber(g, R){
   // horizontal, tilted disc from nearly every angle instead.
   const RING_TILT_X = 0.16, RING_TILT_Z = 0.08;
   // squash one horizontal axis so the ring reads as a true ellipse rather
-  // than a circle that only looks oval from the current viewing angle —
+  // than a circle that only looks oval from the current viewing angle -
   // applied as a scale on the same (tilted, spinning) group so the solid
   // ring and the real cucumber-band ring squash identically and the reveal
   // swap still reads as one continuous object.
@@ -2298,7 +2298,7 @@ function buildCucumber(g, R){
   // IMPORTANT: sizing this by an arbitrary multiple of R (tried R*4, then
   // R+R*0.56) kept "still merging" because it never accounted for how far
   // the establishing-shot orbit camera itself travels (see updateLanding's
-  // 'orbit' phase: farDist = min(70, R*2.2), farHeight = min(30, R*0.95)) —
+  // 'orbit' phase: farDist = min(70, R*2.2), farHeight = min(30, R*0.95)) -
   // at R=45 that's a camera up to ~76 units from HER, i.e. up to ~121 from
   // the planet's center, which sat right inside the ring's old 70–118
   // radius. The camera was flying THROUGH the ring's own footprint. The
@@ -2309,13 +2309,13 @@ function buildCucumber(g, R){
   const landCamMaxReach = Math.sqrt(landCamFarDist**2 + landCamFarHeight**2);   // ~76 at R=45
   // The +60 margin (and the 40/8/20 band widths) made the ring's absolute
   // world-space size huge enough (outer radius ~249 at R=45, ~500 across)
-  // that from a distance — e.g. aiming from Chicago/Main Stacks toward the
-  // next world — it visually swallowed neighboring planets in the same line
+  // that from a distance - e.g. aiming from Chicago/Main Stacks toward the
+  // next world - it visually swallowed neighboring planets in the same line
   // of sight, even though it never actually touched them in 3D. The camera-
   // clearance bound above (landCamMaxReach) is already a conservative worst
   // case on its own; a small margin on top is enough, no need to inflate it
   // further just for visual "safety".
-  const RING_INNER = R + landCamMaxReach + 15;      // ~136 at R=45 — still clear of every camera position
+  const RING_INNER = R + landCamMaxReach + 15;      // ~136 at R=45 - still clear of every camera position
   const BAND_MAIN = 20, BAND_DIV = 5, BAND_OUTER = 10;
   const mainInnerR = RING_INNER, mainOuterR = mainInnerR + BAND_MAIN;
   const outerInnerR = mainOuterR + BAND_DIV, outerOuterR = outerInnerR + BAND_OUTER;
@@ -2330,9 +2330,9 @@ function buildCucumber(g, R){
   let solidSpinScale = 1;
   animators.push((t, dt) => { solidRing.rotation.y += 0.22*dt*solidSpinScale; });
 
-  // A big planetary RING of cucumbers circling the world, like Saturn's rings —
+  // A big planetary RING of cucumbers circling the world, like Saturn's rings -
   // thousands of them, tilted, tumbling as the whole band slowly orbits the
-  // planet. ~5x denser than the previous pass (520/280 → 2600/1400) — driven
+  // planet. ~5x denser than the previous pass (520/280 → 2600/1400) - driven
   // through a single THREE.InstancedMesh per band (see cucumberGeo/
   // runPendingRingBuilds above) rather than one cloned Object3D per cucumber,
   // since that many individual draw calls would tank the frame rate. Hidden
@@ -2390,9 +2390,9 @@ function buildCucumber(g, R){
   // scatter) so it reads as a disc, not a puffy band.
   buildRing(2600, (mainInnerR+mainOuterR)/2, RING_TILT_X, RING_TILT_Z, 0.16, BAND_MAIN, 1.0);
   buildRing(1400, (outerInnerR+outerOuterR)/2, RING_TILT_X, RING_TILT_Z, 0.11, BAND_OUTER, 0.7);
-  // some cucumbers resting in the grass — hidden until the reveal, same as the
+  // some cucumbers resting in the grass - hidden until the reveal, same as the
   // ring. Any one of these becomes pickable once revealed (see
-  // nearestFoodPickup()), not just the one dedicated glowing cuke below —
+  // nearestFoodPickup()), not just the one dedicated glowing cuke below -
   // wrapped the same {holder,taken,name} shape pickupFood() already expects
   // so picking one up needs no special-case handling anywhere downstream.
   const groundCucumberHolders = [];
@@ -2412,13 +2412,13 @@ function buildCucumber(g, R){
     const holder = new THREE.Group(); holder.add(f); f.position.y = 0.12;
     placeOn(g, holder, randDir(), R, 0.1);
   }
-  // this meadow used to be bbak's icy home before it thawed into grass — real
-  // snow-pile MOUNDS (a squashed sphere, not a flat circle — genuine 3D
+  // this meadow used to be bbak's icy home before it thawed into grass - real
+  // snow-pile MOUNDS (a squashed sphere, not a flat circle - genuine 3D
   // volume you can see the roundness of from any angle) scattered around as
   // a quiet visual nod to that backstory, always visible (not gated by the
   // cucumber reveal, unlike the ring/ground-cucumbers above).
   // She always arrives on the side facing whatever world she jumped from
-  // (the same default the game itself falls back to — see the `landN ||`
+  // (the same default the game itself falls back to - see the `landN ||`
   // fallback used everywhere a body has no explicit override), so that's
   // her real landing spot here too. With piles up to radius 3 scattered
   // fully at random across a planet this small, one landing right next to
@@ -2435,7 +2435,7 @@ function buildCucumber(g, R){
   function makeSnowPile(radius, yScale){
     // squashed sphere with a bit of extra random lumpiness per-instance
     // (slight non-uniform scale on x/z) so a field of these doesn't read as
-    // identical stamped-out discs — bumped whiter/more opaque than the
+    // identical stamped-out discs - bumped whiter/more opaque than the
     // original flat-circle pass, too: against the sage-green grass
     // (PALETTE.moss, itself fairly pale/muted) anything much less than
     // near-solid white barely registered as snow at all.
@@ -2449,7 +2449,7 @@ function buildCucumber(g, R){
   }
   // Recorded (direction, angular footprint, peak height) per pile so she can
   // walk ON TOP of these like real hills instead of just visually overlapping
-  // them — see snowPileHeightAt(), used from updatePose() on this world.
+  // them - see snowPileHeightAt(), used from updatePose() on this world.
   const snowPiles = [];
   for (let i = 0; i < 70; i++){
     const radius = 1.3 + Math.random()*1.7;   // bigger than the old flat-circle pass (was 0.6-1.3)
@@ -2461,14 +2461,14 @@ function buildCucumber(g, R){
     placeOn(g, holder, n, R, lift);
     snowPiles.push({ n, angularRadius: radius/R, peak: lift + radius*yScale });
   }
-  // bbak (sleeping polar-bear plush) lounging on the grass — the NPC
+  // bbak (sleeping polar-bear plush) lounging on the grass - the NPC
   const bbakN = V().set(-0.25, 1, 0.35).normalize();
-  // He gets his own notably WIDE, prominent snow pile — not just one of the
-  // same small background patches everyone else gets — reading as "this one
+  // He gets his own notably WIDE, prominent snow pile - not just one of the
+  // same small background patches everyone else gets - reading as "this one
   // polar bear still has his own little patch of his old home to rest on".
   const BBAK_SNOW_RADIUS = 3.4, BBAK_SNOW_Y_SCALE = 0.46, BBAK_MOUND_LIFT = BBAK_SNOW_RADIUS*0.1;
   snowPiles.push({ n:bbakN, angularRadius: BBAK_SNOW_RADIUS/R, peak: BBAK_MOUND_LIFT + BBAK_SNOW_RADIUS*BBAK_SNOW_Y_SCALE });
-  // How far the mound's peak actually rises above the raw sphere surface —
+  // How far the mound's peak actually rises above the raw sphere surface -
   // previously bbak was placed at a hand-picked offset (radius*0.32) with no
   // relation to the mound's real height, and the mound's height was random
   // on top of that, so he ended up genuinely buried past his shoulders in
@@ -2481,12 +2481,12 @@ function buildCucumber(g, R){
   const bbak = new THREE.Group();
   placeOn(g, bbak, bbakN, R, BBAK_MOUND_PEAK - BBAK_SINK);
   // The mound used to be its own sibling placeOn() call, positioned on the
-  // sphere independently of bbak — which meant hideNearbyObstacles() (which
+  // sphere independently of bbak - which meant hideNearbyObstacles() (which
   // only ever exempts the NPC object itself during a conversation, not
   // "whatever happens to be near it") hid the mound out from under him the
   // instant she started talking to him, same bug class as Chippy's book
   // pile earlier this session. Making it a real child of bbak's own group
-  // fixes both that AND keeps it locked to his position by construction —
+  // fixes both that AND keeps it locked to his position by construction -
   // local Y here is bbak's own local "up" (his placeOn already oriented his
   // +Y along bbakN), so this offset alone reproduces the mound's original
   // world-space lift relative to him, no separate rotation math needed.
@@ -2509,7 +2509,7 @@ function buildCucumber(g, R){
     placeOn(g, holder, n, R, 0.1);
   }
   // ---- pickable "cold treats" (glowing) she can bring to bbak ----
-  // Expanded from 6 types/6 instances (one each) to 10 types/14 instances —
+  // Expanded from 6 types/6 instances (one each) to 10 types/14 instances -
   // one-of-each on a whole R=45 planet meant a long walk to find each next
   // try; more instances (cycling through the type list) means there's
   // almost always one within easy reach regardless of which tries are used up.
@@ -2627,7 +2627,7 @@ function buildPigeons(g, R, ctx){
   placeOn(g, fount, dirNear(plazaN, 0.18), R);
   animators.push((t) => { water.scale.setScalar(1 + 0.05*Math.sin(t*3)); water.rotation.y = t*0.4; });
 
-  // WAY too many pigeons — evenly covering the ENTIRE planet (not just
+  // WAY too many pigeons - evenly covering the ENTIRE planet (not just
   // clustered near the plaza/fountain). Their motion is intentionally calm:
   // long idle beats, a turn toward their next direction, only 2–3 forward
   // hops, then a full-body lean and peck. Nothing continuously slides or
@@ -2635,7 +2635,7 @@ function buildPigeons(g, R, ctx){
   const crowd = [];
   const TAU = Math.PI*2;
   // Each pigeon is ~13 separate meshes (no instancing), so raw count is the
-  // single biggest lag lever on this planet — 850 was ~11k draw calls.
+  // single biggest lag lever on this planet - 850 was ~11k draw calls.
   // Doubled again per request (260->520) despite that cost.
   const PIGEON_COUNT = 520;
   for (let i = 0; i < PIGEON_COUNT; i++){
@@ -2751,7 +2751,7 @@ function buildPigeons(g, R, ctx){
       }
     });
   }
-  // some genuinely flying overhead — bumped well past the ground crowd's own
+  // some genuinely flying overhead - bumped well past the ground crowd's own
   // 2x (18->42, more than double) since the request was specifically for a
   // bigger PROPORTION continuously flying, not just an equal across-the-
   // board scale-up.
@@ -2767,11 +2767,11 @@ function buildPigeons(g, R, ctx){
     orbiter(g, pg, R + 2 + (i%12)*0.5, 0.28 + (i%7)*0.06, Math.random()*3.1, Math.random()*3.1, 0.3, 1.4, true);
     flying.push(pg);
   }
-  // PERCY — real 3D model (game-assets/percy/percy.glb), the grand one Beanie
+  // PERCY - real 3D model (game-assets/percy/percy.glb), the grand one Beanie
   // talks to and eventually rides.
   const percy = new THREE.Group();
   loadModel('./game-assets/percy/percy.glb').then((m) => {
-    // no extra rotation here — percy.glb's native forward already matches
+    // no extra rotation here - percy.glb's native forward already matches
     // the game's +Z convention (same as vanessa/nibbles/alfred/sam). The
     // old rotation.y=Math.PI fought the holder's face-Beanie quaternion
     // during conversations (and would have done the same to the flight
@@ -2796,12 +2796,12 @@ function buildPigeons(g, R, ctx){
   return { percyHolder, percyN, plazaN, crowd, flying };
 }
 // Nearby crowd pigeons scatter outward (frightened by the impact) then
-// resettle a moment later — unlike percyScatter (beginPercyFlight), this is
+// resettle a moment later - unlike percyScatter (beginPercyFlight), this is
 // NOT permanent removal, since she's arriving on the plaza, not leaving it.
 // Also guarantees no CONTINUOUSLY-FLYING pigeon can visually clip/merge with
 // her during the landing cutscene: those follow independent orbits with no
 // awareness of where she's about to touch down, so any one already within a
-// tight safety radius at that exact moment is briefly hidden instead — its
+// tight safety radius at that exact moment is briefly hidden instead - its
 // own orbit carries it well clear within the hide window.
 function spawnPigeonFleeOnLanding(landPos){
   const wr = worldRefs.pigeon;
@@ -2907,7 +2907,7 @@ function buildGarden(g, R, ctx){
   const flowerSpots = [];   // reuse spots so heads sit on stems
   // Persistent registry of every flower so the sway animator (below) can bend
   // stem + head as one rigid unit. `heads()` pops spots in reverse order, so a
-  // stem's instance index has no relation to its head's — the ONLY reliable way
+  // stem's instance index has no relation to its head's - the ONLY reliable way
   // to bend a flower together is to record, per spot, every instanced-mesh part
   // (stem, petal, centre, …) that shares its base point.
   const allFlowers = [];
@@ -2920,7 +2920,7 @@ function buildGarden(g, R, ctx){
     const si = stemI++;
     stems.setMatrixAt(si, dummy.matrix);
     // parts store the offset/scale/ry needed to rebuild each part's REST
-    // transform from the shared (n, s) — offset = radial distance of the part
+    // transform from the shared (n, s) - offset = radial distance of the part
     // above the foot in stem-lengths, ry = the part's random spin.
     const spot = { n, s, parts: [{ im: stems, i: si, offset: 0, baseScale: 1, ry: 0 }] };
     flowerSpots.push(spot);
@@ -2978,7 +2978,7 @@ function buildGarden(g, R, ctx){
 
   // ---------- the big white couch ----------
   const couch = new THREE.Group();
-  // A soft warm off-white, NOT near-pure white — under the Garden's bright
+  // A soft warm off-white, NOT near-pure white - under the Garden's bright
   // daytime lighting a pure-white couch pushed past the bloom threshold and
   // glowed, hiding the characters on it. This sits comfortably below bloom.
   const white = mat(0xdcd5c6, { roughness:0.95 });
@@ -3023,7 +3023,7 @@ function buildGarden(g, R, ctx){
   }
   // NO glow light on the couch anymore. Even dropped to 12 it (plus the bright
   // white couch material under full daytime lighting) kept blowing out into a
-  // bloom halo that washed out whoever was sitting on it — you couldn't tell
+  // bloom halo that washed out whoever was sitting on it - you couldn't tell
   // who was there. She finds the couch/Bred via the compass guide instead, so
   // the couch needs no glow of its own.
   // bred: real RIGGED Blender model with a hand-authored wave animation
@@ -3088,7 +3088,7 @@ function buildGarden(g, R, ctx){
     percy.position.y = 0.9 + Math.abs(Math.sin(t*1.9))*0.02;
     if (chippyPlush.children[0]) chippyPlush.children[0].scale.setScalar(1 + 0.03*Math.sin(t*1.5));
     // the real rigged wave is driven by the AnimationMixer now (see
-    // bred.userData.playWave, triggered from the greet cutscene) — just tick it.
+    // bred.userData.playWave, triggered from the greet cutscene) - just tick it.
     if (bredMixer) bredMixer.update(dt);
   });
   // butterflies + floating petals
@@ -3119,7 +3119,7 @@ function buildGarden(g, R, ctx){
   // keyed on its rounded local position; each frame we look up only the 3x3x3
   // cells around her, spring those flowers toward a "lean away" tilt, and keep
   // springing anything she has already left back upright (tracked in a small
-  // `active` set) until it settles — then stop touching it entirely.
+  // `active` set) until it settles - then stop touching it entirely.
   const gardenCenter = V().copy(g.position);   // garden group sits at world center, unrotated
   const SWAY_CELL = 4;        // grid cell size (world units); must exceed SWAY_RADIUS
   const SWAY_RADIUS = 3.6;    // how close she must be to disturb a flower
@@ -3138,7 +3138,7 @@ function buildGarden(g, R, ctx){
   }
   const swayActive = new Set();
   const touched = new Set();   // instanced meshes needing a GPU re-upload this frame
-  // reusable scratch — the animator allocates nothing per frame
+  // reusable scratch - the animator allocates nothing per frame
   const _herL = V(), _toF = V(), _away = V(), _axis = V(), _off = V(), _pos = V(), _scl = V();
   const _tilt = new THREE.Quaternion(), _rest = new THREE.Quaternion(), _spin = new THREE.Quaternion();
   const _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
@@ -3230,7 +3230,7 @@ const WORLD_DEFS = [
     pos:[0,0,0], r:5.25,  col:0xe4e8f0, step:'stone' },
   { key:'books',    name:'Main Stacks',      emoji:'📚', tag:'the old library where you and Bred used to study',
     mission:'<b>MISSION:</b> find <b>Chippy</b>, then bring him <b>5 favourite books</b> (the glowy ones, press <b>A</b> to pick up).',
-    // Shown on arrival instead of the full mission above — that spells out
+    // Shown on arrival instead of the full mission above - that spells out
     // the actual task before she's even met him, which the mission-reveal
     // gating (see arrive()) intentionally withholds until the first real
     // conversation. This generic lead-in still tells her SOMETHING to do
@@ -3238,21 +3238,21 @@ const WORLD_DEFS = [
     introMission:'<b>MISSION:</b> find <b>Chippy</b> and say hello.',
     // Pulled in to 65% of its old distance (434 -> ~282, same direction from
     // Chicago) so it reads as noticeably bigger/closer from the very first
-    // view — it's the immediate next stop and was too small/easy to miss
+    // view - it's the immediate next stop and was too small/easy to miss
     // against Cucumber Meadow's much bigger, brighter ring nearby.
     pos:[253,39,-117], r:17.8125, col:PALETTE.lightBeige, step:'book' },
   { key:'cucumber', name:'Emerald Meadow',  emoji:'🌱', tag:'a mysterious green ring circles overhead…',
     mission:'<b>MISSION:</b> find <b>bbak</b> the polar bear, he is overheating. Bring him something <b>cold</b> to cool him down!',
     introMission:'<b>MISSION:</b> find <b>bbak</b> the polar bear and talk to him.',
-    // revealed after bbak's final hint — see startCukeRevealCutscene()
+    // revealed after bbak's final hint - see startCukeRevealCutscene()
     revealName:'Cucumber Meadow', revealEmoji:'🥒', revealTag:'they school like fish out here',
     // Doubling distance (previous pass) didn't fix "the ring touches Main
-    // Stacks from Chicago" because that was never a distance problem —
+    // Stacks from Chicago" because that was never a distance problem -
     // Cucumber's direction FROM CHICAGO was only ~12° away from Books' own
     // direction, so the two projected right next to each other regardless
     // of how far back either one sat. Moved to a genuinely different
     // direction (~47° from both Books and Pigeon Plaza, as seen from
-    // Chicago — comparable to the ~42° Books/Pigeon already had between
+    // Chicago - comparable to the ~42° Books/Pigeon already had between
     // them) while keeping similar jump distances to its actual neighbors
     // in the chain (Books->here ~631, here->Pigeon ~936, both well inside
     // the existing flight-duration/arc-height clamps).
@@ -3266,10 +3266,10 @@ const WORLD_DEFS = [
     pos:[-750,150,-360], r:41.25, col:PALETTE.sageGreen, step:'grass' },
 ];
 // All five planets scaled to 3/4 their original radius (7/23.75/30/40/55) so
-// NPCs and landmarks are quicker to walk to — the cucumber ring's own radial
+// NPCs and landmarks are quicker to walk to - the cucumber ring's own radial
 // offsets from the surface are fixed absolute constants, so it reads as
 // relatively LARGER against the now-smaller Cucumber Meadow, not smaller.
-// NOTE: Sea world archived (2026-07-12) — chain is now Chicago→Books→Cucumber→Pigeon→Garden.
+// NOTE: Sea world archived (2026-07-12) - chain is now Chicago→Books→Cucumber→Pigeon→Garden.
 const bodies = [];
 function addBody(b){
   const group = new THREE.Group();
@@ -3282,7 +3282,7 @@ function addBody(b){
   bodies.push(body);
   return body;
 }
-// main worlds — jumped directly world-to-world, no mini-moons in between
+// main worlds - jumped directly world-to-world, no mini-moons in between
 const worldRefs = {};
 WORLD_DEFS.forEach((def, wi) => addBody({ ...def, isWorld:true, worldIndex:wi }));
 const chain = [0, 1, 2, 3];
@@ -3291,10 +3291,10 @@ chain.forEach((bi, ci) => { bodies[bi].chainNext = ci < chain.length-1 ? chain[c
 // mission is done. Worlds without a to-do mission default open; gated worlds
 // flip to done via their NPC flow. (Chicago = accept Bred's letter.)
 bodies.forEach(b => { b.missionDone = true; });
-bodies[0].missionDone = false;   // Chicago — gated by the pigeon's letter intro
-bodies[1].missionDone = false;   // Main Stacks — gated by Chippy's 5-books quest
-bodies[2].missionDone = false;   // Cucumber/Food — gated by bbak's cooling quest
-bodies[3].missionDone = false;   // Pigeon Plaza — the Percy/Doodles quest (Percy flight is the exit)
+bodies[0].missionDone = false;   // Chicago - gated by the pigeon's letter intro
+bodies[1].missionDone = false;   // Main Stacks - gated by Chippy's 5-books quest
+bodies[2].missionDone = false;   // Cucumber/Food - gated by bbak's cooling quest
+bodies[3].missionDone = false;   // Pigeon Plaza - the Percy/Doodles quest (Percy flight is the exit)
 
 // decorate: worlds get builders, moons get sprinkles
 const GARDEN_I = 4, PIGEON_I = 3;
@@ -3314,7 +3314,7 @@ const GARDEN_I = 4, PIGEON_I = 3;
   // Drives both the walk-screen "find Bred, N steps away" compass chip AND
   // (via the shared isCharacterSeek/noticedGuides mechanism in updateWalk)
   // the generic "oh, someone!" glance the first time she's close enough to
-  // spot him — matches every other world's guideFn/guideLabel convention.
+  // spot him - matches every other world's guideFn/guideLabel convention.
   bodies[GARDEN_I].guideFn = (out) => bredWorldPos(out || new THREE.Vector3());
   bodies[GARDEN_I].guideLabel = '🍞 find Bred';
   bodies[GARDEN_I].guideNear = 4.2;
@@ -3332,7 +3332,7 @@ const CHIPPY_ASK_LINES = [
   `Oh! Hello Rachel. *yaaawn* …I was just about to make some tea. 🍵`,
   { speaker:'Rachel 🐰', text:`Chippy! I didn't expect to find you way out here, buried in books.`, alt:`Of course I'd find you in the coziest pile of books imaginable, Chippy.` },
   `Say, while the kettle boils, would you fetch me something to read?`,
-  { speaker:'Rachel 🐰', text:`Of course — this whole place is basically ours to raid, right?`, alt:`Five favourites coming right up. Save me a cup of tea!` },
+  { speaker:'Rachel 🐰', text:`Of course, this whole place is basically ours to raid, right?`, alt:`Five favourites coming right up. Save me a cup of tea!` },
   `Bring me 5 of your favourite books from around here. The glowy ones! ✨`,
   `Press A to pick each one up, then come back to me. Off you pop!`,
 ];
@@ -3423,7 +3423,7 @@ const BBAK_INTRO = [
   `Fetch me a cold treat? Grab a glowy snack (press A) and bring it back to me.`,
   { speaker:'Rachel 🐰', text:`On it. Hang in there, bbak.`, alt:`One freezing-cold rescue snack, coming right up!` },
 ];
-// A reaction PER FOOD TYPE — bbak actually comments on whatever she tossed him,
+// A reaction PER FOOD TYPE - bbak actually comments on whatever she tossed him,
 // instead of a generic "nope, try again" regardless of what it was.
 const BBAK_FOOD_REACTIONS = {
   icecream: [`*CATCH* …ice cream? It's already melting everywhere! Not cold enough, somehow. Try again? 🫠`],
@@ -3447,7 +3447,7 @@ const BBAK_SUCCESS = [
   `*CATCH* Ahhh… *CRUNCH* …cold and crisp and perfect. You're the best, Rachel. 💙`,
   `I feel cooler already. Now go on, aim at the next world and leap! 🤍`,
 ];
-// Toss whatever she's holding — a real 3D model of that exact food — through
+// Toss whatever she's holding - a real 3D model of that exact food - through
 // the air into bbak's mouth, then run onDone once it lands.
 function tossFoodToBbak(foodName, onDone){
   const up = herUp(new THREE.Vector3());
@@ -3459,7 +3459,7 @@ function tossFoodToBbak(foodName, onDone){
   const end = bbakPos(new THREE.Vector3()).addScaledVector(up, 0.55);
   model.position.copy(start);
   scene.add(model);
-  // was dur=0.55 (rotation rates 9/7 rad/s) — read as a quick flick rather
+  // was dur=0.55 (rotation rates 9/7 rad/s) - read as a quick flick rather
   // than a toss. Doubled the flight time and halved the rotation rates in
   // step, so it still tumbles the same total amount, just spread out slower
   // and smoother instead of spinning faster to match the shorter time.
@@ -3494,7 +3494,7 @@ function nearestFoodPickup(){
   const R = 3.0, wr = worldRefs.cucumber;
   let best=null, bd=R;
   const consider = (obj, d) => { if (d < bd){ bd = d; best = obj; } };
-  // any cucumber works, not just the one dedicated glowing one — the ground
+  // any cucumber works, not just the one dedicated glowing one - the ground
   // cucumbers that grew in during the reveal are equally pickable now.
   if (wr.cuke.visible) consider({ cuke:true }, her.position.distanceTo(wr.cuke.getWorldPosition(new THREE.Vector3())));
   for (const c of wr.groundCucumberHolders){
@@ -3507,7 +3507,7 @@ function nearestFoodPickup(){
   }
   return best;
 }
-// nearest pickable cucumber's world position — the one dedicated glowing
+// nearest pickable cucumber's world position - the one dedicated glowing
 // cuke, or whichever ground cucumber (grown in at the reveal) is closest.
 function nearestCukePos(out){
   const wr = worldRefs.cucumber;
@@ -3578,7 +3578,7 @@ function talkBbak(){
   const h = bbakQuest.holding;
   if (!h){ startDialog([`Bring me something cold, please… anything! 🥵`], null, npc); return; }
   // Enter conversation mode/camera FIRST, before the toss itself plays, so
-  // it reads as part of the scene with bbak — the two-shot conversation
+  // it reads as part of the scene with bbak - the two-shot conversation
   // camera engages as soon as `dialog.npcPos` is set (see updateTalkCam()),
   // no dialogue TEXT needs to be showing yet. startDialog() (called once
   // the toss lands, below) will overwrite `dialog` with the real reaction
@@ -3587,7 +3587,7 @@ function talkBbak(){
   dialog = { npcPos: npc.npcPos, npcObj: npc.npcObj };
   hideNearbyObstacles(npc.npcObj);
   enterConversationStage(npc.npcObj);
-  // she hands it over — clear the pocket right away, then toss the exact food
+  // she hands it over - clear the pocket right away, then toss the exact food
   // she was holding through the air into bbak's mouth before he reacts to it.
   bbakQuest.holding = null; refreshFoodPocket();
   tossFoodToBbak(h, () => {
@@ -3643,8 +3643,8 @@ function startCukeRevealCutscene(){
   });
 }
 // Two acts, 22s total. Act 1 (0-9s): a close,
-// ground-level shot — a real change of POV from every other cutscene's wide
-// establishing orbit — watching cucumbers sprout around Beanie. Act 2
+// ground-level shot - a real change of POV from every other cutscene's wide
+// establishing orbit - watching cucumbers sprout around Beanie. Act 2
 // (9-22s) starts on the still-solid ring, holds through a nine-second true
 // crossfade into thousands of individually readable cucumbers, then glides
 // briefly along the completed band.
@@ -3753,7 +3753,7 @@ function updateCukeReveal(dt, t){
 }
 // Ground cucumbers pop up out of the grass on independent staggered timers
 // (random delay across `spread` seconds, then a quick eased grow-in) instead
-// of an instant mass visibility toggle — self-removing animator, same
+// of an instant mass visibility toggle - self-removing animator, same
 // pattern tossFoodToBbak()'s flight step uses.
 function startGroundCucumberGrowth(cukes, spread){
   const GROW_DUR = 1.15;
@@ -3790,7 +3790,7 @@ function finishCukeReveal(){
   showPlanetTitle(b);
 }
 
-/* ---------- World 4: Pigeon Plaza — find Percy's long-lost friend ---------- */
+/* ---------- World 4: Pigeon Plaza - find Percy's long-lost friend ---------- */
 const PLAZA_DECOYS = [
   { name:'vanessa', glb:'vanessa', speaker:'👑 Vanessa the Victoria Crowned Pigeon', scale:1.5, rotY:0, bounce:false, lines:[
     `Ahem. I am Vanessa, the Victoria Crowned Pigeon, the largest pigeon in all the world. 👑`,
@@ -3833,7 +3833,7 @@ const DOODLES_CFG = { name:'doodles', glb:'doodles', speaker:'🦤 Doodles the D
   `You'll… be my family? Really? *sniffle* …okay. Lead the way, take me to your friend.` ] };
 const PERCY_INTRO = [
   `Coo! Rachel, you found me! 🐦`,
-  { speaker:'Rachel 🐰', text:`Percy! Wow, you're bigger than I imagined. What's going on?`, alt:`You're Percy? Okay—you're magnificent. What happened?` },
+  { speaker:'Rachel 🐰', text:`Percy! Wow, you're bigger than I imagined. What's going on?`, alt:`You're Percy? Okay, you're magnificent. What happened?` },
   `Listen… long, long ago I had a dear, dear friend. We were inseparable.`,
   `I've looked all over this plaza and I just can't find him. Would you help me look?`,
   { speaker:'Rachel 🐰', text:`Of course I'll help. We'll find your friend, Percy.`, alt:`Nobody gets left behind. Let's find your friend together.` },
@@ -3847,9 +3847,9 @@ const PERCY_NUDGE_DOODLES = [ `A name starting with "D"… from way back in 1690
 const PERCY_REUNION = [
   `…Doodles? DOODLES! Oh, it's really you! 🥹`,
   `I thought I'd lost you forever, old friend.`,
-  { speaker:'Rachel 🐰', text:`I'm so glad I could bring you two back together.`, alt:`You found each other again—that makes every step worth it.` },
+  { speaker:'Rachel 🐰', text:`I'm so glad I could bring you two back together.`, alt:`You found each other again. That makes every step worth it.` },
   `Rachel, you brought my family back to me. I could never thank you enough. 🤍`,
-  { speaker:'Rachel 🐰', text:`Alright, Percy — where to next?`, alt:`I'm ready for the next adventure. Lead the way, Percy!` },
+  { speaker:'Rachel 🐰', text:`Alright, Percy, where to next?`, alt:`I'm ready for the next adventure. Lead the way, Percy!` },
   `Now: hop on my back and hold tight. I know EXACTLY where Bred is!` ];
 
 const plazaQuest = { phase:'intro', step:0, decoyHolders:[], active:null, doodles:null, talkingPigeon:null };
@@ -3901,7 +3901,7 @@ function spawnStoryPigeon(cfg){
   clearCrowdAroundStorySpot(n);
   placeOn(g, holder, n, R, 0.02);
   if (cfg.procedural){
-    // no sculpted glb for this one yet — build the same plushPigeon() used
+    // no sculpted glb for this one yet - build the same plushPigeon() used
     // for the background crowd, just distinctly colored and full-size.
     const m = plushPigeon(cfg.colors || {});
     m.scale.setScalar(cfg.scale || 1);
@@ -4184,8 +4184,8 @@ function doReunion(){
 }
 refreshPlazaGuide();
 // QA shortcut only (press P): instantly gives whatever the CURRENT world's
-// quest needs next, one step per press — a book for Chippy, a wrong-guess
-// food (then eventually the cucumber) for bbak, one pigeon "met" for Percy —
+// quest needs next, one step per press - a book for Chippy, a wrong-guess
+// food (then eventually the cucumber) for bbak, one pigeon "met" for Percy -
 // so testing later quest states doesn't require replaying every pickup/walk
 // each time. Silently mutates state (no toss/dialogue playback) since the
 // whole point is skipping the legwork; a toast just confirms what happened.
@@ -4258,7 +4258,7 @@ addEventListener('keydown', (e) => {
    Loaded async into a placeholder Group, same pattern as the other real models.
    her.userData is a single persistent object (moving/sitting/sit()) so the rest of
    the engine (updateWalk, percy-flight, finale) never needs to know whether the
-   real skinned model or the procedural fallback is behind it. See ART_BIBLE.md —
+   real skinned model or the procedural fallback is behind it. See ART_BIBLE.md -
    only "Idle" (bind/rest pose) and "Walk" (the rig's native RunFK2 action) are
    proven; there is no dedicated sitting/talking animation yet, so sit(true)
    currently just holds the rest pose rather than visually bending into a seat. */
@@ -4286,7 +4286,7 @@ loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
   const landClip = gltf.animations.find((a) => a.name === 'JumpLand');
   const landFallGetUpClip = gltf.animations.find((a) => a.name === 'LandFallGetUp');
   const talkClip = gltf.animations.find((a) => a.name === 'Talking');
-  // The planet-arrival cutscene (fall on her face, hold, push up to standing) —
+  // The planet-arrival cutscene (fall on her face, hold, push up to standing) -
   // extracted from winter-beanie-jump.blend. Plays once per arrival, then
   // crossfades into Idle; see updateLandingAnim().
   if (landFallGetUpClip){
@@ -4329,7 +4329,7 @@ loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
     herTalkAction.setEffectiveWeight(0);
   }
   // Extracted + retimed from winter-beanie-jump.blend's cinematic (same rig,
-  // no retargeting needed) — see ART_BIBLE.md. Crossfaded by updateJumpAnim()
+  // no retargeting needed) - see ART_BIBLE.md. Crossfaded by updateJumpAnim()
   // across a leap's flight progress instead of Idle/Walk while state='fly'.
   for (const [clip, setter] of [[launchClip, (a) => herJumpLaunchAction = a],
                                  [soarClip, (a) => herJumpSoarAction = a],
@@ -4349,10 +4349,10 @@ loadModelFull('./game-assets/beanie/beanie.glb').then((gltf) => {
   Object.assign(her.userData, fallback.userData);   // keep the same object identity
   herUsingFallback = true;
 });
-// She wears a summer version of herself in the Garden (the finale world) —
+// She wears a summer version of herself in the Garden (the finale world) -
 // a second skinned model + mixer loaded in parallel, hidden/idle until
 // curI reaches GARDEN_I. Only Idle/Walk exist for her there (no jump clips
-// needed — nothing launches her onward again from the very last world).
+// needed - nothing launches her onward again from the very last world).
 let herSummerGroup = null, herSummerMixer = null, herSummerIdleAction = null, herSummerWalkAction = null;
 let herSummerRunAction = null;
 let herSummerLandFallGetUpAction = null;
@@ -4379,7 +4379,7 @@ loadModelFull('./game-assets/beanie/beanie_summer.glb').then((gltf) => {
     herSummerWalkAction.setEffectiveWeight(0);
   }
   // Mirrors herRunAction below: loaded and ready, weight held at 0 since
-  // there's no run-trigger input yet — same dormant-until-wired pattern.
+  // there's no run-trigger input yet - same dormant-until-wired pattern.
   if (runClip){
     herSummerRunAction = herSummerMixer.clipAction(runClip);
     herSummerRunAction.setLoop(THREE.LoopRepeat);
@@ -4387,7 +4387,7 @@ loadModelFull('./game-assets/beanie/beanie_summer.glb').then((gltf) => {
     herSummerRunAction.setEffectiveWeight(0);
   }
   // Retargeted from Winter's own LandFallGetUp (same fall-on-face, hold,
-  // push-up-to-standing beat) — plays during arriveGarden()'s landing
+  // push-up-to-standing beat) - plays during arriveGarden()'s landing
   // sequence, same as every other world. See updateLandingAnim().
   if (landFallGetUpClip){
     herSummerLandFallGetUpAction = herSummerMixer.clipAction(landFallGetUpClip);
@@ -4398,7 +4398,7 @@ loadModelFull('./game-assets/beanie/beanie_summer.glb').then((gltf) => {
   }
 }).catch((err) => {
   // if this fails to load, animBeanieSkinned() just keeps showing the
-  // winter model everywhere, including the Garden — a quiet, safe fallback.
+  // winter model everywhere, including the Garden - a quiet, safe fallback.
   console.error('Summer beanie model failed to load', err);
 });
 function animBeanieSkinned(dt){
@@ -4418,7 +4418,7 @@ function animBeanieSkinned(dt){
   if (herJumpLandAction) herJumpLandAction.setEffectiveWeight(0);
   const u = her.userData;
   // She only "moves" while actually walking. While talking (state='talk') she
-  // plays the Talking gesture instead of a static Idle hold — Winter only for
+  // plays the Talking gesture instead of a static Idle hold - Winter only for
   // now, since Summer's model has no Talking clip exported yet.
   const moving = (state === 'walk' || (state === 'doodlesreunion' && doodlesReunion?.phase === 'approach'))
     && u.moving && !u.sitting;
@@ -4429,11 +4429,11 @@ function animBeanieSkinned(dt){
   const talkTarget = talking ? 1 : 0;
   const walkAction = showSummer ? herSummerWalkAction : herWalkAction;
   const idleAction = showSummer ? herSummerIdleAction : herIdleAction;
-  // Always the walk clip, just sped up while running (Shift) — the separate
+  // Always the walk clip, just sped up while running (Shift) - the separate
   // Run clip's legs didn't actually cycle correctly, so holding Shift made
   // her glide with static legs instead of visibly moving faster. The old
   // flat *2 on top of that made even normal (non-Shift) movement play the
-  // walk cycle at double speed, which read as running all the time — normal
+  // walk cycle at double speed, which read as running all the time - normal
   // movement now plays it at its natural cadence; holding Shift is the only
   // thing that speeds the legs up.
   if (herRunAction) herRunAction.setEffectiveWeight(0);
@@ -4466,7 +4466,7 @@ function animBeanieSkinned(dt){
     modelGroup.rotation.z += (targetLean - modelGroup.rotation.z) * settle;
   }
 }
-function updateJumpAnim(e){        // e: 0..1 flight progress — crossfade the leap pose
+function updateJumpAnim(e){        // e: 0..1 flight progress - crossfade the leap pose
   if (!herJumpLaunchAction) return;
   const launchW = 1 - Math.max(0, Math.min(1, e/0.25));
   const landW   = Math.max(0, Math.min(1, (e - 0.72)/0.22));
@@ -4482,7 +4482,7 @@ function landingClipDuration(){
 }
 // Crossfade: whatever landing pose she arrived in -> the fall/impact/get-up
 // performance (played once) -> back to Idle, all driven by landing.t. Same
-// beat for both characters — Summer's own LandFallGetUp is retargeted from
+// beat for both characters - Summer's own LandFallGetUp is retargeted from
 // Winter's (see the model-load block above), just picked here by whichever
 // mixer animBeanieSkinned() is currently ticking.
 function updateLandingAnim(){
@@ -4505,7 +4505,7 @@ function updateLandingAnim(){
   fallAction.setEffectiveWeight(w);
   // Only Winter ever arrives via an actual jump (Summer arrives via the
   // Percy-flight + iris wipe, no JumpLand pose to fade from), so this only
-  // does anything meaningful for her — harmless no-op the rest of the time
+  // does anything meaningful for her - harmless no-op the rest of the time
   // since Winter's own mixer isn't the one being ticked while Summer shows.
   if (herJumpLandAction) herJumpLandAction.setEffectiveWeight(1 - fadeIn);
   if (idleAction) idleAction.setEffectiveWeight(fadeOut);
@@ -4513,9 +4513,9 @@ function updateLandingAnim(){
   // doesn't quite reach this planet-scale surface, so lying flat read as
   // floating just above it. Sink the model down while that pose actually
   // dominates (this weight peaks mid-cutscene, at the flattest point, and
-  // eases back to 0 as she stands — HER_MODEL_LIFT's normal idle height —
+  // eases back to 0 as she stands - HER_MODEL_LIFT's normal idle height -
   // by the time the cutscene ends) so her body visibly touches down.
-  // (0.6 overshot into visibly burying her face-down pose — 0.22 still reads
+  // (0.6 overshot into visibly burying her face-down pose - 0.22 still reads
   // as touching the ground without her sinking most of the way in.)
   if (modelGroup) modelGroup.position.y = HER_MODEL_LIFT - 0.22*w;
 }
@@ -4527,7 +4527,7 @@ const orientation = new THREE.Quaternion();
 let curI = 0;
 let state = 'intro';       // intro | walk | fly | talk | doodlesreunion | percyfly | finale
 // True for the gap between arrive(0) (which must set state='walk' for camera/
-// HUD setup) and the messenger pigeon's letter dialogue actually starting —
+// HUD setup) and the messenger pigeon's letter dialogue actually starting -
 // without this, arrow keys worked during that ~1s window before the intro
 // conversation ever opened.
 let introLocked = false;
@@ -4536,14 +4536,14 @@ const visitedWorlds = new Array(WORLD_DEFS.length).fill(false);
 // destination secret again. No localStorage or cookie is used.
 const discoveredWorlds = new Set();
 const keys = {};
-// Slowed from 12.0 per request ("she moves too fast, no sense of weight") —
+// Slowed from 12.0 per request ("she moves too fast, no sense of weight") -
 // combined with the per-step camera "punch" in updateWalk (see u.stepPunch)
 // and the slower drag-turn sensitivity just below, walking reads as a
 // deliberate, weighted stride instead of a quick glide.
 const WALK_SPEED = 8.5, TURN_SPEED = 2.3;
 // A small decaying downward camera "punch" set on each footstep (see
 // updateWalk) and consumed by followCam, read+decayed once per frame in
-// step() — putting real weight behind each stride instead of a perfectly
+// step() - putting real weight behind each stride instead of a perfectly
 // smooth glide, without needing a dedicated bob animation.
 let stepPunch = 0, stepSidePunch = 0;
 const HER_MODEL_LIFT = 0.10;   // tiny grounding adjustment: soles meet the planet in idle/walk
@@ -4554,11 +4554,11 @@ const cA = V(), cB = V(), cC = V(), aimDir = V();
 function herUp(out){ return out.set(0,1,0).applyQuaternion(orientation); }
 function herFwd(out){ return out.set(0,0,1).applyQuaternion(orientation); }
 // Cucumber Meadow's decorative snow piles are real dome-shaped hills, not
-// flat ground decals — she should walk UP and over them, not glide through
+// flat ground decals - she should walk UP and over them, not glide through
 // their base at the planet's raw radius the way she used to (every other
 // world's terrain is flat relative to its own base radius, so this only
 // ever applies there). Recomputed fresh from her current direction each
-// frame rather than smoothed/cached — since it's a continuous function of
+// frame rather than smoothed/cached - since it's a continuous function of
 // position, walking across a pile's edge already reads as a smooth rise and
 // fall with no separate lerp needed.
 function terrainHeightAt(up){
@@ -4579,7 +4579,7 @@ function updatePose(){
   her.position.copy(b.center).addScaledVector(up, b.r + terrainHeightAt(up));
   her.quaternion.copy(orientation);
 }
-// title pose: sitting right beside the tower on Chicago — she spawns close
+// title pose: sitting right beside the tower on Chicago - she spawns close
 // enough that the tower reads as a dominant nearby landmark, close enough to
 // its collider footprint (~15.3° for r=5.25) to feel adjacent without
 // clipping into it. Reused as-is for the intro idle camera, the actual
@@ -4610,7 +4610,7 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
   cA.applyQuaternion(tmpQ);                       // pitch
   cC.copy(pos).addScaledVector(cA, dist).addScaledVector(up, 7.5 - stepPunch)
     .addScaledVector(cB, stepSidePunch);
-  // Keep the third-person camera outside the current spherical world —
+  // Keep the third-person camera outside the current spherical world -
   // also during 'landing' (its fallgetup phase calls followCam too), since
   // without this the close-up landing shot had no floor-clipping guard at
   // all and could bury the camera in the surface or nearby decorations.
@@ -4681,8 +4681,8 @@ function dialogueVisualObject(obj, beanieFocus){
   if (worldRefs.books && obj === worldRefs.books.chippy) return worldRefs.books.chippyModel || null;
   return obj;
 }
-function dialogueSubjectFrame(obj, fallbackPos, up, fallbackHeight){
-  const fallbackFocus = new THREE.Vector3().copy(fallbackPos).addScaledVector(up, fallbackHeight*0.74);
+function dialogueSubjectFrame(obj, fallbackPos, up, fallbackHeight, faceFraction=0.76){
+  const fallbackFocus = new THREE.Vector3().copy(fallbackPos).addScaledVector(up, fallbackHeight*faceFraction);
   if (!obj || !obj.isObject3D || !obj.visible) return { focus:fallbackFocus, height:fallbackHeight };
   obj.updateWorldMatrix(true, true);
   const box = new THREE.Box3().setFromObject(obj, true);
@@ -4700,7 +4700,7 @@ function dialogueSubjectFrame(obj, fallbackPos, up, fallbackHeight){
   if (!Number.isFinite(rawHeight) || rawHeight < 0.1) return { focus:fallbackFocus, height:fallbackHeight };
   const height = Math.max(0.65, Math.min(5.2, rawHeight));
   const center = box.getCenter(new THREE.Vector3());
-  const faceLevel = low + rawHeight*0.78;
+  const faceLevel = low + rawHeight*faceFraction;
   center.addScaledVector(up, faceLevel - center.dot(up));
   return { focus:center, height };
 }
@@ -4715,11 +4715,11 @@ function updateTalkCam(dt){
   const beanieFocus = isBeanieSpeaking() && !dialog.awaitingChoice;
   const subject = beanieFocus ? her.position : npc;
   const subjectObj = dialogueVisualObject(beanieFocus ? her : dialog.npcObj, beanieFocus);
-  const frame = dialogueSubjectFrame(subjectObj, subject, up, beanieFocus ? 4.1 : 1.8);
+  const frame = dialogueSubjectFrame(subjectObj, subject, up, beanieFocus ? 4.1 : 1.8, beanieFocus ? 0.72 : 0.76);
   const subjectHeight = frame.height;
   // Genshin-like upper-body framing. Small characters such as pigeons get an
   // actually close camera rather than inheriting Beanie's much larger scale.
-  const closeDistance = Math.max(2.7, Math.min(5.6, subjectHeight*0.96 + 0.85));
+  const closeDistance = Math.max(1.9, Math.min(4.3, subjectHeight*0.72 + 0.55));
   const towardPartner = beanieFocus ? toNpc : toNpc.clone().negate();
   const goal = new THREE.Vector3().copy(frame.focus)
     .addScaledVector(side, closeDistance)
@@ -4728,11 +4728,11 @@ function updateTalkCam(dt){
   const look = new THREE.Vector3().copy(frame.focus)
     .addScaledVector(towardPartner, 0.18);
 
-  // Keep the face-to-face read, then open both characters about 15–20°
-  // toward the lens. They still face one another—just no longer in a rigid
+  // Keep the face-to-face read, then open both characters diagonally
+  // toward the lens. They still face one another, just no longer in a rigid
   // mugshot profile that hides half their expressions.
   const faceCameraFromBeanie = tangentToward(her.position, up, goal);
-  const beanieFacing = toNpc.clone().lerp(faceCameraFromBeanie, 0.28).normalize();
+  const beanieFacing = toNpc.clone().lerp(faceCameraFromBeanie, 0.48).normalize();
   orientation.copy(quatFromBasis(up, beanieFacing));
   updatePose();
 
@@ -4745,7 +4745,7 @@ function updateTalkCam(dt){
     const chippyPos3 = dialog.npcObj.getWorldPosition(new THREE.Vector3());
     const toHerChippy = tangentToward(chippyPos3, cN, her.position);
     const toCameraChippy = tangentToward(chippyPos3, cN, goal);
-    const desiredChippy = toHerChippy.lerp(toCameraChippy, 0.28).normalize();
+    const desiredChippy = toHerChippy.lerp(toCameraChippy, 0.48).normalize();
     const baseWorldQuat = dialog.npcObj.getWorldQuaternion(new THREE.Quaternion());
     const baseForward = new THREE.Vector3(0,0,1).applyQuaternion(baseWorldQuat);
     const delta = Math.atan2(
@@ -4757,7 +4757,7 @@ function updateTalkCam(dt){
     const npcPos3 = dialog.npcObj.getWorldPosition(new THREE.Vector3());
     const toHer = tangentToward(npcPos3, up, her.position);
     const toCamera = tangentToward(npcPos3, up, goal);
-    dialog.npcObj.quaternion.copy(quatFromBasis(up, toHer.lerp(toCamera, 0.28).normalize()));
+    dialog.npcObj.quaternion.copy(quatFromBasis(up, toHer.lerp(toCamera, 0.48).normalize()));
   }
   // Dialogue birds remain fully grounded. A restrained two-degree roll is
   // their only talk motion, and it stops whenever Beanie is speaking.
@@ -4773,7 +4773,7 @@ function updateTalkCam(dt){
   camera.position.copy(camPos);
   camera.up.copy(camUp);
   camera.lookAt(look);
-  camera.fov += (36 - camera.fov) * Math.min(1, dt*6);
+  camera.fov += (32 - camera.fov) * Math.min(1, dt*6);
   camera.updateProjectionMatrix();
 }
 // Hide props near Beanie during a conversation so nothing covers her; the
@@ -4790,7 +4790,7 @@ function hideNearbyObstacles(npcObj, extraVisible=[]){
   });
 }
 function restoreObstacles(){ for (const c of hiddenObstacles) c.visible = true; hiddenObstacles = []; }
-// drag + trackpad — only while Beanie is stopped. While she's actively
+// drag + trackpad - only while Beanie is stopped. While she's actively
 // walking, arrow keys already steer the camera-relative view (updateWalk),
 // so free-look input is disabled to avoid the two fighting each other.
 let dragging = false, lastX = 0, lastY = 0;
@@ -4799,10 +4799,10 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   if (cameraLookLocked()) return;
   dragging = true; lastX = e.clientX; lastY = e.clientY;
 });
-// Drag/wheel look sensitivity slowed ~30% per request — the old speed made
+// Drag/wheel look sensitivity slowed ~30% per request - the old speed made
 // fine aiming at a distant planet (or hunting for a specific NPC) twitchy
 // and easy to overshoot; slower turning makes it easier to settle exactly
-// where she's looking ("각 잡기" — lining up the shot) before committing.
+// where she's looking ("각 잡기" - lining up the shot) before committing.
 addEventListener('pointermove', (e) => {
   if (!dragging || cameraLookLocked()){ dragging = false; return; }
   camYaw   -= (e.clientX - lastX)*0.0042;
@@ -4827,7 +4827,7 @@ const targetRing = new THREE.Mesh(new THREE.TorusGeometry(1, 0.035, 8, 40),
 targetRing.visible = false;
 scene.add(targetRing);
 
-// a flat N-pointed star outline, used for the locator below — built in the
+// a flat N-pointed star outline, used for the locator below - built in the
 // local XY plane so it reads as a proper star silhouette (not just a blob)
 // when it's facing roughly toward the camera.
 function starGeometry(outerR, innerR, points){
@@ -4847,7 +4847,7 @@ const locator = new THREE.Group();
 {
   // A big glowing 5-point star, sized up further and given a crisp
   // silhouette (the earlier crossed-sparkle shape read as a soft blob at
-  // real gameplay distances — a proper star silhouette is what actually
+  // real gameplay distances - a proper star silhouette is what actually
   // catches the eye across a whole planet).
   const sparkle = new THREE.Group();
   sparkle.position.y = 1.6; locator.add(sparkle);
@@ -4879,7 +4879,7 @@ function updateLocator(t){
   if (!tp){ locator.visible = false; return; }
   const n = new THREE.Vector3().subVectors(tp, b.center).normalize();
   const bob = 0.35*Math.sin(t*2.2);
-  // Hover height scales with the planet's own radius — a fixed low hover
+  // Hover height scales with the planet's own radius - a fixed low hover
   // (2.6) reads fine on tiny Chicago but gets hidden behind the curve of
   // the horizon on a big world like Pigeon Plaza (r=30) whenever the
   // target isn't already close, since the marker needs to clear the
@@ -4913,13 +4913,13 @@ function updateAim(t){
     document.body.dataset.aimAngle = ang.toFixed(3);
     document.body.dataset.aimThreshold = th.toFixed(3);
     document.body.dataset.targetDistance = surf.toFixed(2);
-    // 1000 (was 800, before that 250) — that comment's own "~670" number was
+    // 1000 (was 800, before that 250) - that comment's own "~670" number was
     // already stale by the time it was written: repositioning Cucumber
     // Meadow to fix its angular overlap with Main Stacks (see WORLD_DEFS)
     // pushed Cucumber->Pigeon to ~936, quietly exceeding the 800 cap. That's
-    // not "hard to aim", it's IMPOSSIBLE to ever lock at any camera angle —
+    // not "hard to aim", it's IMPOSSIBLE to ever lock at any camera angle -
     // confirmed live (aimAtBody's full pitch/yaw sweep failed entirely, even
-    // though her raw facing was within 2° of dead-on) — a real softlock at
+    // though her raw facing was within 2° of dead-on) - a real softlock at
     // Cucumber Meadow, since the aim-lock is the only way past it. Current
     // chain-hop surf gaps: Chicago->Books ~282, Books->Cucumber ~680,
     // Cucumber->Pigeon ~936; 1000 clears all three with real margin.
@@ -4954,7 +4954,7 @@ function bezierTangent(p0, p1, p2, t, out){
 }
 // cubic variant: asymmetric control points give a "leap up, then fall flat"
 // arc (tall pull near launch, barely-lifted near landing) instead of a
-// symmetric loft — see jumpTo().
+// symmetric loft - see jumpTo().
 function bezierCubic(p0, c1, c2, p3, t, out){
   const u = 1-t, a = u*u*u, b = 3*u*u*t, c = 3*u*t*t, d = t*t*t;
   return out.set(a*p0.x + b*c1.x + c*c2.x + d*p3.x,
@@ -4999,7 +4999,7 @@ function jumpTo(body){
   if (herTalkAction) herTalkAction.setEffectiveWeight(0);
   promptEl.classList.remove('show');
   hintEl.classList.add('hidden'); idleTime = 0;
-  // hide the HUD/mission for the whole flight->landing->title stretch — was
+  // hide the HUD/mission for the whole flight->landing->title stretch - was
   // only ever hidden starting at showPlanetTitle() (the 'orbit' phase), so
   // the world she was LEAVING kept its own mission banner up (mid-typing,
   // even) through the entire jump arc and the fall/get-up beat.
@@ -5146,8 +5146,8 @@ function updateNotice(dt){
   const side = tmpV2.crossVectors(targetUp, toBeanie).normalize();
   const sideOffset = Math.max(0.55, Math.min(1.2, visibleHeight*0.28 + 0.25))*notice.sideSign;
   // The camera sits between Beanie and the target, close to the target and
-  // slightly lateral. Beanie is therefore behind the camera—not covering the
-  // face—and distance only changes how far the camera travels, never how tiny
+  // slightly lateral. Beanie is therefore behind the camera-not covering the
+  // face-and distance only changes how far the camera travels, never how tiny
   // the target appears in the finished shot.
   const goal = cC.copy(focus).addScaledVector(toBeanie, cameraDistance)
     .addScaledVector(side, sideOffset).addScaledVector(targetUp, visibleHeight*0.06);
@@ -5184,7 +5184,7 @@ function noticeSubject(){
 // EVERY required character, Bred included, via bodies[GARDEN_I].guideFn).
 // Once she's properly close, he turns, walks over and plays his real rigged
 // hand-wave (bred.userData.playWave, driving the "Wave" clip through his
-// AnimationMixer) before handing her the letter — a full scripted beat, not
+// AnimationMixer) before handing her the letter - a full scripted beat, not
 // just a camera glance.
 let bredGreet = null;   // { t }
 let bredGreeted = false;
@@ -5207,7 +5207,7 @@ function startBredGreet(){
   const couchPos = worldRefs.garden.couch.getWorldPosition(new THREE.Vector3());
   // Reparent Bred out of the couch group into the scene so he can turn, wave
   // and walk across the surface in plain world space (attach preserves his
-  // current world transform). He never goes back — THE END uses him here too.
+  // current world transform). He never goes back - THE END uses him here too.
   scene.attach(bredG);
   const up = herUp(new THREE.Vector3());
   // "outward" = the couch→her direction continued past her; the pair will
@@ -5254,7 +5254,7 @@ function updateBredGreet(dt){
     }
   } else if (bg.phase === 'approach'){
     // he turns to face her, walks the whole way from the couch out to beside
-    // her, and waves — all at once. Turn resolves over the first third, then
+    // her, and waves - all at once. Turn resolves over the first third, then
     // he just keeps facing her as he closes the distance.
     const k = Math.min(1, bg.t/BRED_GREET.approach), e = k*k*(3-2*k);
     const turnK = Math.min(1, bg.t/(BRED_GREET.approach*0.32));
@@ -5299,7 +5299,7 @@ function startLandingSequence(bi){
   applyWorldSky(bi);
   // Nothing should ever cover her during the fall/get-up + orbit/title
   // cutscene (a decorative object placed close to this world's landing spot
-  // has done this before — see the gift-book landN clearance fix in
+  // has done this before - see the gift-book landN clearance fix in
   // buildBooks). Same declutter startDialog() already does for
   // conversations, reused here as a general safeguard; restored in arrive()
   // once the whole cutscene concludes and normal gameplay resumes.
@@ -5310,7 +5310,7 @@ function startLandingSequence(bi){
   // planet's title reveal.
   guideEl.classList.remove('show');
   // covers the qaWarp entry path, which calls this directly instead of
-  // through jumpTo() — same reasoning, the world she's leaving shouldn't
+  // through jumpTo() - same reasoning, the world she's leaving shouldn't
   // keep its HUD/mission up through the fall/get-up beat.
   hudEl.classList.add('hidden');
   missionEl.classList.add('hidden');
@@ -5326,7 +5326,7 @@ function updateLanding(dt){
   const up = herUp(tmpV);
   if (landing.phase === 'fallgetup'){
     // Close "just landed" shot: camera stays level (no roll) and low,
-    // behind and to one side of her fallen body — a 3/4 back angle low
+    // behind and to one side of her fallen body - a 3/4 back angle low
     // to the ground, matching the reference blocking shot. Her own lying
     // pose is what reads as the dramatic diagonal; an earlier version
     // rolled camera.up a full 90° to force that diagonal artificially,
@@ -5336,7 +5336,7 @@ function updateLanding(dt){
     // The dust burst (spawnLandingDustBurst) erupts from this exact spot at
     // t=0 and, per its own "much bigger cloud" sizing, is easily wide enough
     // to fully engulf a camera sitting at a fixed close distance for the
-    // first couple seconds — verified live: at dist 4.0 fixed, she was still
+    // first couple seconds - verified live: at dist 4.0 fixed, she was still
     // almost entirely hidden behind dust puffs at landing.t=1.6s. Instead of
     // shrinking the cloud back down (it was sized this big on request), ease
     // the camera in from a wide establishing distance (reads as "the big
@@ -5349,7 +5349,7 @@ function updateLanding(dt){
     const easeOut = 1 - Math.pow(1 - easeT, 3);
     const dist = 9.0 - (9.0 - 5.5) * easeOut;
     // Camera sits in FRONT of her (+fwd) at a low 3/4 angle, looking back
-    // toward her — so as the fall/get-up clip finishes and she rises to face
+    // toward her - so as the fall/get-up clip finishes and she rises to face
     // forward, the player is looking at her FACE, not her back. (This is the
     // deliberate opposite of followCam's behind-the-shoulder convention; at
     // this ~4-7 unit distance the camera is well clear of her head, so the
@@ -5363,17 +5363,17 @@ function updateLanding(dt){
     camera.lookAt(lookAtPoint);
     // camFill (a point light riding on the camera, tuned for its NORMAL
     // walking/talking distance) sits noticeably closer to her during this
-    // close landing shot than usual — inverse-square falloff meant the top
+    // close landing shot than usual - inverse-square falloff meant the top
     // of her head (facing the light almost dead-on from directly above in
     // this framing) blew out into a bright glare that a normal gameplay
     // distance never showed. Dimmed only for this phase, restored the
     // instant it ends (see the phase transition below) so nothing else
     // during normal play is affected.
     camFill.intensity = 28;
-    // a quick decaying shake right on impact — landing.t resets to 0 at the
+    // a quick decaying shake right on impact - landing.t resets to 0 at the
     // start of this phase, so this is purely a function of elapsed time,
     // no separate persistent state needed (and it's pump()-testable).
-    // Bigger and longer per request ("rumbles more") — was 0.32 over 0.4s.
+    // Bigger and longer per request ("rumbles more") - was 0.32 over 0.4s.
     const shakeMag = Math.max(0, 1 - landing.t/0.6) * 0.55;
     if (shakeMag > 0){
       camera.position.x += (Math.random()-0.5)*shakeMag;
@@ -5381,7 +5381,7 @@ function updateLanding(dt){
       camera.position.z += (Math.random()-0.5)*shakeMag;
     }
     if (landing.t >= landingClipDuration() + 0.5){
-      camFill.intensity = 95;   // restore — only this close phase needed it dimmed
+      camFill.intensity = 95;   // restore - only this close phase needed it dimmed
       landing.phase = 'orbit'; landing.t = 0;
       landing.orbitBasisA = arbitraryPerp(up);
       landing.orbitBasisB = new THREE.Vector3().crossVectors(up, landing.orbitBasisA).normalize();
@@ -5398,7 +5398,7 @@ function updateLanding(dt){
     // the nearby tower loses its dominance in frame.
     const isChicago = landing.bi === 0;
     // Chicago's tower reaches ~8.7 world units above her (tall tower on a
-    // tiny r5.25 planet) — a 9-unit orbit radius swings the camera straight
+    // tiny r5.25 planet) - a 9-unit orbit radius swings the camera straight
     // through the tower at some angles. Push Chicago's whole orbit out
     // further so it clears the tower's full height at every angle, while
     // every other world keeps the original close start.
@@ -5409,7 +5409,7 @@ function updateLanding(dt){
     const dist = startDist + (farDist - startDist)*k;
     const height = startHeight + (farHeight - startHeight)*k;
     // Let her nudge the view during the cutscene instead of it being 100%
-    // scripted — dragging already updates camYaw regardless of game state,
+    // scripted - dragging already updates camYaw regardless of game state,
     // this just also wires up the arrow keys since normal input isn't read
     // at all during 'landing'. Both accumulate as an offset on the
     // auto-rotating base angle rather than replacing it, so letting go
@@ -5424,7 +5424,7 @@ function updateLanding(dt){
     camUp.copy(up);
     camera.position.copy(camPos);
     camera.up.copy(camUp);
-    // NOTE: must NOT reuse tmpV here — `up` above IS tmpV (herUp writes into
+    // NOTE: must NOT reuse tmpV here - `up` above IS tmpV (herUp writes into
     // and returns its argument), so overwriting tmpV before reading `up`
     // again corrupted the look-at target into her.position*2.3, sending the
     // orbit camera wildly off toward empty space instead of orbiting her.
@@ -5437,7 +5437,7 @@ function updateLanding(dt){
 }
 function finalizeLanding(){
   // Ignore clicks during the fall/get-up beat, AND for the title's own 1.5s
-  // reveal animation once 'orbit' starts — dialogue trains her to mash SPACE
+  // reveal animation once 'orbit' starts - dialogue trains her to mash SPACE
   // to advance, so a reflexive press right as landing transitions into orbit
   // could dismiss the title before it had even finished revealing, which is
   // why the HUD/mission chip (only re-shown once she actually clicks past
@@ -5458,9 +5458,9 @@ function arrive(bi){
   applyWorldSky(bi);
   // Same class of fix as Chicago's Main Stacks (above): the standard resting
   // pitch (0.3) looks too far down for the next world's actual elevation, so
-  // the default view leaves it out of frame — confirmed live for Cucumber
+  // the default view leaves it out of frame - confirmed live for Cucumber
   // Meadow -> Pigeon Plaza specifically (needed camPitch ~-0.45 to lock,
-  // despite her raw body FACING already being within ~2° of dead-on — the
+  // despite her raw body FACING already being within ~2° of dead-on - the
   // follow-camera's own fixed downward offset, not her facing, is what's off).
   // -0.25 brings it clearly into view without fully locking the aim for her.
   camPitch = bi === 0 ? -0.55 : bi === 2 ? -0.25 : 0.3;
@@ -5473,7 +5473,7 @@ function arrive(bi){
   // is physically standing on the destination surface at this point.
   if (b.isWorld) discoveredWorlds.add(b.worldIndex);
   planetNameEl.textContent = discoveredWorlds.has(b.worldIndex) ? `${b.emoji} ${b.name}` : '✨ ???';
-  // no arrival toast here — the big planetTitle card already announces the
+  // no arrival toast here - the big planetTitle card already announces the
   // world by name, and a toast at the same time would sit right on top of
   // the mission banner/guide chip and visually collide with them.
   if (b.isWorld){
@@ -5481,16 +5481,16 @@ function arrive(bi){
     updateDots();
     // Books/Cucumber/Pigeon's full mission text spells out the actual task
     // (e.g. "bring him 5 favourite books") before she's even met Chippy/
-    // bbak/Percy — that detail is held back here and revealed instead right
+    // bbak/Percy - that detail is held back here and revealed instead right
     // when each world's first conversation with them actually finishes (see
     // talkChippy(), talkBbak-equivalent, talkPercy()). That's NOT the same
-    // as showing nothing at all, though — she still needs a lead-in telling
+    // as showing nothing at all, though - she still needs a lead-in telling
     // her to go find that character in the first place, just without
     // spoiling what happens once she does (introMission on each WORLD_DEFS
     // entry: "find bbak and talk to him", no mention of the cold-treat ask).
     const revealsOnMeeting = b.worldIndex === 1 || b.worldIndex === 2 || b.worldIndex === 3;
     // Cucumber Meadow's own title-reveal (finishCukeReveal, at the end of
-    // the cucumber cutscene) re-triggers this same arrive() path — without
+    // the cucumber cutscene) re-triggers this same arrive() path - without
     // this check it would fall straight back to introMission ("find bbak
     // and talk to him"), even though she's already met him, already been
     // asked for something cold, and the cucumber's already been revealed.
@@ -5520,7 +5520,7 @@ const PERCY_LINES = [
 ];
 let dialog = null;   // dialog = { lines, idx, onDone, coo, lineT }
 // Driven by the main render loop's dt (see updateDialogTyping) instead of a
-// setInterval — a per-character setInterval competes with the rAF loop for
+// setInterval - a per-character setInterval competes with the rAF loop for
 // the JS thread and reveals characters in uneven bursts under any load,
 // which read as laggy/stuttery rather than a smooth type-on. was 0.022.
 const DIALOG_CHAR_SECONDS = 0.011;
@@ -5539,13 +5539,13 @@ function ensureTalkDistance(npcPos, minDist=MIN_TALK_DIST){
   const dirAway = toNpc.normalize().multiplyScalar(-1);
   const deficit = minDist - dist;
   const axis = new THREE.Vector3().crossVectors(up, dirAway).normalize();
-  if (axis.lengthSq() < 1e-6) return;   // degenerate (dirAway parallel to up) — leave her be
+  if (axis.lengthSq() < 1e-6) return;   // degenerate (dirAway parallel to up) - leave her be
   orientation.premultiply(new THREE.Quaternion().setFromAxisAngle(axis, deficit / b.r));
   orientation.normalize();
   updatePose();
 }
 // Each entry in `lines` is normally a plain string (spoken by opts.speaker,
-// unchanged for every existing call site) — but can also be an object
+// unchanged for every existing call site) - but can also be an object
 // { speaker, text } to have a DIFFERENT speaker for just that one line,
 // which is how Beanie's own interjections get woven into a conversation
 // that's otherwise one NPC's lines.
@@ -5622,7 +5622,7 @@ function showDialogLine(){
     herTalkAction.play();
   }
 }
-// Called every frame while state==='talk' (see step()) — reveals characters
+// Called every frame while state==='talk' (see step()) - reveals characters
 // at a rate derived from simulated dt rather than a wall-clock setInterval.
 function updateDialogTyping(dt){
   if (!dialog) return;
@@ -5812,7 +5812,7 @@ function arriveGarden(){
   // Garden music is handled by arrive(GARDEN_I), which crossfades to Pixeltown.
   // Same fall-on-face / impact / get-up / orbit / title beat every other
   // world gets (startLandingSequence() picks Summer's own retargeted
-  // LandFallGetUp automatically — see updateLandingAnim()) — she used to
+  // LandFallGetUp automatically - see updateLandingAnim()) - she used to
   // just teleport in standing, which read as inconsistent with the rest of
   // the game the moment she was compared side-by-side with Winter's landings.
   startLandingSequence(GARDEN_I);
@@ -5885,7 +5885,7 @@ function updateFinale(dt, t){
 // + an orbit around a fixed point), but orbiting Beanie and Bred standing
 // together instead of a planet, with "THE END" as the title. Neither of
 // them has a rig that supports a real hand-clasp (Bred has no rig at all;
-// Beanie's skeleton has no "hold someone's hand" pose) — sold instead by
+// Beanie's skeleton has no "hold someone's hand" pose) - sold instead by
 // standing them hands-distance apart plus a few slow-drifting hearts
 // between them, same visual language as the reunion burst above.
 let theEnd = null;   // { t, mid, up, t1, t2, orbitA }
@@ -5906,7 +5906,7 @@ function startTheEnd(){
   const outward = tangentToward(pairCenter, up, new THREE.Vector3().copy(pairCenter)
     .add(new THREE.Vector3().copy(pairCenter).sub(couchPos)));
   const side = new THREE.Vector3().crossVectors(up, outward).normalize();
-  // stand side by side holding hands — Beanie on one side, Bred the other,
+  // stand side by side holding hands - Beanie on one side, Bred the other,
   // close together, both facing `outward`.
   const herStand = new THREE.Vector3().copy(pairCenter).addScaledVector(side, 0.42)
     .sub(g.center).normalize().multiplyScalar(g.r).add(g.center);
@@ -5925,14 +5925,14 @@ function startTheEnd(){
   const mid = new THREE.Vector3().copy(pairCenter).addScaledVector(up, 1.2);
   // Orbit basis anchored to `outward` (not an arbitrary perpendicular), so
   // orbitA=0 puts the camera in FRONT of the pair (outward side) looking back
-  // at their faces — a deliberate, pleasant opening frame every time.
+  // at their faces - a deliberate, pleasant opening frame every time.
   const t1 = outward.clone();
   const t2 = V().crossVectors(up, t1).normalize();
   theEnd = { t: 0, mid, up: up.clone(), t1, t2, orbitA: 0 };
   // SNAP the camera straight to the orbit's start position. Without this it
   // lerped from wherever the letter-cutscene camera was, and since that's a
   // long straight-line move across a big sphere, the chord dipped BELOW the
-  // surface mid-transit — the ending opened on a view from under the planet.
+  // surface mid-transit - the ending opened on a view from under the planet.
   const startCam = new THREE.Vector3().copy(mid).addScaledVector(t1, 15).addScaledVector(up, 5.5);
   camPos.copy(startCam);
   camera.position.copy(camPos);
@@ -5950,7 +5950,7 @@ function startTheEnd(){
 function updateTheEnd(dt){
   theEnd.t += dt;
   theEnd.orbitA += dt*0.2;   // a clear, steady 360 (~one revolution per half-minute), not a near-static crawl
-  // zoomed out further than before (was 8/3.2) so the whole meadow reads —
+  // zoomed out further than before (was 8/3.2) so the whole meadow reads -
   // the two of them together up front, the couch + friends small behind.
   cC.copy(theEnd.mid)
     .addScaledVector(theEnd.t1, Math.cos(theEnd.orbitA)*15)
@@ -5989,11 +5989,11 @@ addEventListener('keydown', (e) => {
     }
   }
   // QA shortcut: instant in-place warp, no page reload. A full-page-reload
-  // version of this shortcut existed briefly — every single press reloaded
+  // version of this shortcut existed briefly - every single press reloaded
   // the whole page (all models/textures/audio from scratch) AND had no state
   // guard at all, so it fired even mid-cutscene/mid-dialogue. Both combined
   // to feel like exactly what got reported: shortcuts "lag," and the game
-  // "freezes after the title scene" — the forced full reload is slow, and
+  // "freezes after the title scene" - the forced full reload is slow, and
   // because it wiped noticedGuides (see startNotice below) every single
   // warp now ALSO forced a fresh 2.4s non-interactive "notice" beat with no
   // strong "you're in a cutscene" affordance, reading as a hang. Back to the
@@ -6008,7 +6008,11 @@ addEventListener('keydown', (e) => {
 });
 function qaWarp(i){
   if (state === 'intro') startJourney();                // reveal HUD / start audio first
-  if (dialog){ dialogEl.classList.add('hidden'); dialog = null; restoreObstacles(); }
+  // A number shortcut is an immediate QA reset, so no dialogue UI or choice
+  // card may survive into the destination world's landing sequence.
+  dialogEl.classList.add('hidden');
+  dialogChoicesEl.classList.add('hidden');
+  if (dialog){ dialog = null; restoreObstacles(); }
   exitConversationStage();
   if (chicagoMessenger) dismissChicagoMessenger();
   if (landing){ planetTitleEl.classList.remove('show'); landing = null; }
@@ -6019,12 +6023,12 @@ function qaWarp(i){
     b.missionDone = b.worldIndex < i;                   // only worlds before the destination are skipped
   });
   // The journal notebook is normally only granted mid-letter in Chicago
-  // (see CHICAGO_LETTER_LINES) — a QA warp skips that entirely, so the
+  // (see CHICAGO_LETTER_LINES) - a QA warp skips that entirely, so the
   // journal button stayed permanently hidden for the rest of the session
   // if you ever used a number-key shortcut before reading the real letter.
   journalBtn.classList.remove('hidden');
   // Full fall + orbit/title cutscene on the target world, same as a real
-  // jump landing — QA warping used to teleport straight into 'walk' via
+  // jump landing - QA warping used to teleport straight into 'walk' via
   // goto(), skipping the fall entirely, which meant this shortcut couldn't
   // actually be used to check a world's landing/title cutscene.
   const b = bodies[i];
@@ -6121,7 +6125,7 @@ function updateWalk(dt){
   if (introLocked){   // frozen until the messenger's letter dialogue finishes
     u.moving = false;
     updateIdleHint(dt, false);
-    // Once the messenger has actually spawned (it doesn't right away — see
+    // Once the messenger has actually spawned (it doesn't right away - see
     // the 950ms setTimeout in startJourney()), keep her and its swoop-in
     // both in frame instead of holding the very first static camera snapshot
     // for this whole beat.
@@ -6133,7 +6137,7 @@ function updateWalk(dt){
   u.moving = !!(ix || iz);
   updateIdleHint(dt, u.moving);
   // Any actual movement snaps the free-look (drag) view straight back to her
-  // standard behind-the-shoulder POV immediately — free-look is meant for
+  // standard behind-the-shoulder POV immediately - free-look is meant for
   // looking around while she's stopped, not for wandering off mid-stride.
   if (u.moving){
     camPitch = 0.3;
@@ -6148,7 +6152,7 @@ function updateWalk(dt){
     orientation.premultiply(tmpQ.setFromAxisAngle(up, -ix*2.4*dt));
   }
   if (iz){
-    // ↑ ↓ walk forward/backward along her current facing — no turning, so
+    // ↑ ↓ walk forward/backward along her current facing - no turning, so
     // backing up never spins her whole body around.
     const preForward = tmpQ2.copy(orientation);
     orientation.multiply(tmpQ.setFromAxisAngle(X_AXIS, iz*moveSpeed*dt/b.r));
@@ -6192,7 +6196,7 @@ function updateWalk(dt){
       stepSidePunch = plantSide * (u.running ? 0.012 : 0.006);
     }
   }
-  // distance-to-NPC guide — shown while the current world's mission isn't done.
+  // distance-to-NPC guide - shown while the current world's mission isn't done.
   // The arrow rotates to point at the target's bearing relative to her own
   // facing, so it works as a always-on compass even when the 3D glowing
   // beacon itself is hidden behind the curve of a big planet's horizon.
@@ -6223,13 +6227,13 @@ function updateWalk(dt){
     // The first time she's close enough to have actually spotted this
     // particular CHARACTER in the distance (well past "right here" range,
     // but not so far it's just an abstract compass bearing), pause on a
-    // closer view with a "should go talk to them" reaction — once per
+    // closer view with a "should go talk to them" reaction - once per
     // distinct target, so re-approaching the same character later doesn't
     // retrigger it. Only fires for "go meet someone" labels (every one of
     // those happens to read "find <x>" / "say hello…" in this game), not
-    // for "bring/take/fetch it back" item-errand labels — there's no
+    // for "bring/take/fetch it back" item-errand labels - there's no
     // character to react to when the guide is just pointing at a snack.
-    // Keyed on the target's actual position, not just curI+label — every
+    // Keyed on the target's actual position, not just curI+label - every
     // Pigeon Plaza decoy shares the identical generic "say hello to that
     // pigeon" label, so keying on the label alone meant only the FIRST
     // decoy she ever approached got this beat; the 2nd through 8th (a
@@ -6243,12 +6247,12 @@ function updateWalk(dt){
     }
   } else if (bg.missionDone && bg.chainNext != null){
     // Once the current world's mission is done, the next task is "find and
-    // jump to the next world" — but nothing ever pointed that out before
+    // jump to the next world" - but nothing ever pointed that out before
     // (the NPC guide above only covers on-planet tasks), leaving her to
     // blindly drag the camera around hoping to spot it. Reuses the exact
     // same compass-arrow mechanism, just aimed at the next body's center
     // instead of an NPC, with no distance countdown (inter-world "steps"
-    // isn't a meaningful number the way on-planet walking distance is —
+    // isn't a meaningful number the way on-planet walking distance is -
     // the aim-lock reticle already signals "you're precisely aimed now").
     const nextBody = bodies[bg.chainNext];
     const gUp = herUp(V()), gFwd = herFwd(V());
@@ -6361,12 +6365,12 @@ function showPlanetTitle(b){
   planetTitleEl.classList.add('show');
   // The old planet-name chip and mission banner still show the PREVIOUS
   // world's stale info for as long as the title card is up (arrive(), which
-  // refreshes them both, doesn't run until she clicks past it) — hide both
+  // refreshes them both, doesn't run until she clicks past it) - hide both
   // for the duration so nothing outdated is visible under the big title.
   hudEl.classList.add('hidden');
   missionEl.classList.add('hidden');
   // Size BEFORE the reveal animation starts playing. fitPlanetTitleOneLine()
-  // measures scrollWidth on the next frame — if the .play class (and its
+  // measures scrollWidth on the next frame - if the .play class (and its
   // titleReveal keyframe, which opens at a huge letter-spacing:26px) is
   // already applied by then, that transient animated letter-spacing inflates
   // scrollWidth and over-shrinks the font before it ever settles to its real
@@ -6374,15 +6378,15 @@ function showPlanetTitle(b){
   // animation on the frame after.
   fitPlanetTitleOneLine(() => {
     // force the reveal animation to restart every time (see .play's CSS
-    // comment) — the class reset above already dropped 'play'; reflow, re-add.
+    // comment) - the class reset above already dropped 'play'; reflow, re-add.
     void planetTitleNameEl.offsetWidth;
     planetTitleNameEl.classList.add('play');
   });
 }
-// Titles are always a single line — a two-line wrap grows tall enough to
+// Titles are always a single line - a two-line wrap grows tall enough to
 // cover Beanie's own body during the cutscene, which is worse than a name
 // shrinking a bit. Shrinks font-size proportionally (rather than in flat
-// -4px steps) until the single nowrap line fits the screen width — a flat
+// -4px steps) until the single nowrap line fits the screen width - a flat
 // per-step decrement needed as many as ~50+ iterations to shrink a wide
 // name/font combo (e.g. "EMERALD MEADOW" in Comfortaa) down far enough,
 // which blew past the old 40-iteration guard and left it still overflowing.
@@ -6482,18 +6486,18 @@ function showBookPop(color, title){
 /* ---------- Chicago intro: Bred's messenger pigeon + letter ---------- */
 const CHICAGO_LETTER_LINES = [
   `Coo! Rachel? …Rachel! Oh good, I found you. *pant pant*`,
-  { speaker:'Rachel 🐰', text:`Whoa — a pigeon? Are you… okay? You look like you flew all the way here.`, alt:`Easy, little pigeon—catch your breath. Did you come here for me?` },
+  { speaker:'Rachel 🐰', text:`Whoa, a pigeon? Are you… okay? You look like you flew all the way here.`, alt:`Easy, little pigeon. Catch your breath. Did you come here for me?` },
   `I flew a LONG way. I have something for you… a letter. 💌 It's from Bred.`,
   { speaker:'Rachel 🐰', text:`From Bred? What is all this…`, alt:`Bred sent you? Okay, now I really need to hear this.` },
   `He couldn't FaceTime today, so he wrote this instead:`,
   `"Beanie, I built you a little universe. Every world is something you love. Leap across them all and follow them to the very end…"`,
   `"…and I'll be waiting for you there. Come find me. 🤍 Bred"`,
   { speaker:'Rachel 🐰', text:`He built me a whole universe? …okay. Okay! I'm doing this.`, alt:`A whole universe from Bred… there's no way I'm turning back now.` },
-  `Oh — almost forgot! He also sent this tiny notebook. 📔 Somewhere to keep records of things, he said, for whatever you find along the way.`,
-  { speaker:'Rachel 🐰', text:`Thank you for carrying all that this far, little pigeon.`, alt:`You flew all this way for me. Thank you—you did amazing.` },
+  `Oh, almost forgot! He also sent this tiny notebook. 📔 Somewhere to keep records of things, he said, for whatever you find along the way.`,
+  { speaker:'Rachel 🐰', text:`Thank you for carrying all that this far, little pigeon.`, alt:`You flew all this way for me. Thank you. You did amazing.` },
   `So don't stop, okay? Aim at the next little world and leap. Off you go!`,
 ];
-// A small folded letter, clamped in the messenger's beak — this pigeon is
+// A small folded letter, clamped in the messenger's beak - this pigeon is
 // the only one carrying anything, so it's built here rather than as a
 // generic plushPigeon() option.
 function makeLetterProp(){
@@ -6544,7 +6548,7 @@ function spawnChicagoMessenger(onLanded){
       const e = 0.5 - 0.5*Math.cos(Math.PI*k);
       pg.position.lerpVectors(m.startPos, m.landPos, e);
       // Used to set landed=true (which fires onLanded()/starts the dialogue)
-      // the instant k hit 1 — she'd swoop down and start talking in the same
+      // the instant k hit 1 - she'd swoop down and start talking in the same
       // frame, no beat to actually register "oh, a pigeon landed" first. A
       // short settle pause (catch breath, fold wings) before it begins.
       if (k >= 1) m.settling = true;
@@ -6584,13 +6588,13 @@ function startJourney(){
   setTimeout(() => introEl.classList.add('hidden'), 1100);
   hudEl.classList.remove('hidden');
   dotsEl.classList.remove('hidden');
-  // #hint no longer forces itself on at journey start — updateIdleHint()
+  // #hint no longer forces itself on at journey start - updateIdleHint()
   // reveals it only after she's genuinely idle for a few seconds.
   muteBtn.classList.remove('hidden');
   reticleEl.classList.remove('hidden');
   // the journal button itself only appears once the messenger's letter
   // hands her the notebook (see CHICAGO_LETTER_LINES/startChicagoTitleCutscene)
-  // #guide was missing from this reveal list entirely — its own show/hide
+  // #guide was missing from this reveal list entirely - its own show/hide
   // is driven by the 'show' class (opacity transition), but the base
   // 'hidden' utility class is `display:none !important`, which no amount
   // of 'show' can override. Every distance-to-NPC guide text in the game
@@ -6626,7 +6630,7 @@ function startJourney(){
         journalBtn.classList.remove('hidden');   // the notebook the letter just gave her
         // The letter conversation (ensureTalkDistance nudging her to keep her
         // distance from the messenger) leaves her facing wherever the pigeon
-        // happened to land, with zero relation to Main Stacks' direction —
+        // happened to land, with zero relation to Main Stacks' direction -
         // and nothing ever pointed her back at the actual next destination
         // afterward. Her very first real task is "aim at the next world," so
         // re-face her toward it now, the same way startJourney() originally
@@ -6712,7 +6716,7 @@ muteBtn.addEventListener('click', () => {
 });
 
 /* ---------- journal / sticker collection ----------
-   Rachel loves journaling and stationery — the pigeon gives Beanie a tiny
+   Rachel loves journaling and stationery - the pigeon gives Beanie a tiny
    notebook alongside Bred's letter in Chicago, and every character she meets
    for the first time earns a matching sticker inside it. */
 const STICKER_FILES = {
@@ -6726,7 +6730,7 @@ const STICKER_LABELS = { chippy:'Chippy', bbak:'bbak', percy:'Percy', vanessa:'V
   buckle:'Buckle', doodles:'Doodles' };
 const STICKER_ORDER = ['chippy','bbak','percy','vanessa','nibbles','alfred','sam','sunny','otto','mochi','buckle','doodles'];
 function stickerURL(file){ return './stickers/' + encodeURIComponent(file); }
-// In-memory only, on purpose — the journal is meant to reset to empty on
+// In-memory only, on purpose - the journal is meant to reset to empty on
 // every reload/restart, not persist across sessions.
 let metFriends = new Set();
 function meetFriend(key){
@@ -6739,7 +6743,7 @@ function showFriendToast(key){
   friendToastImgEl.src = stickerURL(STICKER_FILES[key]);
   friendToastNameEl.textContent = STICKER_LABELS[key];
   friendToastEl.classList.add('show');
-  // restart the stamp animation every call, even back-to-back — removing the
+  // restart the stamp animation every call, even back-to-back - removing the
   // class alone wouldn't replay it if it's still present from a moment ago,
   // so force a reflow in between (reading offsetWidth flushes style first).
   friendToastImgEl.classList.remove('stamp');
@@ -6792,7 +6796,7 @@ function step(dt){
   for (const fn of animators) fn(t, dt);
   if (herUsingFallback) animAvatar(her, t, dt); else animBeanieSkinned(dt);
   // note: garden.bred is now a real-model placeholder Group, not a makeChibi
-  // rig — its breathing pulse is handled by the animator registered in
+  // rig - its breathing pulse is handled by the animator registered in
   // buildGarden() instead of animAvatar().
   updateEphemerals(dt);
   updatePercyScatter(dt);
@@ -6806,14 +6810,14 @@ function step(dt){
   // must NEVER show during any cutscene-like state, full stop. Individual
   // cutscene-starting functions already hide it explicitly (harmless
   // redundancy), but that approach is exactly what missed the cukeReveal
-  // state the first time around — a blanket rule keyed on `state` itself
+  // state the first time around - a blanket rule keyed on `state` itself
   // can't be forgotten for whatever cutscene gets added next.
-  // IMPORTANT: only ever ADD 'hidden' here, never remove it — this used to
+  // IMPORTANT: only ever ADD 'hidden' here, never remove it - this used to
   // be an unconditional toggle(hidden, isCutsceneState), which forced the
   // class OFF every single frame outside a cutscene, including during
   // state==='talk'. That fought Chicago's own "keep the mission hidden
   // until the letter is done" gate (startJourney() explicitly hides it,
-  // then the messenger's letter conversation runs in state==='talk') —
+  // then the messenger's letter conversation runs in state==='talk') -
   // the very next frame after the conversation started, this rule silently
   // un-hid the mission again since 'talk' isn't a cutscene state, so the
   // mission chip popped up as soon as she started talking to the pigeon
@@ -6828,7 +6832,7 @@ function step(dt){
 
   if (state === 'intro'){
     // Same close, local tangent-plane orbit the Chicago title cutscene uses
-    // (see updateLanding's 'orbit' phase / startChicagoTitleCutscene) — she
+    // (see updateLanding's 'orbit' phase / startChicagoTitleCutscene) - she
     // spawns right beside the tower (CHICAGO_START_N), so orbiting tightly
     // around her makes the tower sweep through frame like it's spinning
     // around her, instead of the old flat world-space dolly.
@@ -6837,7 +6841,7 @@ function step(dt){
     const basisB = tmpV3.crossVectors(up, basisA).normalize();
     const angle = t*(Math.PI*2/LAND_ORBIT_DURATION);
     const dir = tmpV.copy(basisA).multiplyScalar(Math.cos(angle)).addScaledVector(basisB, Math.sin(angle));
-    // Pulled out from 3.2/9 to 5.5/13 — Chicago's tower reaches ~8.7 world
+    // Pulled out from 3.2/9 to 5.5/13 - Chicago's tower reaches ~8.7 world
     // units above her, and the old tighter orbit swung the camera straight
     // through the tower's geometry at some angles.
     camPos.copy(her.position).addScaledVector(up, 5.5).addScaledVector(dir, 13);
@@ -6968,7 +6972,7 @@ window.__world = {
     return this.walkToward(n.toArray(), seconds);
   },
   // Teleport her to stand at angle/azimuth from a target world position (on
-  // the CURRENT body), facing that target — for testing NPC-facing logic
+  // the CURRENT body), facing that target - for testing NPC-facing logic
   // from arbitrary approach directions without fighting maze pathing.
   teleportNearWorldPos(worldPos, angle, azimuth){
     const b = bodies[curI];
@@ -7071,7 +7075,7 @@ window.__world = {
     return { finalPos: positions[positions.length-1], sample: positions.slice(-6) };
   },
   // Manual tank-control primitive for testing, mirroring the REAL keyboard
-  // scheme exactly (turn in place, THEN walk straight along the new facing —
+  // scheme exactly (turn in place, THEN walk straight along the new facing -
   // never both at once): unlike walkToward (which re-aims at a fixed target
   // every single step, so it can never sidestep a wall sitting on that
   // bearing), this lets a test script "look toward a gap, then walk into it"
@@ -7161,8 +7165,8 @@ window.__world = {
   facingDebug(){   // numeric check: which local axis of the NPC, if any, actually points at Beanie?
     let h = plazaQuest.talkingPigeon || (dialog && dialog.npcObj);
     if (!h) return null;
-    // Chippy's own group never rotates (see updateTalkCam) — only his loaded
-    // model, a child, gets the dynamic face-Beanie heading — so check THAT.
+    // Chippy's own group never rotates (see updateTalkCam) - only his loaded
+    // model, a child, gets the dynamic face-Beanie heading - so check THAT.
     if (worldRefs.books && h === worldRefs.books.chippy && worldRefs.books.chippyModel){
       h = worldRefs.books.chippyModel;
     }
