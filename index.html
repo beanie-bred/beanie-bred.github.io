@@ -811,9 +811,20 @@ function setNightFactor(f){
 // START of a landing (so the fall/orbit cutscene already shows the world she's
 // arriving on) and again in arrive() as a backstop for paths that skip the
 // landing sequence (the procedural-fallback jump, QA warps).
+// Daytime haze for the Garden: it's a bright clear day, so the other worlds
+// hanging in the sky (small distant discs 800+ units away) should wash out into
+// the blue almost completely, the way you can barely make out anything in a
+// midday sky. A linear fog does this for free: its `near` sits well past the
+// whole Garden sphere — the roaming camera (~9u back) AND the wide arrival-orbit
+// shot (~76u back, content out to ~160u) both stay fully crisp — while its `far`
+// sits short of the nearest other world (~837u), so every planet is blended
+// almost entirely into the sky colour. Only ever active on the Garden; cleared
+// everywhere else (the space/dawn/morning worlds want their planets crisp).
+const GARDEN_HAZE = new THREE.Color('#a6ccef');   // mid-day sky-blue the planets fade into
 function applyWorldSky(bi){
   scene.background = WORLD_SKY[bi] || SPACE_BG_TEXTURE;
   setNightFactor(WORLD_STAR_FACTOR[bi] != null ? WORLD_STAR_FACTOR[bi] : 1);
+  scene.fog = bi === GARDEN_I ? new THREE.Fog(GARDEN_HAZE, 200, 1050) : null;
 }
 
 /* ═══════════════ AUDIO ═══════════════ */
@@ -5664,7 +5675,8 @@ window.__world = {
     };
   },
   beanieBoneDebug(){
-    const model = her.children[0];
+    const showSummer = curI === GARDEN_I && herSummerGroup;
+    const model = showSummer ? herSummerGroup : herWinterGroup;
     if (!model) return null;
     const out = { bones:{}, allBoneNames:[] };
     model.traverse((o) => {
@@ -5682,6 +5694,8 @@ window.__world = {
     out.talkDuration = herTalkAction ? +herTalkAction.getClip().duration.toFixed(3) : null;
     out.summerIdleWeight = herSummerIdleAction ? +herSummerIdleAction.getEffectiveWeight().toFixed(3) : null;
     out.summerWalkWeight = herSummerWalkAction ? +herSummerWalkAction.getEffectiveWeight().toFixed(3) : null;
+    out.summerWalkTime = herSummerWalkAction ? +herSummerWalkAction.time.toFixed(3) : null;
+    out.summerWalkTimeScale = herSummerWalkAction ? herSummerWalkAction.timeScale : null;
     out.showingSummer = !!(herSummerGroup && herSummerGroup.visible);
     return out;
   },
