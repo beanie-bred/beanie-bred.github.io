@@ -1,4 +1,68 @@
 # ROADMAP
+- [x] Real foot-locked walk + run cycles for both Beanies, built from an
+      analytical 2-bone IK solve rather than hand-tuned constants
+      (2026-07-16): the user's request this round was an unusually precise,
+      fully-spec'd animation brief — hard constraints on weight transfer,
+      zero foot slide/sink/float, a proper stance→compress→push-off→swing
+      cycle, and a true flight phase for running. Built genuinely new `Walk`
+      and `Run` actions for both `BeanieRig` (Winter) and `SummerRig`
+      (Summer) using real per-frame inverse kinematics — not the sine-wave-
+      constant recipe used for earlier walk/idle passes on this rig (see the
+      main rigging memory for that method; this is a different, stricter one
+      for when "looks right in a clay render" isn't enough and the actual
+      foot position needs to be provably fixed to the ground).
+      - **Method**: for each leg, at every single frame, solve the 2-bone
+        (thigh+shin) triangle via law of cosines so the ankle lands exactly
+        on its intended target — a FIXED point for the whole stance window
+        (zero-slip, by construction, not by tuning), or a smoothstepped arc
+        from release to next-contact during swing. Authored the whole gait
+        in a mental reference frame where the hips genuinely travel forward
+        each cycle (this is what makes weight-transfer and stance-timing
+        reasoning correct), then subtracted that net drift back out of only
+        the Hips' translation at bake time — rotations don't need any
+        correction for this, since they only depend on the *relative*
+        hip→ankle vector, so the result is a seamless in-place loop that
+        still slots into this engine's existing architecture (JS drives her
+        actual world movement externally; the clip itself must never net-
+        translate).
+      - **Verified with hard numbers, not screenshots**: sampled the ankle
+        bone's real evaluated world position at every frame and asserted it
+        doesn't move during that leg's own stance window. This caught two
+        real bugs a viewport glance did not — a bone-local-axis mixup
+        (Winter's and Summer's rigs do NOT share the same local-axis
+        conventions, confirmed the hard way) and a reach-limit bug (a
+        "compress only under load" hip-bob model can push the required leg
+        extension past 100% right at heel-strike/toe-off, exactly the
+        moments a naive model assumes zero compression). Fixed with a
+        permanent baseline crouch throughout the whole cycle, not just a
+        load-triggered dip. Final check: sub-micrometer slip on Winter (her
+        rig's leg bend axes are perfectly parallel), ~2% of leg length on
+        Summer (that rig has a small ~1.6° built-in skew between her own
+        thigh/shin bend axes — a real, tiny rest-pose imperfection, well
+        under any visible threshold at this character's scale).
+      - **A second export bug found only by parsing the shipped `.glb`'s own
+        keyframe TIMES, not just checking clip names/values looked
+        reasonable**: placing multiple actions' NLA strips at sequentially
+        staggered start frames (to keep Blender's own timeline tidy) leaked
+        that stagger directly into each exported clip's sample times —
+        every action after the first came out with keyframes starting at
+        some large non-zero time instead of 0, so `THREE.AnimationClip`
+        (which derives duration from the last keyframe assuming a 0-start)
+        played several clips far too slowly in-game. Fixed by starting every
+        strip at the same frame on its own independent track. Also switched
+        the export to Draco mesh compression + JPEG textures (matching this
+        project's established asset convention) after a first pass came out
+        7-13MB per character instead of the shipped ~1-1.5MB — the mesh
+        itself wasn't the issue, embedded full-resolution PNGs were.
+      - Also added `herSummerRunAction` (Summer never had one loaded before),
+        mirroring how `herRunAction` already sits loaded-but-dormant for
+        Winter — both are ready and correct, but neither has a gameplay
+        trigger yet since running isn't a mechanic this game currently has;
+        flagging that as a real follow-up decision, not assuming it.
+      - This composes with, rather than replaces, the arm-specific fix
+        below — confirmed the shipped `beanie_summer.glb`'s `Walk` clip
+        still carries this same leg-IK timing signature after that
+        additional pass landed on top of it.
 - [x] Summer's walk-cycle arms genuinely fixed — the earlier "fixed" bake was
       silently wrong (2026-07-16): user reported (a second time, with fresh
       Blender screenshots) that Summer's arms go backward instead of
