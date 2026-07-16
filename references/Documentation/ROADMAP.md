@@ -1,4 +1,50 @@
 # ROADMAP
+- [x] Journal: real photos as taped-in Polaroids, multi-spread pagination
+      (2026-07-17): Bred added actual PHOTOS (not sticker art - filenames
+      have no "sticker" in them) to the mainstacks/meadow folders and asked
+      for them shown as Polaroids (white border, filename as the caption,
+      taped on), plus room for a planet to span more than one spread "cuz
+      everything has to be visible."
+      - **New photos found**: `mainstacks stickers/birthday party with
+        chippy.HEIC` + `our walk from mainstacks.jpg`; `meadow stickers/
+        bbak's birth.jpeg` + `pizza at 3 pm.jpg` + `pizza at capecod!.JPG`.
+        No garden photo folder existed yet at verification time despite
+        being mentioned - nothing added there this round; trivial to wire
+        up once it shows up (same `photos` array pattern).
+      - **HEIC doesn't render in a browser `<img>` at all** (not a "some
+        browsers" gap - none of them do) - converted to JPEG via macOS's
+        built-in `sips` (`sips -s format jpeg in.HEIC --out out.jpg`),
+        original left untouched, code points at the new `.jpg`.
+      - **New `.jpolaroid`**: a white card with the classic thick-bottom
+        border (`padding:6% 6% 25% 6%`), the photo via `object-fit:cover`
+        so any source aspect ratio crops sensibly into the frame, caption
+        text (the filename minus extension, EXACTLY as typed - apostrophes,
+        exclamation marks, capitalization all preserved) in the same Caveat
+        font as the journal entries, and the identical washi-tape strip
+        the sticker collage already uses. Reuses `collagePlace()` for
+        placement, so the same margin-safe/rotation-safe guarantees apply.
+      - **Multi-spread pagination**: `JOURNAL_PAGES` gained a `photos`
+        array; a new `JOURNAL_SPREADS` flattens each planet into a 'main'
+        spread (chapter text + sticker collage, unchanged) plus a 'photos'
+        spread whenever it has any photos - so content gets a full extra
+        page rather than being crammed onto the sticker page. `journalPage
+        Index`/`turnJournalPage`/`worldToJournalPage` all now work off this
+        flat list (6 spreads currently: Main Stacks and Emerald Meadow each
+        get 2, Pigeon Plaza and Garden stay at 1 since they have no photos
+        yet). Photos split roughly evenly across the spread's two halves,
+        each its own independent collage region.
+      - Also wired up the `donut` sticker (art had been dropped in an
+        earlier round but never connected to anything) while in the area -
+        same established food-pickup-sticker pattern, one line each in
+        `STICKER_FILES`/`STICKER_LABELS`/cucumber's `chars`.
+      - **Verification caught a real gotcha**: `birthday party with chippy`
+        and `pizza at capecod!` both looked WRONG when previewed directly
+        (one via this session's own image-reading tool, unrelated to the
+        game) - sideways/oddly cropped. Both render perfectly upright live
+        in the actual game. Browsers have reliably honored a JPEG's EXIF
+        orientation tag in `<img>` for years; not every image previewer
+        does. Confirmed by loading the real game and looking, not by
+        trusting a raw-file preview as a stand-in for it.
 - [x] Journal: real two-page spread with journal text, margin-safe stickers
       (2026-07-17): three requests in one message - don't let the stickers
       visually "come out" of the page (a direct consequence of the previous
