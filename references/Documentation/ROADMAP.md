@@ -1,4 +1,39 @@
 # ROADMAP
+- [x] Summer landed on her BACK during the fall/get-up — root cause was a
+      skeleton-direction bug (2026-07-16): user asked "why does she land on her
+      back? feels like her body was assigned to the wrong direction of the
+      skeleton" — and that instinct was essentially right. Findings:
+      - Her MESH binding is fine: in idle she stands upright and faces -Y with
+        arms at her sides, following the skeleton correctly. Not a mesh problem.
+      - The skeleton itself is the issue: Summer's entire spine chain (Hips,
+        Spine, Chest, Neck, Head) is built **180° flipped** in rest orientation
+        vs Winter's shared 19-bone skeleton (arms differ ~67°, and bone names
+        aren't even identical — 21 vs 19 bones). Measured via per-bone
+        rest matrix_local angular diff.
+      - The fall ("SummerFall" -> LandFallGetUp) was retargeted from Winter by
+        copying bone rotations WITHOUT accounting for that 180° spine
+        difference, so her whole torso came out belly-UP: she landed supine and
+        did Winter's face-down push-up motion while on her back. Confirmed
+        numerically (chest ventral axis pointed +Z through the whole prone
+        phase, vs Winter's -Z) and by a top-down render (saw her back + shoe
+        soles, not her face).
+      - Her idle/walk/run were authored natively for HER skeleton, so they were
+        never affected — only the retargeted fall inherited the flip. (This is
+        also why the earlier "fall matches Winter" claim was wrong: limb detail
+        matched, but the gross body orientation was flipped and went unchecked.)
+      - FIX: proper WORLD-SPACE retarget of Winter's correct face-down
+        LandFallGetUp onto Summer — for each bone/frame, take Winter's world
+        rotation delta from its own rest and apply it to Summer's rest
+        (`delta = W_pose_world @ W_rest_world^-1; S_target = delta @ S_rest_world`),
+        then convert to Summer-local and keyframe; Hips root translation scaled
+        by the 0.842 height ratio. The 180°/67° rest differences cancel out
+        automatically. Verified: belly -Z (face-down) through the prone phase,
+        stands upright by the end, arms eased into Summer's idle hang over the
+        last 60 frames for a seamless get-up->idle handoff.
+      - LESSON: never retarget by copying local bone rotations between rigs
+        whose rest orientations differ — always go through world space. And a
+        180° torso in the fall is a louder symptom of a rest-orientation
+        mismatch that also explains subtler arm weirdness.
 - [x] Summer's idle/walk/run/get-up arms fixed properly — natural hang, smooth
       swing, no more tucking behind (2026-07-16): user sent an in-game
       screenshot showing her idle arms folded behind her back, plus "her
