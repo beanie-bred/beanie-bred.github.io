@@ -132,11 +132,11 @@ right.makeMeasures(inPlace=True)
 score.insert(0, left)
 score.insert(0, right)
 
-# Warm upright-bass pulse for an upbeat café trio. It stays restrained under
-# the lead and leans in slightly whenever the melody leaves breathing room.
+# Rhythmic electric-bass foundation. Root notes anchor 1/3 with a tiny pickup
+# into the next bar, while still leaving the piano melody plenty of space.
 bass = stream.Part()
-bass.partName = "Upright bass"
-bass.insert(0, instrument.AcousticBass())
+bass.partName = "Electric bass"
+bass.insert(0, instrument.ElectricBass())
 for beat_start in range(0, int(cursor), 2):
     sounding = [e for e in source_left.notes
                 if float(e.offset) <= beat_start < float(e.offset + e.duration.quarterLength)]
@@ -152,8 +152,43 @@ for beat_start in range(0, int(cursor), 2):
     b.volume.velocity = 24 if active else 31
     b.duration.quarterLength = 1.68
     bass.insert(beat_start, b)
+    if beat_start % 4 == 2:
+        pickup = note.Note(root)
+        pickup.volume.velocity = 19 if active else 25
+        pickup.duration.quarterLength = .38
+        bass.insert(beat_start+1.5, pickup)
 bass.makeMeasures(inPlace=True)
 score.insert(0, bass)
+
+# Lush but unobtrusive city-pop color: a warm pad held under every two bars.
+pad = stream.Part(); pad.partName = "Warm synth pad"
+for bar_start in range(0, int(cursor), 8):
+    sounding = [e for e in source_left.notes
+                if float(e.offset) <= bar_start < float(e.offset + e.duration.quarterLength)]
+    if not sounding: continue
+    source = sounding[-1]
+    pitches = list(source.pitches) if isinstance(source, chord.Chord) else [source.pitch]
+    chosen = max(pitches, key=lambda p:p.midi).midi
+    while chosen < 60: chosen += 12
+    while chosen > 72: chosen -= 12
+    p = note.Note(chosen); p.volume.velocity = 13; p.duration.quarterLength = min(7.5,cursor-bar_start)
+    pad.insert(bar_start,p)
+pad.makeMeasures(inPlace=True); score.insert(0,pad)
+
+# Occasional clean-guitar offbeats, deliberately sparse and single-note.
+guitar = stream.Part(); guitar.partName = "Clean electric guitar"
+for measure_start in range(0, int(cursor), 8):
+    sounding = [e for e in source_left.notes
+                if float(e.offset) <= measure_start < float(e.offset + e.duration.quarterLength)]
+    if not sounding: continue
+    source=sounding[-1]
+    pitches=list(source.pitches) if isinstance(source,chord.Chord) else [source.pitch]
+    color=max(p.midi for p in pitches)
+    while color < 60: color += 12
+    for offset in (1.5,3.5):
+        g=note.Note(color); g.volume.velocity=18; g.duration.quarterLength=.28
+        guitar.insert(measure_start+offset,g)
+guitar.makeMeasures(inPlace=True); score.insert(0,guitar)
 # The PDF/song tempo is held at a steady 85 BPM. No swing or rubato is added;
 # note starts, durations and rests remain on the written rhythmic grid.
 score.insert(0, tempo.MetronomeMark(number=85))
@@ -167,7 +202,7 @@ score.write("midi", fp=out)
 midi = mido.MidiFile(out)
 end_tick = round(cursor * midi.ticks_per_beat)
 for track_index, track in enumerate(midi.tracks[1:]):
-    hand_channel = min(track_index, 2)
+    hand_channel = min(track_index, 8)
     absolute = 0
     events = []
     for message in track:
