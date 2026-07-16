@@ -512,6 +512,7 @@ composer.addPass(new RenderPass(scene, camera));
 const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.35, 0.6, 0.82);
 composer.addPass(bloomPass);
 function renderScene(){ composer.render(); }
+window.__perf = { scene, renderer, camera };   // TEMP perf-measurement hook
 
 /* ---------- lights: soft, warm, no black shadows anywhere ----------
    Hemisphere ground bounce is a warm cream (not a cold/purple tint) so the
@@ -4338,16 +4339,15 @@ function updateLanding(dt){
     const easeT = Math.min(1, landing.t / DUST_CLEAR_EASE);
     const easeOut = 1 - Math.pow(1 - easeT, 3);
     const dist = 9.0 - (9.0 - 5.5) * easeOut;
-    // Camera sits BEHIND her (-fwd), matching followCam's convention —
-    // using +fwd here previously put the camera in front of her face,
-    // clipping straight into her own head instead of framing her body.
-    // Low elevation (0.22 vs the old 0.5) and a bit more side offset for a
-    // near-level 3/4-back angle, matching the reference blocking shot's
-    // gentle horizon curve instead of looking steeply down at her. Negative
-    // side (was positive) so her head reads on the right / legs on the
-    // left, matching the reference's left-right arrangement exactly.
+    // Camera sits in FRONT of her (+fwd) at a low 3/4 angle, looking back
+    // toward her — so as the fall/get-up clip finishes and she rises to face
+    // forward, the player is looking at her FACE, not her back. (This is the
+    // deliberate opposite of followCam's behind-the-shoulder convention; at
+    // this ~4-7 unit distance the camera is well clear of her head, so the
+    // old "+fwd clips into her head" concern from a much closer framing
+    // doesn't apply.) Low elevation for a gentle near-level horizon.
     const camPos2 = new THREE.Vector3().copy(her.position)
-      .addScaledVector(side, -dist*0.65).addScaledVector(fwd, -dist*0.8).addScaledVector(up, dist*0.22);
+      .addScaledVector(side, -dist*0.65).addScaledVector(fwd, dist*0.8).addScaledVector(up, dist*0.22);
     const lookAtPoint = new THREE.Vector3().copy(her.position).addScaledVector(up, 0.85);
     camera.position.copy(camPos2);
     camera.up.copy(up);
