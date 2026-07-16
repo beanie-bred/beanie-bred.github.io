@@ -135,37 +135,61 @@
     background:linear-gradient(#e8547c,#c43860);
     clip-path:polygon(0 0,100% 0,100% 100%,50% 78%,0 100%);
     box-shadow:0 3px 8px rgba(0,0,0,.3);z-index:1}
-  #journalBook{position:relative;display:flex;width:min(680px,92vw);height:min(460px,86vh);
-    perspective:2000px}
-  .journalPage{position:relative;width:50%;background:linear-gradient(#fffdf8,#fbf3ea);color:#43364f;
-    padding:20px 18px;overflow-y:auto;transition:transform .6s cubic-bezier(.34,1.1,.4,1);
-    transition-delay:.2s}
-  #journalPageLeft{border-radius:16px 3px 3px 16px;transform-origin:right center;
-    transform:rotateY(-100deg);text-align:center;
-    box-shadow:inset 8px 0 14px -10px rgba(0,0,0,.3),-2px 0 0 #f0e6d8,-4px 0 0 #fffdf8,-6px 0 0 #f0e6d8}
-  #journalPageRight{border-radius:3px 16px 16px 3px;transform-origin:left center;
-    transform:rotateY(100deg);display:flex;flex-direction:column;align-items:stretch;
-    box-shadow:inset -8px 0 14px -10px rgba(0,0,0,.3),2px 0 0 #f0e6d8,4px 0 0 #fffdf8,6px 0 0 #f0e6d8}
-  #journalPanel.show .journalPage{transform:rotateY(0deg)}
-  #journalSpine{width:14px;flex-shrink:0;position:relative;border-radius:2px;
-    background:linear-gradient(90deg,#6b4326,#8a5a3a 30%,#a06f48 50%,#8a5a3a 70%,#6b4326);
-    box-shadow:0 0 16px rgba(0,0,0,.4),inset 0 2px 2px rgba(255,255,255,.2)}
-  /* stitching along the spine */
-  #journalSpine::before{content:'';position:absolute;inset:14px 0;
-    background:repeating-linear-gradient(0deg,rgba(255,224,138,.5) 0 3px,transparent 3px 11px);
-    left:50%;width:1px}
-  #journalTitle{font-size:21px;font-weight:700;color:#8a5a3a;margin-bottom:4px}
-  #journalCount{font-size:13px;color:#8a7a95;margin-bottom:18px}
-  .journalGrid{display:grid;grid-template-columns:repeat(2,clamp(64px,9vw,92px));
-    gap:10px;justify-content:center;width:100%}
-  .journalSticker{aspect-ratio:1;border-radius:14px;background:rgba(120,100,140,.1);
-    display:flex;align-items:center;justify-content:center;overflow:hidden;
-    border:2px dashed rgba(120,100,140,.25);font-size:22px;color:rgba(120,100,140,.4)}
-  .journalSticker.got{border:2px solid rgba(255,209,102,.7);background:#fff;
-    box-shadow:0 4px 14px rgba(0,0,0,.12)}
-  .journalSticker.got img{width:100%;height:100%;object-fit:cover}
-  #journalClose{margin-top:auto;align-self:center;border:none;cursor:pointer;padding:10px 24px;
-    border-radius:999px;font-size:13px;color:#fff;background:linear-gradient(135deg,#ff8fae,#e8547c)}
+  /* One scrapbook PAGE per planet, flipped through with the nav below. Each
+     page carries its own theme class (background texture + font + accent),
+     and its characters are a scattered collage of sticker silhouettes — dark
+     shape placeholders until met, full stickers once collected. */
+  #journalBook{position:relative;width:min(540px,92vw);height:min(600px,84vh);perspective:2200px}
+  .jpage{position:absolute;inset:0;border-radius:6px 15px 15px 6px;overflow:hidden;
+    display:flex;flex-direction:column;padding:22px 22px 12px;
+    transform-origin:left center;transform:rotateY(-102deg);opacity:0;
+    box-shadow:inset 9px 0 18px -12px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.25);
+    transition:transform .55s cubic-bezier(.34,1.1,.4,1),opacity .4s ease;transition-delay:.18s}
+  #journalPanel.show .jpage{transform:rotateY(0deg);opacity:1}
+  /* replayable page-turn when navigating between planets */
+  @keyframes jflip{0%{transform:rotateY(-70deg);opacity:0}100%{transform:rotateY(0);opacity:1}}
+  .jpage.turning{animation:jflip .42s cubic-bezier(.34,1.05,.4,1)}
+  .jpageKicker{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;opacity:.62}
+  .jpageTitle{font-size:27px;line-height:1.02;margin:1px 0 2px}
+  .jpageTag{font-size:12.5px;opacity:.65;font-style:italic;margin-bottom:8px}
+  .jcollage{position:relative;flex:1;width:100%;min-height:0}
+  /* faint themed doodles scattered behind the stickers */
+  .jdoodle{position:absolute;transform:translate(-50%,-50%) rotate(var(--rot));
+    opacity:.14;pointer-events:none;line-height:1}
+  .jsticker{position:absolute;transform:translate(-50%,-50%) rotate(var(--rot))}
+  .jsticker img{width:100%;height:100%;object-fit:contain;display:block}
+  .jsticker.got img{filter:drop-shadow(0 5px 7px rgba(0,0,0,.22))}
+  .jsticker.locked img{filter:brightness(0) opacity(.13)}   /* pure shape silhouette */
+  /* a little strip of "washi tape" holding each collected sticker down */
+  .jsticker.got::before{content:'';position:absolute;top:-4%;left:50%;
+    transform:translateX(-50%) rotate(-5deg);width:44%;height:13px;
+    background:var(--tape,rgba(255,209,102,.7));opacity:.62;border-radius:1px;
+    box-shadow:0 1px 2px rgba(0,0,0,.12)}
+  .jpageFoot{font-size:11.5px;opacity:.6;text-align:right;margin-top:4px}
+  #journalNav{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:12px}
+  #journalNav button{border:none;cursor:pointer;color:#fff;font-size:14px;
+    background:rgba(255,255,255,.16);width:34px;height:34px;border-radius:50%}
+  #journalNav button:hover{background:rgba(255,255,255,.28)}
+  #journalPageLabel{color:#fff6e8;font-size:12.5px;min-width:120px;text-align:center;opacity:.9}
+  #journalClose{border:none;cursor:pointer;padding:8px 20px;border-radius:999px;
+    font-size:12.5px;color:#fff;background:linear-gradient(135deg,#ff8fae,#e8547c);margin-left:6px}
+  /* ---- per-planet page themes: texture, palette, font ---- */
+  .jpage.theme-books{color:#6b4a28;font-family:'Playfair Display',Georgia,serif;
+    background:linear-gradient(158deg,#f4e9d2,#e6d2a9),
+      repeating-linear-gradient(transparent 0 25px,rgba(120,90,50,.07) 25px 26px);
+    border-left:14px solid #c8536a}
+  .jpage.theme-cucumber{color:#3d6a33;font-family:'Comfortaa','Arial Rounded MT Bold',cursive;
+    background:radial-gradient(130% 95% at 28% 8%,#edf7de,#c9e6ad),
+      radial-gradient(rgba(255,255,255,.55) 1.6px,transparent 2px) 0 0/22px 22px}
+  .jpage.theme-pigeon{color:#39496a;font-family:'Bungee','Comfortaa',cursive;
+    background:linear-gradient(#dde9f4,#c1d3e6),
+      radial-gradient(rgba(90,110,150,.17) 1.7px,transparent 1.9px) 0 0/15px 15px}
+  .jpage.theme-pigeon .jpageTitle{font-size:23px}
+  .jpage.theme-garden{color:#a24d68;font-family:'Cormorant Garamond',Georgia,serif;
+    background:radial-gradient(120% 100% at 72% 16%,#fdeff3,#f6d7e1),
+      radial-gradient(circle at 18% 82%,rgba(255,175,198,.4),transparent 32%),
+      radial-gradient(circle at 88% 70%,rgba(255,195,150,.3),transparent 30%)}
+  .jpage.theme-garden .jpageTitle{font-size:30px;font-weight:700}
   /* "met a new friend" toast - like #toast but with a sticker thumbnail */
   #friendToast{position:fixed;top:76px;left:50%;transform:translateX(-50%) translateY(-8px);z-index:23;
     display:flex;align-items:center;gap:16px;padding:16px 34px 16px 16px;border-radius:999px;
@@ -365,16 +389,13 @@
   <div id="journalCover">
     <div id="journalRibbon"></div>
     <div id="journalBook">
-      <div id="journalPageLeft" class="journalPage">
-        <div id="journalTitle">📔 Beanie's Journal</div>
-        <div id="journalCount"></div>
-        <div id="journalGridLeft" class="journalGrid"></div>
-      </div>
-      <div id="journalSpine"></div>
-      <div id="journalPageRight" class="journalPage">
-        <div id="journalGridRight" class="journalGrid"></div>
-        <button id="journalClose">close ✕</button>
-      </div>
+      <div id="journalPage" class="jpage"></div>
+    </div>
+    <div id="journalNav">
+      <button id="journalPrev" aria-label="previous page">◀</button>
+      <span id="journalPageLabel"></span>
+      <button id="journalNext" aria-label="next page">▶</button>
+      <button id="journalClose">close ✕</button>
     </div>
   </div>
 </div>
@@ -1230,6 +1251,20 @@ function playSpeechSqueal(speaker, ch, index=0){
   voice.connect(gn); sparkle.connect(gn); gn.connect(master);
   voice.start(t0); sparkle.start(t0);
   voice.stop(t0 + 0.062); sparkle.stop(t0 + 0.062);
+}
+// Pigeons/doves/the dodo don't do Animal-Crossing animalese — they COO while
+// they "talk". Matches every plaza-bird speaker tag ("… the Victoria Crowned
+// Pigeon", "a breathless pigeon", "Doodles the Dodo", etc.).
+function isPigeonSpeaker(speaker){
+  return /pigeon|dove|dodo|percy|vanessa|nibbles|alfred|\bsam\b|sunny|otto|mochi|buckle|doodles|spinif|breathless/i.test(speaker || '');
+}
+let lastSpeechCooAt = -1;
+function playSpeechCoo(){
+  if (!audio || muted) return;
+  const { ctx } = audio, t0 = ctx.currentTime;
+  if (t0 - lastSpeechCooAt < 0.4) return;   // a gentle coo-coo cadence, not one per syllable
+  lastSpeechCooAt = t0;
+  playCoo(0.9 + Math.random()*0.4, 0.06);
 }
 function playButtonSound(kind='button'){
   if (!ensureAudio() || muted) return;
@@ -5295,6 +5330,10 @@ function faceBredWorld(bredG, up, dir){
 const BRED_GREET = { notice:1.6, approach:4.4, handoff:1.9 };
 function startBredGreet(){
   bredGreeted = true;
+  // reuniting with Bred earns the Garden page's keepsake sticker (quietly —
+  // no toast mid-cutscene; the whole ending IS the "met Bred" moment)
+  metFriends.add('bred');
+  if (journalPanelEl.classList.contains('show')) renderJournalPage();
   her.userData.moving = false;
   const g = bodies[GARDEN_I];
   const bredG = worldRefs.garden.bred;
@@ -5737,9 +5776,11 @@ function updateDialogTyping(dt){
     // Use the newest pronounceable character from this frame. The audio-side
     // rate limit turns the very fast 11ms text reveal into cheerful, readable
     // Animal-Crossing-style syllable squeals instead of a continuous buzz.
+    const spk = lineSpeaker(dialog.lines[dialog.idx], dialog.defaultSpeaker);
     for (let i = revealCount - 1; i >= (dialog.revealCount || 0); i--){
       if (/[A-Za-z0-9]/.test(line[i])){
-        playSpeechSqueal(lineSpeaker(dialog.lines[dialog.idx], dialog.defaultSpeaker), line[i], i);
+        if (isPigeonSpeaker(spk)) playSpeechCoo();          // birds coo as they talk
+        else playSpeechSqueal(spk, line[i], i);             // everyone else squeals (animalese)
         break;
       }
     }
@@ -6437,9 +6478,10 @@ const muteBtn = document.getElementById('muteBtn');
 if (QA_AUDIO_MUTED) muteBtn.textContent = '🔇';
 const journalBtn = document.getElementById('journalBtn');
 const journalPanelEl = document.getElementById('journalPanel');
-const journalGridLeftEl = document.getElementById('journalGridLeft');
-const journalGridRightEl = document.getElementById('journalGridRight');
-const journalCountEl = document.getElementById('journalCount');
+const journalPageEl = document.getElementById('journalPage');
+const journalPageLabelEl = document.getElementById('journalPageLabel');
+const journalPrevEl = document.getElementById('journalPrev');
+const journalNextEl = document.getElementById('journalNext');
 const journalCloseEl = document.getElementById('journalClose');
 const friendToastEl = document.getElementById('friendToast');
 const friendToastImgEl = document.getElementById('friendToastImg');
@@ -6825,20 +6867,38 @@ const STICKER_FILES = {
   vanessa:'victoria sticker.png', nibbles:'nibbles sticker.png', alfred:'alfred sticker.png',
   sam:'sam sticker.png', sunny:'sunny sticker.png', otto:'otto sticker.png',
   mochi:'mochi sticker.png', buckle:'buckle sticker.png', doodles:'doodles sticker.png',
+  bred:'beanie-bred sticker.png',
 };
 const STICKER_LABELS = { chippy:'Chippy', bbak:'bbak', percy:'Percy', vanessa:'Vanessa',
   nibbles:'Nibbles', alfred:'Alfred', sam:'Sam', sunny:'Sunny', otto:'Otto', mochi:'Mochi',
-  buckle:'Buckle', doodles:'Doodles' };
-const STICKER_ORDER = ['chippy','bbak','percy','vanessa','nibbles','alfred','sam','sunny','otto','mochi','buckle','doodles'];
+  buckle:'Buckle', doodles:'Doodles', bred:'Beanie & Bred' };
+// One themed scrapbook PAGE per planet — each with its own font/texture/accent
+// (see the .theme-* CSS) and its own collage of the friends that live there.
+const JOURNAL_PAGES = [
+  { key:'books', theme:'theme-books', title:'Main Stacks', kicker:'Chapter I · 📚',
+    tag:'the old library where you two used to study', tape:'rgba(180,138,86,.6)',
+    decor:['📚','📖','✒️','🔖','📚'], chars:['chippy'] },
+  { key:'cucumber', theme:'theme-cucumber', title:'Emerald Meadow', kicker:'Chapter II · 🌱',
+    tag:'a whole planet ringed in cucumbers', tape:'rgba(150,198,108,.6)',
+    decor:['🥒','🌿','🍃','☘️','🥒','🌱'], chars:['bbak'] },
+  { key:'pigeon', theme:'theme-pigeon', title:'Pigeon Plaza', kicker:'Chapter III · 🕊️',
+    tag:'so, SO many birds to say hi to', tape:'rgba(150,176,216,.66)',
+    decor:['🪶','🕊️','🌰','🪶'], chars:['percy','vanessa','nibbles','alfred','sam','sunny','otto','mochi','buckle','doodles'] },
+  { key:'garden', theme:'theme-garden', title:'The Garden', kicker:'Chapter IV · 💐',
+    tag:'happy birthday, Beanie 🤍', tape:'rgba(240,168,194,.62)',
+    decor:['🌸','💐','🌷','🦋','🌼'], chars:['bred'] },
+];
+const JOURNAL_TOTAL = JOURNAL_PAGES.reduce((n, p) => n + p.chars.length, 0);
 function stickerURL(file){ return './stickers/' + encodeURIComponent(file); }
 // In-memory only, on purpose - the journal is meant to reset to empty on
 // every reload/restart, not persist across sessions.
 let metFriends = new Set();
+let journalPageIndex = 0;
 function meetFriend(key){
   if (!STICKER_FILES[key] || metFriends.has(key)) return;   // only the first meeting earns the sticker
   metFriends.add(key);
   showFriendToast(key);
-  renderJournal();
+  if (journalPanelEl.classList.contains('show')) renderJournalPage();
 }
 function showFriendToast(key){
   friendToastImgEl.src = stickerURL(STICKER_FILES[key]);
@@ -6854,23 +6914,82 @@ function showFriendToast(key){
   clearTimeout(showFriendToast._t);
   showFriendToast._t = setTimeout(() => friendToastEl.classList.remove('show'), 3600);
 }
-function renderJournal(){
-  journalGridLeftEl.innerHTML = ''; journalGridRightEl.innerHTML = '';
-  const half = Math.ceil(STICKER_ORDER.length/2);
-  STICKER_ORDER.forEach((key, i) => {
-    const cell = document.createElement('div');
-    const got = metFriends.has(key);
-    cell.className = 'journalSticker' + (got ? ' got' : '');
-    if (got){
-      const img = document.createElement('img'); img.src = stickerURL(STICKER_FILES[key]);
-      img.alt = STICKER_LABELS[key]; cell.appendChild(img);
-    } else cell.textContent = '?';
-    (i < half ? journalGridLeftEl : journalGridRightEl).appendChild(cell);
-  });
-  journalCountEl.textContent = `${metFriends.size} / ${STICKER_ORDER.length} friends met`;
+// deterministic pseudo-random so a page's collage is stable across re-renders
+function jrand(s){ const x = Math.sin(s*127.1 + 31.7) * 43758.5453; return x - Math.floor(x); }
+// scatter n items over the collage as {x%, y%, size%, rot}. A single hero
+// sticker sits big and centred; a crowd lays out on a jittered grid with
+// varied sizes so it reads as a hand-stuck collage, not a tidy table.
+function collagePlace(n, seed, o){
+  if (n === 1) return [{ x:50, y:53, size:o.hero || 60, rot:(jrand(seed)-0.5)*14 }];
+  const cols = Math.ceil(Math.sqrt(n * (o.wide || 1.15)));
+  const rows = Math.ceil(n / cols);
+  const cw = 100/cols, ch = 100/rows, out = [];
+  for (let i = 0; i < n; i++){
+    const c = i % cols, r = Math.floor(i / cols);
+    const x = cw*(c+0.5) + (jrand(seed+i*1.7)-0.5)*cw*0.55;
+    const y = ch*(r+0.5) + (jrand(seed+i*2.3)-0.5)*ch*0.5;
+    const size = (o.sizeMin||18) + jrand(seed+i*3.1)*((o.sizeMax||30)-(o.sizeMin||18));
+    out.push({ x, y, size, rot:(jrand(seed+i*4.7)-0.5)*(o.rotMax||22) });
+  }
+  return out;
 }
-renderJournal();
-journalBtn.addEventListener('click', () => { renderJournal(); journalPanelEl.classList.remove('hidden'); journalPanelEl.classList.add('show'); });
+const JOURNAL_LAYOUT = {
+  books:    { hero:62 },
+  cucumber: { hero:60 },
+  pigeon:   { sizeMin:15, sizeMax:26, rotMax:24, wide:1.25 },
+  garden:   { hero:64 },
+};
+function renderJournalPage(){
+  const page = JOURNAL_PAGES[journalPageIndex];
+  journalPageEl.className = 'jpage ' + page.theme;
+  journalPageEl.innerHTML =
+    `<div class="jpageKicker">${page.kicker}</div>
+     <div class="jpageTitle">${page.title}</div>
+     <div class="jpageTag">${page.tag}</div>
+     <div class="jcollage"></div>
+     <div class="jpageFoot">${page.chars.filter(k=>metFriends.has(k)).length} / ${page.chars.length} met here</div>`;
+  const collage = journalPageEl.querySelector('.jcollage');
+  // faint themed doodles behind the stickers
+  const decorPos = collagePlace(page.decor.length, journalPageIndex*10+3, { sizeMin:10, sizeMax:22, rotMax:40, wide:1.4 });
+  page.decor.forEach((emoji, i) => {
+    const d = document.createElement('div');
+    d.className = 'jdoodle';
+    d.style.cssText = `left:${decorPos[i].x}%;top:${decorPos[i].y}%;font-size:${18+decorPos[i].size}px;--rot:${decorPos[i].rot}deg`;
+    d.textContent = emoji;
+    collage.appendChild(d);
+  });
+  // the character stickers
+  const pos = collagePlace(page.chars.length, journalPageIndex*100+17, JOURNAL_LAYOUT[page.key]);
+  page.chars.forEach((key, i) => {
+    const got = metFriends.has(key);
+    const st = document.createElement('div');
+    st.className = 'jsticker ' + (got ? 'got' : 'locked');
+    st.style.cssText = `left:${pos[i].x}%;top:${pos[i].y}%;width:${pos[i].size}%;aspect-ratio:1;--rot:${pos[i].rot}deg;--tape:${page.tape}`;
+    const img = document.createElement('img');
+    img.src = stickerURL(STICKER_FILES[key]); img.alt = got ? STICKER_LABELS[key] : '???';
+    st.appendChild(img);
+    collage.appendChild(st);
+  });
+  journalPageLabelEl.textContent = `${journalPageIndex+1} / ${JOURNAL_PAGES.length} · ${metFriends.size}/${JOURNAL_TOTAL} friends`;
+}
+function turnJournalPage(delta){
+  journalPageIndex = (journalPageIndex + delta + JOURNAL_PAGES.length) % JOURNAL_PAGES.length;
+  renderJournalPage();
+  journalPageEl.classList.remove('turning'); void journalPageEl.offsetWidth; journalPageEl.classList.add('turning');
+  playButtonSound();
+}
+function worldToJournalPage(){
+  const key = { 1:'books', 2:'cucumber', 3:'pigeon', 4:'garden' }[curI];
+  const idx = JOURNAL_PAGES.findIndex(p => p.key === key);
+  return idx < 0 ? 0 : idx;
+}
+journalBtn.addEventListener('click', () => {
+  journalPageIndex = worldToJournalPage();   // open to the planet she's on
+  renderJournalPage();
+  journalPanelEl.classList.remove('hidden'); journalPanelEl.classList.add('show');
+});
+journalPrevEl.addEventListener('click', () => turnJournalPage(-1));
+journalNextEl.addEventListener('click', () => turnJournalPage(1));
 journalCloseEl.addEventListener('click', () => journalPanelEl.classList.remove('show'));
 journalPanelEl.addEventListener('click', (e) => { if (e.target === journalPanelEl) journalPanelEl.classList.remove('show'); });
 
