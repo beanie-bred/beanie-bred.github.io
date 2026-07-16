@@ -2466,6 +2466,9 @@ function buildSea(g, R){
 
 function buildPigeons(g, R, ctx){
   const plazaN = V().set(0.2, 1, 0.25).normalize();
+  // Percy remains the easy-to-find central character. The named pigeons and
+  // doves are placed on a much wider ring around this exact point below.
+  const percyN = dirNear(plazaN, 0.2);
   // plaza tiles + fountain
   for (let i = 0; i < 8; i++){
     const tile = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.95, 0.14, 8),
@@ -2501,7 +2504,12 @@ function buildPigeons(g, R, ctx){
     // the first chunk clusters near the plaza/fountain for foreground density;
     // everyone else gets a fully uniform direction so the far side and poles
     // of the planet are just as packed as the plaza itself.
-    const n = i < 120 ? dirNear(plazaN, 0.15 + Math.random()*0.9) : randDir();
+    let n;
+    // Keep a readable clearing around Percy instead of allowing the dense
+    // background flock to pile directly onto his model and conversation spot.
+    do {
+      n = i < 120 ? dirNear(plazaN, 0.15 + Math.random()*0.9) : randDir();
+    } while (n.angleTo(percyN) < 0.22);
     placeOn(g, holder, n, R, 0.02);
     crowd.push(holder);
     const heading = arbitraryPerp(n).applyAxisAngle(n, Math.random()*TAU).normalize();
@@ -2633,7 +2641,6 @@ function buildPigeons(g, R, ctx){
     console.error('Percy model failed, using plush fallback', err);
     const fb = plushPigeon({}, { stripes:true }); fb.scale.setScalar(1.25); percy.add(fb);
   });
-  const percyN = dirNear(plazaN, 0.2);
   const percyHolder = new THREE.Group(); percyHolder.add(percy);
   placeOn(g, percyHolder, percyN, R, 0.02);
   percyHolder.userData.percy = percy;
@@ -3710,19 +3717,47 @@ function tiltDir(n, angle, azimuth){
   const dir = new THREE.Vector3().copy(t1).multiplyScalar(Math.cos(azimuth)).addScaledVector(t2, Math.sin(azimuth));
   return new THREE.Vector3().copy(n).multiplyScalar(Math.cos(angle)).addScaledVector(dir, Math.sin(angle)).normalize();
 }
+const PLAZA_STORY_SLOT_COUNT = PLAZA_DECOYS.length + 1; // eight friends + Doodles
+const PLAZA_STORY_RING_NEAR = 0.60;                     // 18 surface units from Percy
+const PLAZA_STORY_RING_FAR = 0.68;                      // 20.4 surface units from Percy
+function clearCrowdAroundStorySpot(storyN, clearance=5.2){
+  const wr = worldRefs.pigeon, R = bodies[PIGEON_I].r;
+  if (!wr) return;
+  const minAngle = clearance/R;
+  for (const holder of wr.crowd){
+    const motion = holder.userData.groundMotion;
+    if (!motion || motion.suspended) continue;
+    const d = motion.cur.angleTo(storyN);
+    if (d >= minAngle) continue;
+    // Push only the background pigeon outward along the surface. Preserve its
+    // heading and idle cycle so this is invisible as a teleport during spawn.
+    const away = motion.cur.clone().addScaledVector(storyN, -motion.cur.dot(storyN));
+    if (away.lengthSq() < 1e-6) away.copy(arbitraryPerp(storyN)); else away.normalize();
+    const newN = storyN.clone().multiplyScalar(Math.cos(minAngle + 0.025))
+      .addScaledVector(away, Math.sin(minAngle + 0.025)).normalize();
+    motion.cur.copy(newN);
+    motion.heading.addScaledVector(newN, -motion.heading.dot(newN));
+    if (motion.heading.lengthSq() < 1e-6) motion.heading.copy(arbitraryPerp(newN)); else motion.heading.normalize();
+    motion.targetHeading.copy(motion.heading);
+    motion.state = 'idle'; motion.timer = 2.5 + Math.random()*3;
+    holder.position.copy(newN).multiplyScalar(R + 0.02);
+    holder.quaternion.copy(quatFromBasis(newN, motion.heading));
+  }
+}
 function spawnStoryPigeon(cfg){
   const g = bodies[PIGEON_I].group, R = bodies[PIGEON_I].r;
   const holder = new THREE.Group();
   const inner = new THREE.Group(); holder.add(inner);
-  // Was dirNear(plazaN, 0.7 + Math.random()*1.5) — dirNear doesn't reliably
-  // control angular distance at spreads this large (see the gift-book/tower
-  // dirNear gotcha elsewhere in this file), and even at face value 0.7-2.2
-  // rad is up to ~126° from the plaza center on this r=30 planet — confirmed
-  // live: Doodles landed ~108° of arc from her, a genuinely long, clutter-
-  // filled walk through 520 background pigeons with only a compass to go on.
-  // tiltDir gives an exact, bounded angular distance every time; azimuth
-  // still varies so each decoy/Doodles doesn't always land in the same spot.
-  const n = tiltDir(worldRefs.pigeon.plazaN, 0.35 + Math.random()*0.4, Math.random()*Math.PI*2);
+  // Percy owns the center. Every named pigeon/dove gets a reserved slot on a
+  // broad outer ring, in story order, so later spawns can never overlap an
+  // earlier friend. Alternating radii adds a little natural looseness while
+  // keeping adjacent friends roughly 12+ surface units apart.
+  const decoySlot = PLAZA_DECOYS.findIndex((friend) => friend.name === cfg.name);
+  const slot = cfg.name === DOODLES_CFG.name ? PLAZA_DECOYS.length : Math.max(0, decoySlot);
+  const ringAngle = slot % 2 ? PLAZA_STORY_RING_FAR : PLAZA_STORY_RING_NEAR;
+  const azimuth = -0.35 + slot/PLAZA_STORY_SLOT_COUNT*Math.PI*2;
+  const n = tiltDir(worldRefs.pigeon.percyN, ringAngle, azimuth);
+  clearCrowdAroundStorySpot(n);
   placeOn(g, holder, n, R, 0.02);
   if (cfg.procedural){
     // no sculpted glb for this one yet — build the same plushPigeon() used
@@ -3810,11 +3845,12 @@ function talkActivePigeon(){
 }
 function doReunion(){
   const pN = worldRefs.pigeon.percyN, R = bodies[PIGEON_I].r;
-  // move Doodles right next to Percy and ring the found pigeons around them
+  // Gather the friends into a broad ring around Percy without collapsing the
+  // generous spacing established during the search.
   const flock = [...plazaQuest.decoyHolders, plazaQuest.doodles].filter(Boolean);
   flock.forEach((h, i) => {
     const az = i / flock.length * Math.PI * 2;
-    const n = tiltDir(pN, 0.3, az);
+    const n = tiltDir(pN, 0.46, az);
     h.position.copy(n).multiplyScalar(R + 0.02);
     orientToNormal(h, n);
     h.quaternion.copy(quatFromBasis(n, tangentToward(h.position, n, V().copy(pN).multiplyScalar(R))));  // face Percy
@@ -5228,7 +5264,7 @@ function updatePercyFlight(dt, t){
       const a = k*Math.PI*2 + i/pf.friends.length*Math.PI*2;
       const radial = new THREE.Vector3().copy(pf.orbitA).multiplyScalar(Math.cos(a))
         .addScaledVector(pf.orbitB, Math.sin(a));
-      friend.position.copy(pf.p0).addScaledVector(radial, 6.2)
+      friend.position.copy(pf.p0).addScaledVector(radial, 9.8)
         .addScaledVector(pf.up0, 0.25 + Math.sin(t*2 + i)*0.18);
       const flightDir = new THREE.Vector3().copy(pf.orbitA).multiplyScalar(-Math.sin(a))
         .addScaledVector(pf.orbitB, Math.cos(a)).normalize();
@@ -5236,7 +5272,7 @@ function updatePercyFlight(dt, t){
     });
     const camDir = new THREE.Vector3().copy(pf.orbitA).multiplyScalar(Math.cos(-k*Math.PI*2))
       .addScaledVector(pf.orbitB, Math.sin(-k*Math.PI*2));
-    const goal = new THREE.Vector3().copy(center).addScaledVector(camDir, 14).addScaledVector(pf.up0, 6);
+    const goal = new THREE.Vector3().copy(center).addScaledVector(camDir, 20).addScaledVector(pf.up0, 7.5);
     camPos.lerp(goal, 1-Math.exp(-1.8*dt));
     camUp.lerp(pf.up0, 1-Math.exp(-2*dt)).normalize();
     camera.position.copy(camPos); camera.up.copy(camUp); camera.lookAt(center);
