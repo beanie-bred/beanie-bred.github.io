@@ -10,10 +10,17 @@ let bankURL = URL(fileURLWithPath: "/System/Library/Components/CoreAudio.compone
 
 let engine = AVAudioEngine()
 let piano = AVAudioUnitSampler()
-engine.attach(piano)
+let flute = AVAudioUnitSampler()
+let room = AVAudioUnitReverb()
+engine.attach(piano); engine.attach(flute); engine.attach(room)
 let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2)!
-engine.connect(piano, to: engine.mainMixerNode, format: format)
+room.loadFactoryPreset(.mediumRoom)
+room.wetDryMix = 16
+engine.connect(piano, to: room, format: format)
+engine.connect(flute, to: room, format: format)
+engine.connect(room, to: engine.mainMixerNode, format: format)
 try piano.loadSoundBankInstrument(at: bankURL, program: 0, bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(kAUSampler_DefaultBankLSB))
+try flute.loadSoundBankInstrument(at: bankURL, program: 73, bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(kAUSampler_DefaultBankLSB))
 
 let sequencer = AVAudioSequencer(audioEngine: engine)
 try sequencer.load(from: midiURL, options: [])
@@ -22,6 +29,7 @@ if musicTracks.count >= 2 {
   musicTracks[0].destinationAudioUnit = piano
   musicTracks[1].destinationAudioUnit = piano
 }
+if musicTracks.count >= 3 { musicTracks[2].destinationAudioUnit = flute }
 
 try? FileManager.default.removeItem(at: outputURL)
 let file = try AVAudioFile(forWriting: outputURL, settings: format.settings)

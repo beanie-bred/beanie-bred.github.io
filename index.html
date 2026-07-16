@@ -904,7 +904,7 @@ function playMelody(mel){
   if (mel.score){
     clearTimeout(melodyTimer);
     if (bgmRecording) bgmRecording.pause();
-    bgmRecording = new Audio('audio/popo-piano-score-v2.m4a');
+    bgmRecording = new Audio('audio/popo-soft-jazz-v3.m4a');
     bgmRecording.loop = true;
     bgmRecording.volume = .62;
     bgmRecording.muted = muted;
@@ -5223,7 +5223,10 @@ function updateMessengerCutsceneCam(dt){
   const up = herUp(new THREE.Vector3());
   const pgPos = m.pg.position;
   const toPg = tangentToward(her.position, up, pgPos);
-  const side = new THREE.Vector3().crossVectors(up, toPg).normalize().negate();
+  // Place the landing camera on the pigeon's left-profile side. The pigeon
+  // faces back toward Beanie, so using this un-negated tangent is the mirror
+  // of the conversation camera's side and shows its left flank on touchdown.
+  const side = new THREE.Vector3().crossVectors(up, toPg).normalize();
   const settleBlend = m.settling ? Math.min(1, (m.settleT || 0) / MESSENGER_SETTLE_SECONDS) : 0;
   const focus = new THREE.Vector3().copy(pgPos).lerp(
     new THREE.Vector3().addVectors(pgPos, her.position).multiplyScalar(0.5),
