@@ -4232,7 +4232,7 @@ function updateTalkCam(dt){
   const gap  = Math.max(7.2, her.position.distanceTo(npc));
   const goal = new THREE.Vector3().copy(mid)
     .addScaledVector(side, gap*0.42 + 2.0)
-    .addScaledVector(up, gap*0.18 + 1.3)
+    .addScaledVector(up, gap*0.08 + 1.15)
     .addScaledVector(toNpc, -gap*0.12 - 0.4);
   // Speaker-focused composition like Genshin, but only the LOOK target moves;
   // the camera never crosses the character line. While response choices are
@@ -5362,6 +5362,7 @@ addEventListener('keydown', (e) => {
 function qaWarp(i){
   if (state === 'intro') startJourney();                // reveal HUD / start audio first
   if (dialog){ dialogEl.classList.add('hidden'); dialog = null; restoreObstacles(); }
+  exitConversationStage();
   if (chicagoMessenger) dismissChicagoMessenger();
   if (landing){ planetTitleEl.classList.remove('show'); landing = null; }
   // A number key can be pressed while an arrow is still held. Do not carry
@@ -5864,6 +5865,10 @@ function spawnChicagoMessenger(onLanded){
     if (!m || m.pg !== pg) return;
     const w = pg.userData.wings;
     if (w) for (let i = 0; i < 2; i++) w[i].rotation.z = (i===0?1:-1)*Math.sin(t*((m.landed||m.settling)?4.5:8.5))*0.82;
+    // Conversation staging temporarily owns the pigeon's transform so it can
+    // stand on the flat tangent floor. Do not snap it back to the sphere each
+    // animation frame; exitConversationStage restores the exact landing pose.
+    if (conversationStage && conversationStage.npcObj === pg) return;
     if (!m.landed && !m.settling){
       m.t += dt/MESSENGER_DESCENT_SECONDS;
       const k = Math.min(1, m.t);
@@ -5963,7 +5968,8 @@ function startJourney(){
         }
         startChicagoTitleCutscene();   // the same orbit+title reveal every other world gets, just delayed until after the letter
       }, { speaker:'🕊️ a breathless pigeon',
-           npcPos: () => chicagoMessenger ? chicagoMessenger.pg.getWorldPosition(new THREE.Vector3()) : null });
+           npcPos: () => chicagoMessenger ? chicagoMessenger.pg.getWorldPosition(new THREE.Vector3()) : null,
+           npcObj: chicagoMessenger ? chicagoMessenger.pg : null });
     });
   }, 950);
 }
