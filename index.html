@@ -371,7 +371,7 @@
 <div id="toast"></div>
 
 <div id="dialog" class="hidden">
-  <div id="dialogName">Percy 🕊️</div>
+  <div id="dialogName">Percy 🐦</div>
   <div id="dialogText"></div>
   <div id="dialogNext">press SPACE ▸</div>
 </div>
@@ -1647,14 +1647,10 @@ function orbiter(group, obj, radius, speed, tiltX, tiltZ, bobAmp=0, bobSpeed=1, 
   obj.position.set(radius, 0, 0);
   pivot.add(obj);
   const phase = Math.random()*7;
-  // faceTravel: orient the object toward its actual world-space direction
-  // of motion each frame, measured by position-diffing rather than derived
-  // from rotation.y alone — once tiltX/tiltZ tip the orbital plane (as
-  // every caller here does, randomly), a single fixed local rotation can't
-  // stay aligned with the travel direction (Euler composition isn't a
-  // simple offset once more than one axis is spinning), so a static
-  // "face -Z" rotation only looks right by coincidence at some angles and
-  // sideways/backward at others.
+  // faceTravel: point +Z along the measured direction of travel, while +Y
+  // always points radially away from the world's surface. Using the orbit
+  // pivot's tilted Y axis as "up" made pigeons roll onto their sides around
+  // part of every orbit, even when their beaks happened to face forward.
   let prevWorld = faceTravel ? obj.getWorldPosition(new THREE.Vector3()) : null;
   animators.push((t, dt) => {
     pivot.rotation.y += speed*dt;
@@ -1664,7 +1660,8 @@ function orbiter(group, obj, radius, speed, tiltX, tiltZ, bobAmp=0, bobSpeed=1, 
       const dir = tmpVOrbit2.subVectors(worldPos, prevWorld);
       if (dir.lengthSq() > 1e-10){
         const pivotWorldQuat = pivot.getWorldQuaternion(tmpQOrbit);
-        const worldUp = tmpVOrbit3.set(0,1,0).applyQuaternion(pivotWorldQuat);
+        const worldCenter = group.getWorldPosition(tmpVOrbit4);
+        const worldUp = tmpVOrbit3.subVectors(worldPos, worldCenter).normalize();
         const desiredWorldQuat = quatFromBasis(worldUp, dir.normalize());
         obj.quaternion.copy(pivotWorldQuat.invert().multiply(desiredWorldQuat));
       }
@@ -1674,6 +1671,7 @@ function orbiter(group, obj, radius, speed, tiltX, tiltZ, bobAmp=0, bobSpeed=1, 
   return pivot;
 }
 const tmpVOrbit = new THREE.Vector3(), tmpVOrbit2 = new THREE.Vector3(), tmpVOrbit3 = new THREE.Vector3(),
+      tmpVOrbit4 = new THREE.Vector3(),
       tmpQOrbit = new THREE.Quaternion();
 // a "school": several creatures clustered on one orbiting pivot, wiggling like fish
 function school(group, makeOne, count, radius, speed, spread, scale){
@@ -2486,9 +2484,10 @@ function buildPigeons(g, R, ctx){
   animators.push((t) => { water.scale.setScalar(1 + 0.05*Math.sin(t*3)); water.rotation.y = t*0.4; });
 
   // WAY too many pigeons — evenly covering the ENTIRE planet (not just
-  // clustered near the plaza/fountain), so it's packed with pigeons wherever
-  // you look; each one pecks, takes little steps around the surface, or
-  // flaps in place.
+  // clustered near the plaza/fountain). Their motion is intentionally calm:
+  // long idle beats, a turn toward their next direction, only 2–3 forward
+  // hops, then a full-body lean and peck. Nothing continuously slides or
+  // walks backward across the surface anymore.
   const crowd = [];
   const TAU = Math.PI*2;
   // Each pigeon is ~13 separate meshes (no instancing), so raw count is the
@@ -2498,7 +2497,6 @@ function buildPigeons(g, R, ctx){
   for (let i = 0; i < PIGEON_COUNT; i++){
     const pg = plushPigeon(PIGEON_VARIANTS[i % PIGEON_VARIANTS.length]);
     pg.scale.setScalar(0.8 + Math.random()*0.4);
-    pg.rotation.y = Math.random()*TAU;
     const holder = new THREE.Group(); holder.add(pg);
     // the first chunk clusters near the plaza/fountain for foreground density;
     // everyone else gets a fully uniform direction so the far side and poles
@@ -2506,33 +2504,103 @@ function buildPigeons(g, R, ctx){
     const n = i < 120 ? dirNear(plazaN, 0.15 + Math.random()*0.9) : randDir();
     placeOn(g, holder, n, R, 0.02);
     crowd.push(holder);
-    const ph = Math.random()*7, roll = i % 10;
-    if (roll < 4){                                         // peckers
-      animators.push((t) => {
-        if (percyHolder.userData.flying) return;
-        pg.userData.head.position.y = 0.58 - Math.max(0, Math.sin(t*2.6 + ph))*0.18;
-        pg.position.y = Math.abs(Math.sin(t*1.6 + ph))*0.015;
-      });
-    } else if (roll < 8){                                  // walkers — drift across the surface
-      const axis = randDir(), spd = (0.05 + Math.random()*0.12)*(Math.random() < 0.5 ? -1 : 1);
-      const cur = n.clone();
-      animators.push((t, dt) => {
-        if (percyHolder.userData.flying) return;
-        cur.applyAxisAngle(axis, spd*dt);
-        holder.position.copy(cur).multiplyScalar(R + 0.02);
-        orientToNormal(holder, cur);
-        pg.position.y = Math.abs(Math.sin(t*5 + ph))*0.05;     // little steps
-        pg.rotation.y += Math.sin(t*5 + ph)*0.01;              // waddle
-        if (pg.userData.head) pg.userData.head.position.y = 0.58 - Math.max(0, Math.sin(t*3 + ph))*0.1;
-      });
-    } else {                                               // flappers hopping in place
-      animators.push((t) => {
-        if (percyHolder.userData.flying) return;
-        pg.position.y = Math.abs(Math.sin(t*3 + ph))*0.12;      // hop
-        for (let w = 0; w < 2; w++)
-          pg.userData.wings[w].rotation.z = (w===0?1:-1)*Math.abs(Math.sin(t*8 + ph))*0.7;
-      });
+    const heading = arbitraryPerp(n).applyAxisAngle(n, Math.random()*TAU).normalize();
+    const motion = { cur:n.clone(), heading, targetHeading:heading.clone(),
+      state:'idle', timer:1.5 + Math.random()*4.5, duration:1, steps:2,
+      suspended:false, startQ:new THREE.Quaternion(), targetQ:new THREE.Quaternion() };
+    holder.userData.groundMotion = motion;
+    const stepAxis = V(), basisF = V(), basisX = V(), basisM = new THREE.Matrix4();
+    function setFacing(q, up, forward){
+      basisF.copy(forward).addScaledVector(up, -forward.dot(up)).normalize();
+      basisX.crossVectors(up, basisF).normalize();
+      basisM.makeBasis(basisX, up, basisF);
+      q.setFromRotationMatrix(basisM);
     }
+    function settlePose(dt){
+      const e = 1 - Math.exp(-10*dt), head = pg.userData.head;
+      pg.position.y += (0 - pg.position.y)*e;
+      pg.rotation.x += (0 - pg.rotation.x)*e;
+      pg.rotation.z += (0 - pg.rotation.z)*e;
+      head.position.y += (0.58 - head.position.y)*e;
+      head.position.z += (0.16 - head.position.z)*e;
+      head.rotation.x += (0 - head.rotation.x)*e;
+      for (const wing of pg.userData.wings) wing.rotation.z += (0 - wing.rotation.z)*e;
+    }
+    setFacing(holder.quaternion, motion.cur, motion.heading);
+    animators.push((t, dt) => {
+      if (percyHolder.userData.flying || motion.suspended) return;
+      const head = pg.userData.head;
+      motion.timer -= dt;
+      if (motion.state === 'idle'){
+        settlePose(dt);
+        if (motion.timer <= 0){
+          motion.targetHeading.copy(motion.heading)
+            .applyAxisAngle(motion.cur, (Math.random()-0.5)*1.25).normalize();
+          motion.startQ.copy(holder.quaternion);
+          setFacing(motion.targetQ, motion.cur, motion.targetHeading);
+          motion.duration = 0.32 + Math.random()*0.18;
+          motion.timer = motion.duration;
+          motion.state = 'turn';
+        }
+      } else if (motion.state === 'turn'){
+        settlePose(dt);
+        const k = Math.max(0, Math.min(1, 1 - motion.timer/motion.duration));
+        const e = k*k*(3-2*k);
+        holder.quaternion.slerpQuaternions(motion.startQ, motion.targetQ, e);
+        if (motion.timer <= 0){
+          motion.heading.copy(motion.targetHeading);
+          motion.steps = 2 + (Math.random() < 0.48 ? 1 : 0);
+          motion.duration = motion.steps*(0.38 + Math.random()*0.06);
+          motion.timer = motion.duration;
+          motion.state = 'step';
+        }
+      } else if (motion.state === 'step'){
+        const k = Math.max(0, Math.min(1, 1 - motion.timer/motion.duration));
+        // Positive-only great-circle progress: their beak and movement always
+        // agree, and the final position becomes the next idle position.
+        stepAxis.crossVectors(motion.cur, motion.heading).normalize();
+        const travelSpeed = 0.62;
+        const angle = travelSpeed*dt/R;
+        motion.cur.applyAxisAngle(stepAxis, angle).normalize();
+        motion.heading.applyAxisAngle(stepAxis, angle).normalize();
+        holder.position.copy(motion.cur).multiplyScalar(R + 0.02);
+        setFacing(holder.quaternion, motion.cur, motion.heading);
+        const hop = Math.abs(Math.sin(k*motion.steps*Math.PI));
+        pg.position.y = hop*0.075;
+        pg.rotation.x = 0.07;
+        pg.rotation.z = Math.sin(k*motion.steps*Math.PI*2)*0.065;
+        head.position.set(0, 0.58, 0.16); head.rotation.x = 0;
+        if (motion.timer <= 0){
+          motion.duration = 0.42; motion.timer = motion.duration; motion.state = 'lean';
+        }
+      } else if (motion.state === 'lean'){
+        const k = Math.max(0, Math.min(1, 1 - motion.timer/motion.duration));
+        const e = k*k*(3-2*k);
+        pg.position.y = 0; pg.rotation.z = 0; pg.rotation.x = e*0.42;
+        head.position.set(0, 0.58-e*0.045, 0.16+e*0.025);
+        if (motion.timer <= 0){
+          motion.duration = 0.62; motion.timer = motion.duration; motion.state = 'peck';
+        }
+      } else if (motion.state === 'peck'){
+        const k = Math.max(0, Math.min(1, 1 - motion.timer/motion.duration));
+        const dip = Math.sin(k*Math.PI);
+        pg.rotation.x = 0.42; pg.position.y = 0;
+        head.position.set(0, 0.535-dip*0.21, 0.185+dip*0.09);
+        head.rotation.x = dip*0.72;
+        if (motion.timer <= 0){
+          motion.duration = 0.45; motion.timer = motion.duration; motion.state = 'rise';
+        }
+      } else {                                            // rise, then a long calm idle
+        const k = Math.max(0, Math.min(1, 1 - motion.timer/motion.duration));
+        const e = k*k*(3-2*k);
+        pg.rotation.x = 0.42*(1-e); pg.position.y = 0;
+        head.position.set(0, 0.535+e*0.045, 0.185-e*0.025);
+        head.rotation.x = 0;
+        if (motion.timer <= 0){
+          motion.state = 'idle'; motion.timer = 2.5 + Math.random()*5.0;
+        }
+      }
+    });
   }
   // some genuinely flying overhead — bumped well past the ground crowd's own
   // 2x (18->42, more than double) since the request was specifically for a
@@ -2598,21 +2666,41 @@ function spawnPigeonFleeOnLanding(landPos){
     const outN = new THREE.Vector3().subVectors(wp, bC).normalize();
     const away = new THREE.Vector3().subVectors(wp, landPos);
     away.addScaledVector(outN, -away.dot(outN)).normalize();   // tangent-only, stays on the surface
-    const origLocal = holder.position.clone();
-    const OUT = 0.5, HOLD = 1.3, BACK = 0.9, FLEE_DIST = 3.2;
+    const motion = holder.userData.groundMotion;
+    if (!motion || motion.suspended) continue;
+    motion.suspended = true;
+    const pg = holder.children[0];
+    const origN = motion.cur.clone();
+    const targetN = origN.clone().addScaledVector(away, 3.6/bodies[PIGEON_I].r).normalize();
+    const flyAxis = new THREE.Vector3().crossVectors(origN, targetN).normalize();
+    const flyN = new THREE.Vector3(), flyForward = new THREE.Vector3();
+    const arc = origN.angleTo(targetN), FLY_DUR = 1.55;
     let t = 0;
     function step(_x, dt){
       t += dt;
-      if (t < OUT){
-        const k = t/OUT, e = k*k*(3-2*k);
-        holder.position.copy(origLocal).addScaledVector(away, e*FLEE_DIST);
-      } else if (t < OUT+HOLD){
-        // held at the fled position — a beat of "still spooked"
-      } else if (t < OUT+HOLD+BACK){
-        const k = (t-OUT-HOLD)/BACK, e = k*k*(3-2*k);
-        holder.position.copy(origLocal).addScaledVector(away, FLEE_DIST*(1-e));
-      } else {
-        holder.position.copy(origLocal);
+      const k = Math.min(1, t/FLY_DUR), e = k*k*(3-2*k);
+      flyN.copy(origN).applyAxisAngle(flyAxis, arc*e).normalize();
+      flyForward.crossVectors(flyAxis, flyN).normalize();
+      holder.position.copy(flyN).multiplyScalar(bodies[PIGEON_I].r + 0.02 + Math.sin(k*Math.PI)*1.45);
+      holder.quaternion.copy(quatFromBasis(flyN, flyForward));
+      if (pg){
+        pg.position.y = 0; pg.rotation.x = 0.12; pg.rotation.z = 0;
+        for (let w = 0; w < 2; w++)
+          pg.userData.wings[w].rotation.z = (w===0?1:-1)*Math.sin(t*15)*0.95;
+      }
+      if (k >= 1){
+        // Land where the flight ends and resume the calm ground cycle there;
+        // never reverse-slide back to the original point.
+        motion.cur.copy(targetN); motion.heading.copy(flyForward);
+        motion.targetHeading.copy(flyForward);
+        motion.state = 'idle'; motion.timer = 2.0 + Math.random()*3.5;
+        motion.suspended = false;
+        holder.position.copy(targetN).multiplyScalar(bodies[PIGEON_I].r + 0.02);
+        holder.quaternion.copy(quatFromBasis(targetN, flyForward));
+        if (pg){
+          pg.position.y = 0; pg.rotation.x = 0;
+          for (const wing of pg.userData.wings) wing.rotation.z = 0;
+        }
         animators.splice(animators.indexOf(step), 1);
       }
     }
@@ -3021,7 +3109,7 @@ const WORLD_DEFS = [
     // in the chain (Books->here ~631, here->Pigeon ~936, both well inside
     // the existing flight-duration/arc-height clamps).
     pos:[500,-500,-450], r:45, col:PALETTE.moss, step:'grass' },
-  { key:'pigeon',   name:'Pigeon Plaza',     emoji:'🕊️', tag:'way, WAY too many pigeons',
+  { key:'pigeon',   name:'Pigeon Plaza',     emoji:'🐦', tag:'way, WAY too many pigeons',
     mission:'<b>MISSION:</b> find <b>Percy</b>, he needs help finding a long-lost friend among all these pigeons.',
     introMission:'<b>MISSION:</b> find <b>Percy</b> among all these pigeons and talk to him.',
     pos:[510,60,-1200], r:30, col:PALETTE.mutedLavender, step:'stone' },
@@ -3596,7 +3684,7 @@ const DOODLES_CFG = { name:'doodles', glb:'doodles', speaker:'🦤 Doodles the D
   `…but it does get lonely now. I miss my family so much.`,
   `You'll… be my family? Really? *sniffle* …okay. Lead the way, take me to your friend.` ] };
 const PERCY_INTRO = [
-  `Coo! Rachel, you found me! 🕊️`,
+  `Coo! Rachel, you found me! 🐦`,
   { speaker:'Rachel 💫', text:`Percy! Wow, you're bigger than I imagined. What's going on?`, alt:`You're Percy? Okay—you're magnificent. What happened?` },
   `Listen… long, long ago I had a dear, dear friend. We were inseparable.`,
   `I've looked all over this plaza and I just can't find him. Would you help me look?`,
@@ -3670,12 +3758,12 @@ function refreshPlazaGuide(){
   const b = bodies[PIGEON_I];
   if (plazaQuest.phase === 'done'){ b.guideFn = null; return; }
   if (plazaWantsPercy()){
-    b.guideLabel = plazaQuest.phase === 'bring-doodles' ? '🕊️ bring Doodles to Percy!'
-      : (plazaQuest.phase === 'giveup' ? '🕊️ go back to Percy for a hint' : '🕊️ find Percy');
+    b.guideLabel = plazaQuest.phase === 'bring-doodles' ? '🐦 bring Doodles to Percy!'
+      : (plazaQuest.phase === 'giveup' ? '🐦 go back to Percy for a hint' : '🐦 find Percy');
     b.guideFn = () => percyWorldPos(new THREE.Vector3());
   } else {
     b.guideLabel = plazaQuest.phase === 'seek-doodles' ? '🦤 find the pigeon whose name starts with "D"'
-      : '🕊️ say hello to that pigeon';
+      : '🐦 say hello to that pigeon';
     b.guideFn = () => { const h = plazaTargetHolder(); return h ? h.getWorldPosition(new THREE.Vector3()) : percyWorldPos(new THREE.Vector3()); };
   }
 }
@@ -3692,7 +3780,7 @@ function spawnNextDecoy(){
   refreshPlazaGuide();
 }
 function talkPercy(){
-  const npc = { npcPos: () => percyWorldPos(new THREE.Vector3()), speaker:'Percy 🕊️',
+  const npc = { npcPos: () => percyWorldPos(new THREE.Vector3()), speaker:'Percy 🐦',
     npcObj: worldRefs.pigeon.percyHolder };
   if (plazaQuest.phase === 'intro'){
     meetFriend('percy');
@@ -3781,15 +3869,15 @@ function qaGiveNext(){
   if (curI === PIGEON_I){                            // Pigeon Plaza: "meet" the current pigeon
     if (plazaQuest.phase === 'intro'){
       meetFriend('percy'); plazaQuest.step = 0; spawnNextDecoy(); setMission(bodies[PIGEON_I].mission);
-      showToast('🕊️ QA: met Percy', 'mission revealed'); return;
+      showToast('🐦 QA: met Percy', 'mission revealed'); return;
     }
     if (plazaQuest.phase === 'searching' && plazaQuest.active){
       meetFriend(plazaQuest.active.userData.cfg.name); plazaQuest.step++; spawnNextDecoy();
-      showToast('🕊️ QA: met a pigeon', `${plazaQuest.step}/${PLAZA_DECOYS.length}`); return;
+      showToast('🐦 QA: met a pigeon', `${plazaQuest.step}/${PLAZA_DECOYS.length}`); return;
     }
     if (plazaQuest.phase === 'giveup'){
       plazaQuest.phase = 'seek-doodles'; plazaQuest.doodles = spawnStoryPigeon(DOODLES_CFG); refreshPlazaGuide();
-      showToast('🕊️ QA: back to Percy', 'now seeking Doodles'); return;
+      showToast('🐦 QA: back to Percy', 'now seeking Doodles'); return;
     }
     if (plazaQuest.phase === 'seek-doodles'){
       meetFriend(DOODLES_CFG.name); plazaQuest.phase = 'bring-doodles'; refreshPlazaGuide();
@@ -3797,7 +3885,7 @@ function qaGiveNext(){
     }
     if (plazaQuest.phase === 'bring-doodles'){
       plazaQuest.phase = 'done'; bodies[PIGEON_I].missionDone = true; doReunion();
-      showToast('🕊️ QA: reunion!', 'quest complete');
+      showToast('🐦 QA: reunion!', 'quest complete');
     }
   }
 }
@@ -4935,7 +5023,7 @@ const PERCY_LINES = [
   `Coo! Rachel… you found me. I have been waiting ALL day!`,
   'The other pigeons talk too much. *flap flap* Anyway…',
   'There is one more world out there, and somebody set it up just for you.',
-  'Hop on my back and hold tight! 🕊️',
+  'Hop on my back and hold tight! 🐦',
 ];
 let dialog = null;   // dialog = { lines, idx, onDone, coo, lineT }
 // Driven by the main render loop's dt (see updateDialogTyping) instead of a
@@ -5011,7 +5099,7 @@ function startDialog(lines, onDone, opts={}){
   reticleEl.classList.add('hidden');
   dialogEl.classList.remove('hidden');
   dialog = { lines, idx:0, onDone, coo: opts.coo !== false, npcPos: opts.npcPos || null, npcObj: opts.npcObj || null,
-    defaultSpeaker: opts.speaker || 'Percy 🕊️', chosenResponses:new Map(), awaitingChoice:false };
+    defaultSpeaker: opts.speaker || 'Percy 🐦', chosenResponses:new Map(), awaitingChoice:false };
   hideNearbyObstacles(opts.npcObj || null);   // clear props so nothing covers Beanie
   enterConversationStage(opts.npcObj || null);
   showDialogLine();
@@ -5101,7 +5189,8 @@ function scatterNearbyPercyCrowd(center){
     scene.attach(c);
     const surfaceUp = V().subVectors(wp, bCenter).normalize();
     const away = V().subVectors(wp, center).addScaledVector(surfaceUp, 5).normalize();
-    percyScatter.push({ obj:c, vel:away.multiplyScalar(10 + Math.random()*4), life:5.5 });
+    percyScatter.push({ obj:c, center:bCenter.clone(),
+      vel:away.multiplyScalar(10 + Math.random()*4), life:5.5 });
     scattered++;
   }
 }
@@ -5112,7 +5201,12 @@ function updatePercyScatter(dt){
     s.life -= dt;
     if (s.life <= 0){ scene.remove(s.obj); percyScatter.splice(i,1); continue; }
     s.obj.position.addScaledVector(s.vel, dt);
-    s.obj.rotation.y += dt*3;
+    // Flying bodies remain upright relative to the planet and face their
+    // forward travel; no tumbling, sideways flight, or backward glide.
+    if (s.center){
+      const flyUp = V().subVectors(s.obj.position, s.center).normalize();
+      s.obj.quaternion.copy(quatFromBasis(flyUp, s.vel));
+    }
     const pg = s.obj.children[0];
     if (pg && pg.userData.wings)
       for (let w = 0; w < 2; w++)
@@ -5136,7 +5230,9 @@ function updatePercyFlight(dt, t){
         .addScaledVector(pf.orbitB, Math.sin(a));
       friend.position.copy(pf.p0).addScaledVector(radial, 6.2)
         .addScaledVector(pf.up0, 0.25 + Math.sin(t*2 + i)*0.18);
-      friend.quaternion.copy(quatFromBasis(pf.up0, radial.clone().negate()));
+      const flightDir = new THREE.Vector3().copy(pf.orbitA).multiplyScalar(-Math.sin(a))
+        .addScaledVector(pf.orbitB, Math.cos(a)).normalize();
+      friend.quaternion.copy(quatFromBasis(pf.up0, flightDir));
     });
     const camDir = new THREE.Vector3().copy(pf.orbitA).multiplyScalar(Math.cos(-k*Math.PI*2))
       .addScaledVector(pf.orbitB, Math.sin(-k*Math.PI*2));
@@ -5655,12 +5751,12 @@ function updateWalk(dt){
       : '🐻‍❄️ press SPACE to talk to bbak';
     promptEl.classList.add('show');
   } else if (plazaNear){
-    promptEl.textContent = '🕊️ press SPACE to say hello';
+    promptEl.textContent = '🐦 press SPACE to say hello';
     promptEl.classList.add('show');
   } else if (percyNear){
     promptEl.textContent = plazaQuest.phase === 'bring-doodles'
-      ? '🕊️ press SPACE, bring Doodles to Percy'
-      : '🕊️ press SPACE to talk to Percy';
+      ? '🐦 press SPACE, bring Doodles to Percy'
+      : '🐦 press SPACE to talk to Percy';
     promptEl.classList.add('show');
   } else if (pickTarget){
     promptEl.textContent = (pickTarget.cuke || pickTarget.name === 'cucumber')
@@ -5927,8 +6023,10 @@ function dismissChicagoMessenger(){
   if (!chicagoMessenger) return;
   const pg = chicagoMessenger.pg, up = chicagoMessenger.groundN;
   const holder = new THREE.Group(); holder.position.copy(pg.position);
-  scene.add(holder); scene.remove(pg); pg.position.set(0,0,0); holder.add(pg);
+  holder.quaternion.copy(pg.quaternion);
+  scene.add(holder); scene.remove(pg); pg.position.set(0,0,0); pg.quaternion.identity(); holder.add(pg);
   percyScatter.push({ obj: holder, life: 3.2,
+    center:bodies[0].center.clone(),
     vel: up.clone().multiplyScalar(9).addScaledVector(randDir(), 3) });
   chicagoMessenger = null;
   playCoo();
@@ -5997,7 +6095,7 @@ function startJourney(){
           updatePose();
         }
         startChicagoTitleCutscene();   // the same orbit+title reveal every other world gets, just delayed until after the letter
-      }, { speaker:'🕊️ a breathless pigeon',
+      }, { speaker:'🐦 a breathless pigeon',
            npcPos: () => chicagoMessenger ? chicagoMessenger.pg.getWorldPosition(new THREE.Vector3()) : null,
            npcObj: chicagoMessenger ? chicagoMessenger.pg : null });
     });
@@ -6048,7 +6146,7 @@ document.getElementById('planetTitleContinue').addEventListener('click', () => {
   if (state === 'theend') location.reload();
 });
 function floatHearts(){
-  const glyphs = ['❤️','🤍','🌷','✨','🕊️','🩷'];
+  const glyphs = ['❤️','🤍','🌷','✨','🐦','🩷'];
   for (let i = 0; i < 16; i++){
     setTimeout(() => {
       const s = document.createElement('span');
@@ -6477,10 +6575,14 @@ window.__world = {
     const travel = new THREE.Vector3().subVectors(p2, p1);
     if (travel.lengthSq() < 1e-10) return { travelLen: 0 };
     travel.normalize();
-    const faceWorld = new THREE.Vector3(0,0,1).applyQuaternion(pg.getWorldQuaternion(new THREE.Quaternion())).normalize();
+    const worldQ = pg.getWorldQuaternion(new THREE.Quaternion());
+    const faceWorld = new THREE.Vector3(0,0,1).applyQuaternion(worldQ).normalize();
+    const upWorld = new THREE.Vector3(0,1,0).applyQuaternion(worldQ).normalize();
+    const surfaceUp = p2.clone().sub(bodies[PIGEON_I].center).normalize();
     return { travel: travel.toArray().map(v=>+v.toFixed(3)),
       faceWorld: faceWorld.toArray().map(v=>+v.toFixed(3)),
-      dot: +travel.dot(faceWorld).toFixed(4) };   // 1 = facing travel direction, 0 = sideways, -1 = backward
+      dot: +travel.dot(faceWorld).toFixed(4),     // 1 = facing travel direction, 0 = sideways, -1 = backward
+      upDot: +surfaceUp.dot(upWorld).toFixed(4) };// 1 = head/body upright away from the planet surface
   },
   locatorDebug(){
     const proj = (p) => new THREE.Vector3(...p).project(camera);
