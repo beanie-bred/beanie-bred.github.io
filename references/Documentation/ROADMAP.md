@@ -53,6 +53,21 @@
         reference clip (prone push-up, crouch, stand) — they match
         Winter's pattern at every checkpoint checked, so that motion was
         not touched.
+      - **Caught a concurrent-edit clash before it shipped:** first export
+        landed fine, but a live file-hash check right before committing
+        showed `beanie_summer.glb` had changed size again underneath this
+        session — another parallel session had added a whole new `Run`
+        animation and touched `Idle` since this fix was copied in. Because
+        this fix lived only in the Blender MCP server's in-memory session
+        (never saved to a shared `.blend`), their re-export naturally
+        didn't include it, and it would have been silently lost on a blind
+        overwrite. Re-imported their latest export, confirmed `Run` had
+        the identical frozen-arm and broken-coordination bug (arm swing
+        stuck within 0.001 units across the whole cycle, coordination
+        right on only 10/21 frames), applied the same leg-phase-driven fix
+        to both `Walk` and `Run` on top of their current file, and
+        re-exported all four tracks (`Idle`, `Walk`, `Run`,
+        `LandFallGetUp`) together so nothing either session did got lost.
       - Re-exported `beanie_summer.glb` with Draco compression (the first
         export attempt omitted it and bloated the file 3x; matched back to
         the original ~1.4MB once enabled), verified the fix survives
