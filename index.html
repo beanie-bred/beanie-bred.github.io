@@ -7010,27 +7010,36 @@ function showFriendToast(key){
 }
 // deterministic pseudo-random so a page's collage is stable across re-renders
 function jrand(s){ const x = Math.sin(s*127.1 + 31.7) * 43758.5453; return x - Math.floor(x); }
+// A CSS-rotated square's rendered (axis-aligned) bounding box is BIGGER than
+// its own size - by a factor of |cos|+|sin| of the rotation angle (up to
+// ~1.41x at 45deg) - since that's what getBoundingClientRect (and so real
+// visual overlap) measures, not the pre-rotation square. Slack has to be
+// computed against that worst-case GROWN footprint, or two items that look
+// "just touching" pre-rotation can end up genuinely overlapping by a sliver
+// once actually rotated - confirmed live via getBoundingClientRect on a
+// first attempt that ignored this (a ~1px sliver overlap, invisible in a
+// screenshot but real).
+function rotGrowth(maxDeg){
+  const r = maxDeg*Math.PI/180;
+  return Math.abs(Math.cos(r)) + Math.abs(Math.sin(r));
+}
 // Tile `count` items into a grid over the region [left, left+width] x
 // [0,100] as {x%, y%, size%, rot}. Jitter is a fraction of each item's own
-// LEFTOVER room in its cell (cellSize - itemSize), not a fixed fraction of
-// the cell itself - so as long as sizeMax <= the smaller of the cell's
-// width/height and jitter <= 1, an item can never be pushed past its own
-// cell's edges, which structurally guarantees it never overlaps a neighbor
-// or runs off the page, at any size. This replaced an earlier version whose
-// jitter was a fixed fraction of cell size regardless of item size, which
-// looked fine at the small, cautious sizes it shipped with but silently
-// allowed overlap/edge-clipping the moment sizes were pushed bigger to
-// reduce collage whitespace - caught by literally computing every pair's
-// gap in a scratch Node script across several seeds before touching this
-// file, not by eyeballing a screenshot.
+// LEFTOVER room in its cell (cellSize - item's worst-case ROTATED footprint),
+// not a fixed fraction of the cell itself - so as long as sizeMax stays under
+// the smaller of the cell's width/height (after accounting for rotGrowth)
+// and jitter <= 1, an item can never be pushed past its own cell's edges,
+// which structurally guarantees it never overlaps a neighbor or runs off
+// the page, at any size.
 function crowdLayout(seed, left, width, cols, sizeMin, sizeMax, rotMax, jitter, count){
   const rows = Math.ceil(count / cols);
-  const cw = width/cols, ch = 100/rows, out = [];
+  const cw = width/cols, ch = 100/rows, grow = rotGrowth(rotMax), out = [];
   for (let i = 0; i < count; i++){
     const c = i % cols, r = Math.floor(i / cols);
     const cx = left + cw*(c+0.5), cy = ch*(r+0.5);
     const size = sizeMin + jrand(seed+i*3.1)*(sizeMax-sizeMin);
-    const slackX = Math.max(0, cw-size), slackY = Math.max(0, ch-size);
+    const eff = size*grow;   // worst-case rotated footprint - slack math only, doesn't change the rendered size
+    const slackX = Math.max(0, cw-eff), slackY = Math.max(0, ch-eff);
     const x = cx + (jrand(seed+i*1.7)-0.5)*slackX*jitter;
     const y = cy + (jrand(seed+i*2.3)-0.5)*slackY*jitter;
     out.push({ x, y, size, rot:(jrand(seed+i*4.7)-0.5)*rotMax });
@@ -7039,12 +7048,14 @@ function crowdLayout(seed, left, width, cols, sizeMin, sizeMax, rotMax, jitter, 
 }
 // A single hero sticker sits big and centred; with a crowd too (n>1) - the
 // friend met on that world plus their collectible mementos (books, foods) -
-// the hero gets its own fixed spot in a left-hand column (`heroX`/`crowdLeft`
-// chosen so the hero's footprint never reaches into the crowd's region
-// either), and the crowd tiles the remaining region on its own grid.
+// the hero gets its own fixed spot in a left-hand column. `heroX`/`crowdLeft`
+// are solved so the hero's OWN worst-case rotated footprint fits inside
+// [0, crowdLeft] (heroX = heroSize*rotGrowth(5deg)/2, crowdLeft a hair above
+// heroX + that same half-footprint) - it never reaches into the crowd's
+// region either. The crowd then tiles the remaining region on its own grid.
 function collagePlace(n, seed, o){
   if (n === 1) return [{ x:50, y:53, size:o.hero || 60, rot:(jrand(seed)-0.5)*14 }];
-  const jitter = o.jitter ?? 0.8;
+  const jitter = o.jitter ?? 0.7;
   if (o.hero){
     const out = [{ x:o.heroX, y:o.heroY ?? 50, size:o.hero, rot:(jrand(seed+99)-0.5)*10 }];
     out.push(...crowdLayout(seed, o.crowdLeft, 100-o.crowdLeft, o.cols,
@@ -7054,9 +7065,9 @@ function collagePlace(n, seed, o){
   return crowdLayout(seed, 0, 100, o.cols, o.sizeMin||18, o.sizeMax||30, o.rotMax||22, jitter, n);
 }
 const JOURNAL_LAYOUT = {
-  books:    { hero:46, heroX:23, crowdLeft:48, cols:2, sizeMin:22, sizeMax:25, rotMax:16 },
-  cucumber: { hero:42, heroX:21, crowdLeft:44, cols:2, sizeMin:19, sizeMax:22, rotMax:18 },
-  pigeon:   { cols:3, sizeMin:19, sizeMax:23, rotMax:20 },
+  books:    { hero:44, heroX:24, crowdLeft:48, cols:2, sizeMin:18, sizeMax:21, rotMax:12 },
+  cucumber: { hero:40, heroX:22, crowdLeft:44, cols:2, sizeMin:17, sizeMax:20, rotMax:14 },
+  pigeon:   { cols:3, sizeMin:17, sizeMax:20, rotMax:15 },
   garden:   { hero:64 },
 };
 function renderJournalPage(){
