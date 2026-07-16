@@ -946,6 +946,17 @@ function playBgm(key, fadeSeconds=2.5){
   };
   bgmFadeFrame = requestAnimationFrame(fade);
 }
+// BGM ducking: full volume during the menu and any cutscene, quieter during
+// normal walking/exploring and dialogue so footsteps, click confirms, and the
+// dialogue typewriter's per-character sound are actually audible over it -
+// listed as the QUIET exception rather than enumerating every cutscene state,
+// since any future state should default to the loud/cutscene-like treatment.
+const BGM_QUIET_STATES = new Set(['walk', 'talk']);
+function updateBgmDucking(dt){
+  if (!bgmRecording || bgmFadeFrame) return;   // an in-flight track-switch fade owns the volume until it finishes
+  const target = BGM_QUIET_STATES.has(state) ? 0.14 : 0.52;
+  bgmRecording.volume += (target - bgmRecording.volume) * Math.min(1, dt*1.5);
+}
 // Attempt audible autoplay as soon as the page opens. Browsers that prohibit
 // it resume the same track on the very first pointer/key interaction. Muted QA
 // sessions are allowed to start immediately and never interrupt automation.
@@ -2289,9 +2300,9 @@ function buildBooks(g, R){
   animators.push((t) => {
     if (!chippyModel) return;
     chippyModel.scale.setScalar(1 + 0.03*Math.sin(t*1.6));   // gentle breathing
-    // little happy bounce on his book pile while he's actually talking
+    // Talking sway itself is applied in updateTalkCam (composed with his
+    // face-Beanie heading, same rotateZ-sway pattern dialogue birds use).
     const isTalkingToHim = dialog && dialog.npcObj === chippy;
-    chippyModel.position.y = isTalkingToHim ? Math.abs(Math.sin(t*5))*0.18 : 0;
     // face-Beanie heading (see updateTalkCam) only applies while talking;
     // reset back to his default "facing the landing spot" pose otherwise.
     if (!isTalkingToHim) chippyModel.rotation.set(0, 0, 0);
@@ -4856,11 +4867,15 @@ function updateTalkCam(dt){
   const beanieFocus = isBeanieSpeaking() && !dialog.awaitingChoice;
   const subject = beanieFocus ? her.position : npc;
   const subjectObj = dialogueVisualObject(beanieFocus ? her : dialog.npcObj, beanieFocus);
-  const frame = dialogueSubjectFrame(subjectObj, subject, up, beanieFocus ? 4.1 : 1.8, beanieFocus ? 0.72 : 0.76);
+  const frame = dialogueSubjectFrame(subjectObj, subject, up, beanieFocus ? 4.1 : 1.8, beanieFocus ? 0.62 : 0.68);
   const subjectHeight = frame.height;
   // Genshin-like upper-body framing. Small characters such as pigeons get an
   // actually close camera rather than inheriting Beanie's much larger scale.
-  const closeDistance = Math.max(1.9, Math.min(4.3, subjectHeight*0.72 + 0.55));
+  // Pulled back across the board (was 1.9-4.3, floor alone at H<1.88) - too
+  // tight even on tall subjects, and every small/short subject (Chippy,
+  // pigeons) sat pinned to the floor, reading as an extreme, almost-inside-
+  // the-model close-up rather than an upper-body shot.
+  const closeDistance = Math.max(3.6, Math.min(8, subjectHeight*1.6 + 1.6));
   // Rescale camFill for this frame's actual shooting distance - see the
   // constants' comment above. Small subjects (pigeons) sit at the 1.9 floor,
   // furthest from camFill's tuned range, so they're what gets hit hardest
@@ -4899,6 +4914,11 @@ function updateTalkCam(dt){
       baseForward.dot(desiredChippy));
     chippyModelObj.rotation.set(0, 0, 0);
     chippyModelObj.rotateY(delta);
+    // Gentle side-to-side sway while he talks, same restrained rotateZ
+    // technique as the dialogue-bird sway below - composed AFTER the
+    // face-Beanie heading (reset to identity above) so it doesn't fight it.
+    dialog.chippySwayT = (dialog.chippySwayT || 0) + dt;
+    chippyModelObj.rotateZ(Math.sin(dialog.chippySwayT*2.4)*0.05);
   } else if (dialog.npcObj && dialog.npcObj.isObject3D && !isChippy){
     const npcPos3 = dialog.npcObj.getWorldPosition(new THREE.Vector3());
     const toHer = tangentToward(npcPos3, up, her.position);
@@ -5679,7 +5699,7 @@ let dialog = null;   // dialog = { lines, idx, onDone, coo, lineT }
 // setInterval - a per-character setInterval competes with the rAF loop for
 // the JS thread and reveals characters in uneven bursts under any load,
 // which read as laggy/stuttery rather than a smooth type-on. was 0.022.
-const DIALOG_CHAR_SECONDS = 0.011;
+const DIALOG_CHAR_SECONDS = 0.0055;
 const MIN_TALK_DIST = 4.0;
 // However close she was standing when SPACE was pressed, nudge her backward
 // along the sphere surface (away from the NPC) so the two-shot camera never
@@ -7040,6 +7060,7 @@ let simT = 0;
 function step(dt){
   simT += dt;
   const t = simT;
+  updateBgmDucking(dt);
   for (const fn of animators) fn(t, dt);
   if (herUsingFallback) animAvatar(her, t, dt); else animBeanieSkinned(dt);
   // note: garden.bred is now a real-model placeholder Group, not a makeChibi
@@ -7152,6 +7173,11 @@ window.__world = {
     return worldRefs.books ? worldRefs.books.chippy.getWorldPosition(new THREE.Vector3()).toArray() : null;
   },
   chippyLoaded(){ return worldRefs.books ? worldRefs.books.chippy.children.length > 0 : false; },
+  chippyBoundsDebug(){
+    if (!worldRefs.books || !worldRefs.books.chippyModel) return null;
+    const box = new THREE.Box3().setFromObject(worldRefs.books.chippyModel, true);
+    return { size: box.getSize(new THREE.Vector3()).toArray().map(v => +v.toFixed(3)) };
+  },
   mazeDebug(){ return worldRefs.books ? worldRefs.books.mazeDebug : null; },
   chippySeatDebug(){
     if (!worldRefs.books) return null;
@@ -7202,6 +7228,19 @@ window.__world = {
   },
   curBodyDebug(){ const b = bodies[curI]; return { center: b.center.toArray(), r: b.r }; },
   camFillDebug(){ return { intensity: +camFill.intensity.toFixed(2), base: CAMFILL_BASE_INTENSITY, baseDist: CAMFILL_BASE_DIST }; },
+  bgmDebug(){ return { volume: bgmRecording ? +bgmRecording.volume.toFixed(3) : null, key: bgmKey, fading: !!bgmFadeFrame, state }; },
+  clearIntroLock(){ introLocked = false; },   // debug-only: skip past Chicago's letter-gate for testing other worlds
+  talkFrameDebug(){
+    if (!dialog) return null;
+    const up = herUp(new THREE.Vector3());
+    const npc = dialog.npcPos ? dialog.npcPos() : null;
+    const beanieFocus = isBeanieSpeaking() && !dialog.awaitingChoice;
+    const subject = beanieFocus ? her.position : npc;
+    const subjectObj = dialogueVisualObject(beanieFocus ? her : dialog.npcObj, beanieFocus);
+    const frame = dialogueSubjectFrame(subjectObj, subject, up, beanieFocus ? 4.1 : 1.8, beanieFocus ? 0.62 : 0.68);
+    const closeDistance = Math.max(3.6, Math.min(8, frame.height*1.6 + 1.6));
+    return { beanieFocus, height: +frame.height.toFixed(3), closeDistance: +closeDistance.toFixed(3) };
+  },
   herMaterialsDebug(){
     const out = [];
     const model = her.children[0];
