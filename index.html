@@ -4425,17 +4425,16 @@ function animBeanieSkinned(dt){
     const w = idleAction.getEffectiveWeight();
     idleAction.setEffectiveWeight(w + ((1 - walkTarget - talkTarget) - w) * Math.min(1, dt*8));
   }
-  // Give each running footfall a visible planted side instead of letting the
-  // rig glide evenly through both feet. The whole visual model settles a
-  // little toward/down onto the foot that just landed, then smoothly returns
-  // to centre before the opposite foot plants. This works for both outfits.
+  // Keep only a barely visible planted-foot settle while running. The earlier
+  // version leaned and dropped the whole model too far on every step, which
+  // read as a rumble/wobble instead of natural weight.
   const modelGroup = showSummer ? herSummerGroup : herWinterGroup;
   if (modelGroup){
     u.runPlantWeight *= Math.exp(-10.5*dt);
     const plant = run ? u.runPlantWeight : 0;
-    const targetX = u.runPlantSide * plant * 0.045;
-    const targetY = HER_MODEL_LIFT - plant * 0.07;
-    const targetLean = -u.runPlantSide * plant * 0.055;
+    const targetX = u.runPlantSide * plant * 0.012;
+    const targetY = HER_MODEL_LIFT - plant * 0.018;
+    const targetLean = -u.runPlantSide * plant * 0.014;
     const settle = Math.min(1, dt*14);
     modelGroup.position.x += (targetX - modelGroup.position.x) * settle;
     modelGroup.position.y += (targetY - modelGroup.position.y) * settle;
@@ -6119,8 +6118,9 @@ function updateWalk(dt){
         u.runPlantSide = plantSide;
         u.runPlantWeight = 1;
       }
-      stepPunch = u.running ? 0.46 : 0.26;
-      stepSidePunch = plantSide * (u.running ? 0.13 : 0.035);
+      // A very slight grounded response, not a visible camera rumble.
+      stepPunch = u.running ? 0.085 : 0.045;
+      stepSidePunch = plantSide * (u.running ? 0.012 : 0.006);
     }
   }
   // distance-to-NPC guide — shown while the current world's mission isn't done.
