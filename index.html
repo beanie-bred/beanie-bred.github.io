@@ -917,12 +917,10 @@ const MELODY_BDAY = { beat:0.48, notes:[
   [N.F5,.75],[N.F5,.25],[N.E5,1],[N.C5,1],[N.D5,1],[N.C5,3],
 ]};
 function playMelody(mel){
-  // The lead-sheet BGM is pre-rendered with macOS's sampled acoustic grand
-  // and tenor sax. Real samples sound much smoother than WebAudio oscillators.
   if (mel.score){
     clearTimeout(melodyTimer);
     if (bgmRecording) bgmRecording.pause();
-    bgmRecording = new Audio('audio/popo-premium-cafe-v9.m4a');
+    bgmRecording = new Audio('audio/popo-upbeat-cafe-v9.m4a');
     bgmRecording.loop = true;
     bgmRecording.volume = .62;
     bgmRecording.muted = muted;
@@ -4677,16 +4675,65 @@ const LAND_ORBIT_DURATION = 15;   // seconds for a full slow 360
 // instead of just silently letting the guide chip count down. Each distinct
 // guide label (a quest can point at several characters in turn, e.g. Percy
 // then each Plaza pigeon) only ever triggers this once.
-let notice = null;   // { t, targetPos }
+let notice = null;   // { t, targetPos, npcObj, sideSign, faceObj, faceQuaternion }
 const noticedGuides = new Set();
-const NOTICE_DURATION = 2.4;
-function startNotice(targetPos, subject){
-  notice = { t: 0, targetPos: targetPos.clone() };
+const NOTICE_DURATION = 3.0;
+const noticeBounds = new THREE.Box3(), noticeBoundsCenter = new THREE.Vector3(), noticeBoundsSize = new THREE.Vector3();
+function noticeTargetObject(){
+  if (curI === 1) return worldRefs.books && worldRefs.books.chippy;
+  if (curI === 2) return worldRefs.cucumber && worldRefs.cucumber.bbak;
+  if (curI === PIGEON_I) return plazaTargetHolder() || (worldRefs.pigeon && worldRefs.pigeon.percyHolder);
+  if (curI === GARDEN_I) return worldRefs.garden && worldRefs.garden.bred;
+  return null;
+}
+// Returns a portrait focus point near the character's upper face and the
+// character's visible height. This is measured from the real loaded model,
+// so a tiny pigeon, Percy, bbak, and Chippy do not share a blind 1-unit lift.
+function noticePortraitFocus(basePos, npcObj, up, out){
+  const fallbackHeight = curI === PIGEON_I ? 1.25 : 2.0;
+  out.copy(basePos).addScaledVector(up, fallbackHeight*0.72);
+  if (!npcObj || !npcObj.isObject3D) return fallbackHeight;
+  noticeBounds.setFromObject(npcObj, true);
+  if (noticeBounds.isEmpty()) return fallbackHeight;
+  noticeBounds.getCenter(noticeBoundsCenter);
+  noticeBounds.getSize(noticeBoundsSize);
+  const verticalHalf = (Math.abs(up.x)*noticeBoundsSize.x + Math.abs(up.y)*noticeBoundsSize.y
+    + Math.abs(up.z)*noticeBoundsSize.z)*0.5;
+  const centerLevel = noticeBoundsCenter.dot(up);
+  const bottomLevel = centerLevel - verticalHalf;
+  const visibleHeight = Math.max(0.7, Math.min(5.0, verticalHalf*2));
+  const faceLevel = bottomLevel + visibleHeight*0.76;
+  out.copy(noticeBoundsCenter).addScaledVector(up, faceLevel - centerLevel);
+  return visibleHeight;
+}
+function restoreNoticeFacing(){
+  if (notice && notice.faceObj && notice.faceQuaternion)
+    notice.faceObj.quaternion.copy(notice.faceQuaternion);
+}
+function startNotice(targetPos, subject, npcObj=null){
+  const targetUp = targetPos.clone().sub(bodies[curI].center).normalize();
+  const toBeanie = tangentToward(targetPos, targetUp, her.position);
+  const focus = new THREE.Vector3();
+  const visibleHeight = noticePortraitFocus(targetPos, npcObj, targetUp, focus);
+  const portraitDistance = Math.max(3.0, Math.min(7.0, visibleHeight*1.45 + 1.8));
+  const distanceToBeanie = targetPos.distanceTo(her.position);
+  const cameraDistance = Math.min(portraitDistance, Math.max(2.8, distanceToBeanie*0.72));
+  const portraitSide = new THREE.Vector3().crossVectors(targetUp, toBeanie).normalize();
+  const sideOffset = Math.max(0.55, Math.min(1.2, visibleHeight*0.28 + 0.25));
+  const candidateA = focus.clone().addScaledVector(toBeanie, cameraDistance)
+    .addScaledVector(portraitSide, sideOffset).addScaledVector(targetUp, visibleHeight*0.06);
+  const candidateB = focus.clone().addScaledVector(toBeanie, cameraDistance)
+    .addScaledVector(portraitSide, -sideOffset).addScaledVector(targetUp, visibleHeight*0.06);
+  const sideSign = candidateA.distanceToSquared(camera.position) <= candidateB.distanceToSquared(camera.position) ? 1 : -1;
+  let faceObj = npcObj;
+  // Chippy's parent includes his book seat; only turn the loaded character,
+  // exactly like conversation mode, so the seat never tips off the surface.
+  if (worldRefs.books && npcObj === worldRefs.books.chippy) faceObj = worldRefs.books.chippyModel || null;
+  notice = { t:0, targetPos:targetPos.clone(), npcObj, sideSign, faceObj,
+    faceQuaternion:faceObj ? faceObj.quaternion.clone() : null };
   her.userData.moving = false;
-  // bias the camera yaw toward the target's bearing so it's visible bouncing
-  // past her shoulder for the pause, same signed convention updateWalk's
-  // turn-peek uses (camYaw feeds followCam's 3D orbit directly, unlike the
-  // 2D guide-arrow compass which needs the bearing negated for CSS rotate()).
+  // Preserve the resulting gameplay facing after the portrait hands control
+  // back, even though the notice camera itself is no longer a follow camera.
   const up = herUp(tmpV), fwd = herFwd(tmpV2);
   const toward = tangentToward(her.position, up, targetPos);
   camYaw = Math.atan2(V().crossVectors(fwd, toward).dot(up), fwd.dot(toward));
@@ -4697,20 +4744,47 @@ function startNotice(targetPos, subject){
 }
 function updateNotice(dt){
   notice.t += dt;
-  // An over-the-shoulder target shot: the required character is the actual
-  // look-at point, not merely somewhere beyond Beanie in a normal follow
-  // camera. This keeps them plainly visible throughout the thought beat.
-  const up = herUp(tmpV), toward = tangentToward(her.position, up, notice.targetPos);
-  const side = tmpV2.crossVectors(up, toward).normalize();
-  const goal = cC.copy(her.position).addScaledVector(toward, -2.4)
-    .addScaledVector(side, 1.7).addScaledVector(up, 2.25);
-  camPos.lerp(goal, 1 - Math.exp(-4.0*dt));
-  camUp.lerp(up, 1 - Math.exp(-3.5*dt)).normalize();
+  const targetPos = notice.npcObj && notice.npcObj.isObject3D
+    ? notice.npcObj.getWorldPosition(cB) : cB.copy(notice.targetPos);
+  const targetUp = tmpV3.copy(targetPos).sub(bodies[curI].center).normalize();
+  const toBeanie = tangentToward(targetPos, targetUp, her.position);
+  // During the thought beat, turn the target toward Beanie so the portrait
+  // always shows a face rather than the back/side of a randomly placed NPC.
+  if (notice.faceObj){
+    if (worldRefs.books && notice.npcObj === worldRefs.books.chippy){
+      const baseWorldQ = notice.npcObj.getWorldQuaternion(tmpQ);
+      const baseForward = cA.set(0,0,1).applyQuaternion(baseWorldQ);
+      const delta = Math.atan2(cC.crossVectors(baseForward, toBeanie).dot(targetUp), baseForward.dot(toBeanie));
+      notice.faceObj.quaternion.copy(notice.faceQuaternion);
+      notice.faceObj.rotateY(delta);
+    } else if (worldRefs.garden && notice.npcObj === worldRefs.garden.bred){
+      notice.faceObj.quaternion.copy(quatFromBasis(targetUp, toBeanie.clone().negate()));
+    } else {
+      notice.faceObj.quaternion.copy(quatFromBasis(targetUp, toBeanie));
+    }
+  }
+  const focus = cA;
+  const visibleHeight = noticePortraitFocus(targetPos, notice.npcObj, targetUp, focus);
+  const portraitDistance = Math.max(3.0, Math.min(7.0, visibleHeight*1.45 + 1.8));
+  const distanceToBeanie = targetPos.distanceTo(her.position);
+  const cameraDistance = Math.min(portraitDistance, Math.max(2.8, distanceToBeanie*0.72));
+  const side = tmpV2.crossVectors(targetUp, toBeanie).normalize();
+  const sideOffset = Math.max(0.55, Math.min(1.2, visibleHeight*0.28 + 0.25))*notice.sideSign;
+  // The camera sits between Beanie and the target, close to the target and
+  // slightly lateral. Beanie is therefore behind the camera—not covering the
+  // face—and distance only changes how far the camera travels, never how tiny
+  // the target appears in the finished shot.
+  const goal = cC.copy(focus).addScaledVector(toBeanie, cameraDistance)
+    .addScaledVector(side, sideOffset).addScaledVector(targetUp, visibleHeight*0.06);
+  camPos.lerp(goal, 1 - Math.exp(-3.6*dt));
+  camUp.lerp(targetUp, 1 - Math.exp(-3.2*dt)).normalize();
   camera.position.copy(camPos); camera.up.copy(camUp);
-  const targetUp = tmpV3.copy(notice.targetPos).sub(bodies[curI].center).normalize();
-  camera.lookAt(cA.copy(notice.targetPos).addScaledVector(targetUp, 1.0));
+  camera.lookAt(focus);
+  camera.fov += (36 - camera.fov)*Math.min(1, dt*5);
+  camera.updateProjectionMatrix();
   if (notice.t > NOTICE_DURATION){
     noticeBubbleEl.classList.remove('show');
+    restoreNoticeFacing();
     notice = null;
     state = 'walk';
   }
@@ -5739,7 +5813,7 @@ function updateWalk(dt){
     const isCharacterSeek = /find |say hello|go back to/i.test(bg.guideLabel);
     if (isCharacterSeek && !near && d < noticeRange && !noticedGuides.has(noticeKey)){
       noticedGuides.add(noticeKey);
-      startNotice(npc.clone(), noticeSubject());   // clone: npc is the shared tmpV3 scratch vector
+      startNotice(npc.clone(), noticeSubject(), noticeTargetObject()); // clone: npc is shared scratch
     }
   } else if (bg.missionDone && bg.chainNext != null){
     // Once the current world's mission is done, the next task is "find and
@@ -6094,7 +6168,6 @@ function startJourney(){
   noticeBubbleEl.classList.remove('hidden');
   her.userData.sit(false);
   ensureAudio();
-  playMelody(MELODY_CUTE);
   const b0 = bodies[0];
   const startPos = V().copy(b0.center).addScaledVector(CHICAGO_START_N, b0.r);
   orientation.copy(quatFromBasis(CHICAGO_START_N,

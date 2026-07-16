@@ -7,17 +7,31 @@ guard CommandLine.arguments.count == 3 else {
 let midiURL = URL(fileURLWithPath: CommandLine.arguments[1])
 let outputURL = URL(fileURLWithPath: CommandLine.arguments[2])
 let bankURL = URL(fileURLWithPath: "/System/Library/Components/CoreAudio.component/Contents/Resources/gs_instruments.dls")
+let sampledPianoURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+  .appendingPathComponent("audio/instruments/SalamanderGrandPianoV3_44.1khz16bit/SalamanderGrandPianoV3.sfz")
 
 let engine = AVAudioEngine()
 let piano = AVAudioUnitSampler()
+let bass = AVAudioUnitSampler()
+let drums = AVAudioUnitSampler()
 let room = AVAudioUnitReverb()
-engine.attach(piano); engine.attach(room)
+engine.attach(piano); engine.attach(bass); engine.attach(drums); engine.attach(room)
 let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2)!
 room.loadFactoryPreset(.mediumRoom)
-room.wetDryMix = 12
+room.wetDryMix = 14
 engine.connect(piano, to: room, format: format)
+engine.connect(bass, to: room, format: format)
+engine.connect(drums, to: room, format: format)
 engine.connect(room, to: engine.mainMixerNode, format: format)
-try piano.loadSoundBankInstrument(at: bankURL, program: 0, bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(kAUSampler_DefaultBankLSB))
+if FileManager.default.fileExists(atPath: sampledPianoURL.path) {
+  try piano.loadInstrument(at: sampledPianoURL)
+  print("Using sampled Yamaha C5: \(sampledPianoURL.path)")
+} else {
+  try piano.loadSoundBankInstrument(at: bankURL, program: 0, bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(kAUSampler_DefaultBankLSB))
+  print("Yamaha samples missing; using macOS acoustic grand fallback")
+}
+try bass.loadSoundBankInstrument(at: bankURL, program: 32, bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(kAUSampler_DefaultBankLSB))
+try drums.loadSoundBankInstrument(at: bankURL, program: 0, bankMSB: UInt8(kAUSampler_DefaultPercussionBankMSB), bankLSB: UInt8(kAUSampler_DefaultBankLSB))
 
 let sequencer = AVAudioSequencer(audioEngine: engine)
 try sequencer.load(from: midiURL, options: [])
@@ -26,6 +40,8 @@ if musicTracks.count >= 2 {
   musicTracks[0].destinationAudioUnit = piano
   musicTracks[1].destinationAudioUnit = piano
 }
+if musicTracks.count >= 3 { musicTracks[2].destinationAudioUnit = bass }
+if musicTracks.count >= 4 { musicTracks[3].destinationAudioUnit = drums }
 
 try? FileManager.default.removeItem(at: outputURL)
 let file = try AVAudioFile(forWriting: outputURL, settings: format.settings)
