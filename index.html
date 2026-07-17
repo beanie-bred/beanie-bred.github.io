@@ -5592,12 +5592,15 @@ function updateBredCutscene(dt){
     camGoal = cC.copy(bredG.position).addScaledVector(front, 3.0).addScaledVector(up, 1.5).addScaledVector(bc.side, 0.7);
     lookAt = tmpV.copy(bredG.position).addScaledVector(up, 1.25);
   };
-  // Anchor the shot on Beanie (stable) with the camera in FRONT (along `fwd`);
-  // Bred walks IN from `side`, so both stay framed and her turn plays to camera.
-  const framePair = (fwdDist, high, sideAmt) => {
-    const anchor = tmpV.copy(her.position).addScaledVector(bc.side, 1.1).addScaledVector(up, 1.0);
-    camGoal = cC.copy(anchor).addScaledVector(bc.fwd, fwdDist).addScaledVector(up, high).addScaledVector(bc.side, sideAmt);
-    lookAt = tmpV2.copy(anchor);
+  // Robust two-shot: sit PERPENDICULAR to the live Beanie→Bred line (computed
+  // each frame, so sphere curvature can't twist it) and look at their midpoint.
+  // Bred crosses the frame toward her; her turn plays side-on to camera.
+  const framePair = (dist, high, along) => {
+    const mid = tmpV.copy(her.position).add(bredG.position).multiplyScalar(0.5).addScaledVector(up, 1.0);
+    const axis = new THREE.Vector3().subVectors(bredG.position, her.position).normalize();
+    const perp = new THREE.Vector3().crossVectors(up, axis).normalize();
+    camGoal = cC.copy(mid).addScaledVector(perp, dist).addScaledVector(up, high).addScaledVector(axis, along);
+    lookAt = tmpV2.copy(mid);
   };
   if (bc.phase === 'wave'){
     bredG.quaternion.copy(faceHer); closeOnBred();
@@ -5608,20 +5611,20 @@ function updateBredCutscene(dt){
   } else if (bc.phase === 'walk'){
     const k = Math.min(1, bc.t/BRED_CUT.walk), e = k*k*(3-2*k);
     bredG.position.lerpVectors(bc.bredStart, bc.bredEnd, e).addScaledVector(up, Math.abs(Math.sin(e*Math.PI*6))*0.07);
-    bredG.quaternion.copy(faceHer); framePair(7.0, 1.9, 0.6);
+    bredG.quaternion.copy(faceHer); framePair(6.6, 1.9, 0);
     if (bc.t > BRED_CUT.walk){ bc.phase='turn'; bc.t=0; bredG.position.copy(bc.bredEnd);
       if (bredG.userData.setIdlePose) bredG.userData.setIdlePose(); }
   } else if (bc.phase === 'turn'){
     const k = Math.min(1, bc.t/BRED_CUT.turn), e = k*k*(3-2*k);
     const herFaceBred = quatFromBasis(herUp(new THREE.Vector3()), tangentToward(her.position, up, bredG.position));
     orientation.slerpQuaternions(bc.herQ0, herFaceBred, e); updatePose();
-    bredG.quaternion.copy(faceHer); framePair(6.2, 1.8, 0.5);
+    bredG.quaternion.copy(faceHer); framePair(5.6, 1.7, 0);
     if (bc.t > BRED_CUT.turn){ bc.phase='hearts'; bc.t=0;
       spawnCutsceneHearts(20, tmpV3.copy(her.position).add(bredG.position).multiplyScalar(0.5).addScaledVector(up, 1.3), up, bc.side); }
   } else if (bc.phase === 'hearts'){
     bredG.quaternion.copy(faceHer);
     if (Math.random() < 0.5) spawnCutsceneHearts(1, tmpV3.copy(her.position).add(bredG.position).multiplyScalar(0.5).addScaledVector(up, 1.3), up, bc.side);
-    framePair(5.6, 1.7, 0.4);
+    framePair(5.0, 1.6, 0);
     if (bc.t > BRED_CUT.hearts){ endBredCutscene(); return; }
   }
   camPos.lerp(camGoal, 1 - Math.exp(-3.5*dt)); camera.position.copy(camPos);
@@ -5631,6 +5634,10 @@ function updateBredCutscene(dt){
 function endBredCutscene(){
   if (bredCutscene && bredCutscene.bredG.userData.setIdlePose) bredCutscene.bredG.userData.setIdlePose();
   bredCutscene = null;
+  // Bred now stands right next to Beanie; mark the endgame greet consumed so
+  // updateWalk doesn't immediately re-trigger it (and its letter/card) the
+  // instant we hand control back.
+  bredGreeted = true;
   state = 'walk';
   hudEl.classList.remove('hidden'); reticleEl.classList.remove('hidden');
 }
