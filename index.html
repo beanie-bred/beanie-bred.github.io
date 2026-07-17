@@ -745,6 +745,10 @@ const heartGeo = makeHeartGeo();
 const sparkGeo = new THREE.OctahedronGeometry(0.16);
 const sparkMat = mat(0xffe08a, { emissive:0xffc23e, emissiveIntensity:1.6 });
 const heartBurstMat = mat(0xf2889e, { emissive:0xe86a86, emissiveIntensity:0.7 });
+// Cheap UNLIT heart for the ending cutscene's slow drifting hearts - the romantic
+// beat spawns these continuously for ~35s, so a full PBR MeshStandardMaterial
+// (cloned + transparent-sorted per heart) was the source of the "laggy hearts".
+const heartCutMat = new THREE.MeshBasicMaterial({ color:0xf793ab, transparent:true });
 
 /* ---------- footprints ---------- */
 // A simple flattened oval "impression" per footstep - alternates left/right
@@ -3282,9 +3286,9 @@ function buildGarden(g, R, ctx){
     }
     // Cutscene locomotion control: 0 = idle breathing, 1 = walk cycle. Fading
     // walk in drops the wave so he isn't frozen mid-stride.
-    bred.userData.setWalk = (amt) => {
+    bred.userData.setWalk = (amt, timeScale) => {
       amt = Math.max(0, Math.min(1, amt));
-      if (bredWalkAction) bredWalkAction.setEffectiveWeight(amt);
+      if (bredWalkAction){ bredWalkAction.setEffectiveWeight(amt); if (timeScale != null) bredWalkAction.timeScale = timeScale; }
       if (bredIdleAction) bredIdleAction.setEffectiveWeight(1 - amt);
       if (bredWaveAction) bredWaveAction.setEffectiveWeight(0);
     };
@@ -3442,6 +3446,7 @@ function buildGarden(g, R, ctx){
       const cell = swayGrid.get(gkey(cx+dx, cy+dy, cz+dz));
       if (!cell) continue;
       for (const f of cell){
+        if (f.hidden) continue;   // cleared for the cutscene stage - stays hidden, don't re-show
         _toF.set(f.base.x - lx, f.base.y - ly, f.base.z - lz);
         const d = _toF.length();
         if (d >= SWAY_RADIUS) continue;
@@ -3483,7 +3488,25 @@ function buildGarden(g, R, ctx){
     touched.clear();
   });
 
-  return { couchN, bred, percy, chippyPlush, couch };
+  // Clear a "stage" of instanced flowers so nothing blocks the couple/friends
+  // during the ending cutscene. `clears` = [{p: worldPos, r}], each a sphere to
+  // empty. Hidden flowers stay hidden (raiseNear skips them) - no restore needed,
+  // the cutscene ends at THE END.
+  const _zeroMat = new THREE.Matrix4().makeScale(0, 0, 0);
+  function clearStage(clears){
+    const touched = new Set();
+    for (const f of allFlowers){
+      if (f.hidden) continue;
+      const fx = f.base.x + gardenCenter.x, fy = f.base.y + gardenCenter.y, fz = f.base.z + gardenCenter.z;
+      let near = false;
+      for (const c of clears){ const dx=fx-c.p.x, dy=fy-c.p.y, dz=fz-c.p.z; if (dx*dx+dy*dy+dz*dz < c.r*c.r){ near = true; break; } }
+      if (!near) continue;
+      f.hidden = true; swayActive.delete(f);
+      for (const part of f.parts){ part.im.setMatrixAt(part.i, _zeroMat); touched.add(part.im); }
+    }
+    for (const im of touched) im.instanceMatrix.needsUpdate = true;
+  }
+  return { couchN, bred, percy, chippyPlush, couch, clearStage };
 }
 
 /* ═══════════════ ASSEMBLE THE UNIVERSE ═══════════════ */
@@ -5663,8 +5686,12 @@ let bredCutscene = null;
 // his back) → he WALKS over → they MEET and SWAY side-on with hearts above their
 // heads while the sky turns pink and Pisces/Gemini fade in → two short talks →
 // he hands her a LETTER → friends gather and watch → the letter opens → THE END.
-const BRED_CUT = { wave:5.2, walk:4.4, meet:3.2, sky:4.5, letter:3.8, friends:5.0 };
+const BRED_CUT = { wave:5.2, walk:3.4, meet:3.2, sky:4.5, letter:3.8, friends:5.0 };
 const BRED_FAR = 8.5;   // fixed far distance between them during the wave
+// The Walk clip is walk-in-PLACE (~0.88s/cycle, no root translation). This is
+// the ground speed one full stride cycle "covers" at timeScale 1 - used to pick
+// a playback speed that matches his actual travel so his feet grip, not slide.
+const BRED_STRIDE_SPEED = 2.9;
 const CUT_HER = CONFIG.herName, CUT_BRED = CONFIG.yourName;   // 'Rachel 🐰' / 'Bred 🍞'
 // the reunion conversation (auto-plays; see cutsceneSayTick)
 const CUT_STAR_TALK = [
@@ -5795,6 +5822,19 @@ function startBredCutscene(){
     say:null, letterStage:null };
   cutsceneFlowerChars = [her, bredG];   // flowers bend away from both during the walk
   spawnCutsceneFriends(bredCutscene);   // load bbak/Percy/Chippy now; they pop up at the friends beat
+  // clear a flower-free stage so nothing blocks the couple, Bred's walk path, or
+  // the friends gathering (instanced flowers, so hideNearbyObstacles can't touch them)
+  if (worldRefs.garden.clearStage){
+    const friendsBase = onSphere(new THREE.Vector3().copy(her.position).addScaledVector(side, 8.5).addScaledVector(fwd, -0.6));
+    worldRefs.garden.clearStage([
+      { p: her.position.clone(), r: 3.6 },
+      { p: bredNear.clone(), r: 3.0 },
+      { p: new THREE.Vector3().lerpVectors(her.position, bredFar, 0.5), r: 2.8 },
+      { p: new THREE.Vector3().lerpVectors(her.position, bredFar, 0.8), r: 2.6 },
+      { p: bredFar.clone(), r: 2.8 },
+      { p: friendsBase, r: 4.0 },
+    ]);
+  }
   state = 'bredcutscene';
   // clear ALL gameplay UI - the ending is "just a video that plays", no interface
   promptEl.classList.remove('show'); guideEl.classList.remove('show');
@@ -5806,16 +5846,16 @@ function startBredCutscene(){
 // hearts drift up from ABOVE each head
 function heartsAboveHeads(bc, sdt){
   bc.heartT += sdt;
-  if (bc.heartT < 0.35) return;
+  if (bc.heartT < 0.5) return;      // "slowly come out" - a gentle trickle, not a stream (also kills the lag)
   bc.heartT = 0;
-  for (const c of [her, bc.bredG]){
-    const head = tmpV3.copy(c.position).addScaledVector(bc.up, 2.15 + Math.random()*0.3);
-    const h = new THREE.Mesh(heartGeo, heartBurstMat);
-    h.scale.setScalar(0.12 + Math.random()*0.10);
-    spawnEphemeral(h, head.addScaledVector(bc.side, (Math.random()-0.5)*0.5),
-      tmpV.copy(bc.up).multiplyScalar(0.5 + Math.random()*0.3).addScaledVector(bc.side, (Math.random()-0.5)*0.15),
-      2.6 + Math.random()*1.6, 0.6 + Math.random()*1.4, 0.9);
-  }
+  bc.heartSide = !bc.heartSide;     // one heart at a time, alternating whose head it rises from
+  const c = bc.heartSide ? her : bc.bredG;
+  const head = tmpV3.copy(c.position).addScaledVector(bc.up, 2.15 + Math.random()*0.3);
+  const h = new THREE.Mesh(heartGeo, heartCutMat);   // cheap unlit material - no per-heart PBR churn
+  h.scale.setScalar(0.13 + Math.random()*0.10);
+  spawnEphemeral(h, head.addScaledVector(bc.side, (Math.random()-0.5)*0.5),
+    tmpV.copy(bc.up).multiplyScalar(0.5 + Math.random()*0.3).addScaledVector(bc.side, (Math.random()-0.5)*0.15),
+    2.6 + Math.random()*1.6, 0.6 + Math.random()*1.4, 0.9);
 }
 function updateBredCutscene(dt){
   const bc = bredCutscene, bredG = bc.bredG, up = bc.up;
@@ -5859,11 +5899,22 @@ function updateBredCutscene(dt){
     const toBeanie = tangentToward(bredG.position, up, her.position);   // his front
     camGoal = cC.copy(bredG.position).addScaledVector(toBeanie, zoom).addScaledVector(up, 1.3).addScaledVector(bc.side, 0.45);
     lookAt = tmpV.copy(bredG.position).addScaledVector(up, 1.15);
-    if (bc.t > BRED_CUT.wave){ bc.phase='walk'; bc.t=0; if (bredG.userData.setWalk) bredG.userData.setWalk(1); }
+    if (bc.t > BRED_CUT.wave){ bc.phase='walk'; bc.t=0;
+      bc.walkDist = bc.bredFar.distanceTo(bc.bredNear);
+      // playback speed matched to travel so his feet grip the ground, not moonwalk
+      bc.walkTimeScale = Math.max(0.4, Math.min(1.3, (bc.walkDist / BRED_CUT.walk) / BRED_STRIDE_SPEED));
+      if (bredG.userData.setWalk) bredG.userData.setWalk(0, bc.walkTimeScale);
+    }
   } else if (bc.phase === 'walk'){
-    const k = Math.min(1, bc.t/BRED_CUT.walk), e = k*k*(3-2*k);
-    bredG.position.lerpVectors(bc.bredFar, bc.bredNear, e).addScaledVector(up, Math.abs(Math.sin(e*Math.PI*7))*0.06);
-    bredG.quaternion.copy(faceHer); framePair(6.2, 1.7, 0);
+    const k = Math.min(1, bc.t/BRED_CUT.walk);
+    // CONSTANT ground speed (no smoothstep, no fake vertical bob) - both of those
+    // fought the walk-in-place clip and read as an awkward moonwalk/double-bounce.
+    bredG.position.lerpVectors(bc.bredFar, bc.bredNear, k);
+    bredG.quaternion.copy(faceHer);
+    // crossfade idle→walk over the first 0.35s and walk→idle over the last 0.35s
+    const weight = Math.max(0, Math.min(1, bc.t/0.35, (BRED_CUT.walk - bc.t)/0.35));
+    if (bredG.userData.setWalk) bredG.userData.setWalk(weight, bc.walkTimeScale);
+    framePair(6.2, 1.7, 0);
     if (bc.t > BRED_CUT.walk){ bc.phase='meet'; bc.t=0; bredG.position.copy(bc.bredNear);
       if (bredG.userData.setIdlePose) bredG.userData.setIdlePose(); }
   } else if (bc.phase === 'meet'){
