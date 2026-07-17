@@ -1,4 +1,45 @@
 # ROADMAP
+- [x] Pigeon Plaza decoy spawn distance, journal close button, one decor
+      emoji per page (2026-07-17): four small requests together.
+      - **Pigeon decoy spawn distance**: `PLAZA_STORY_RING_NEAR`/`_FAR`
+        (angular distance from PERCY, not from Beanie) was 0.60/0.68 rad -
+        18/20.4 surface units. The "should go talk to them" notice bubble
+        triggers within `guideNear*6` = 24 units of the target, and Beanie
+        is normally standing right next to Percy when a decoy spawns (she
+        just finished talking to him) - so the notice fired the INSTANT a
+        decoy appeared, before she'd taken a single step, reported as it
+        "automatically goes into ooh I should talk to that pigeon mode."
+        Pushed to 1.15/1.28 rad (34.5/38.4 units) for real margin. Verified
+        live via the real `spawnNextDecoy()` path (not a simulated stand-in):
+        distance-to-decoy measured ~59 units immediately after spawn for
+        both the first and second decoy, comfortably past the 24-unit
+        trigger radius, notice bubble confirmed NOT showing.
+      - **Journal close button**: was "close ✕" (wrapped to two lines at
+        the button's actual width, per Bred's screenshot). Changed to just
+        "✕", and fixed its CSS to match the other nav buttons' 34px circle
+        (the old wide pill padding no longer made sense for a single glyph).
+      - **One decor emoji per page**: each journal page previously scattered
+        4-6 different themed emoji as faint background doodles ("why is
+        there multiple" - wanted one). Replaced the scatter with a single
+        signature emoji (matching the page's own kicker, e.g. Chapter II's
+        🌱) in a fixed top-right corner, bumped from 14% to 28% opacity
+        since it now reads as one deliberate accent rather than an ambient
+        pattern that needed many faint copies to register.
+      - **BGM Garden↔other-world switching**: investigated whether leaving
+        Garden correctly reverts music to Executive Lounge - `arrive(bi)`
+        already keys `playBgm` on `bi===GARDEN_I` regardless of the previous
+        world, and both real gameplay's `updateFlight` and the QA-warp
+        shortcut already route through `arrive()` on landing. Verified live
+        via `bgmDebug()`: warping Garden→Main Stacks correctly flipped the
+        track key from `pixeltown` to `executive`. No code change needed -
+        already correct.
+      - Note on this commit: made these edits mid-session in the shared
+        working directory: the parallel Codex session's own next commit
+        (`7ed3300`, otherwise about Bred's idle/walk animation rig) already
+        contained all four of these changes bundled in by the time it
+        landed - confirmed each one is present in that commit's own
+        `index.html` before pushing, per this repo's established
+        shared-directory pattern (see the gotchas memory file).
 - [x] Journal: real photos as taped-in Polaroids, multi-spread pagination
       (2026-07-17): Bred added actual PHOTOS (not sticker art - filenames
       have no "sticker" in them) to the mainstacks/meadow folders and asked
