@@ -168,9 +168,9 @@
     font-size:22px;line-height:1.42;font-weight:500;opacity:.88}
   .jjournal p{margin:0 0 .5em}
   .jcollage{position:relative;flex:1;width:100%;min-height:0}
-  /* faint themed doodles scattered behind the stickers */
+  /* one small signature emoji per page, tucked in a corner */
   .jdoodle{position:absolute;transform:translate(-50%,-50%) rotate(var(--rot));
-    opacity:.14;pointer-events:none;line-height:1}
+    opacity:.28;pointer-events:none;line-height:1}
   .jsticker{position:absolute;transform:translate(-50%,-50%) rotate(var(--rot))}
   .jsticker img{width:100%;height:100%;object-fit:contain;display:block}
   .jsticker.got img{filter:drop-shadow(0 5px 7px rgba(0,0,0,.22))}
@@ -220,8 +220,8 @@
     background:rgba(255,255,255,.16);width:34px;height:34px;border-radius:50%}
   #journalNav button:hover{background:rgba(255,255,255,.28)}
   #journalPageLabel{color:#fff6e8;font-size:12.5px;min-width:120px;text-align:center;opacity:.9}
-  #journalClose{border:none;cursor:pointer;padding:8px 20px;border-radius:999px;
-    font-size:12.5px;color:#fff;background:linear-gradient(135deg,#ff8fae,#e8547c);margin-left:6px}
+  #journalClose{border:none;cursor:pointer;width:34px;height:34px;border-radius:50%;
+    font-size:14px;color:#fff;background:linear-gradient(135deg,#ff8fae,#e8547c);margin-left:6px}
   /* ---- per-planet page themes: texture, palette, font ---- */
   .jpage.theme-books{color:#6b4a28;font-family:'Playfair Display',Georgia,serif;
     background:linear-gradient(158deg,#f4e9d2,#e6d2a9),
@@ -450,7 +450,7 @@
       <button id="journalPrev" aria-label="previous page">◀</button>
       <span id="journalPageLabel"></span>
       <button id="journalNext" aria-label="next page">▶</button>
-      <button id="journalClose">close ✕</button>
+      <button id="journalClose">✕</button>
     </div>
   </div>
 </div>
@@ -3225,6 +3225,7 @@ function buildGarden(g, R, ctx){
   loadModelFull('./game-assets/bred/bred_wave.glb').then((gltf) => {
     const model = gltf.scene;
     model.rotation.y = Math.PI; // face outward, toward the camera/Rachel
+    model.scale.setScalar(1.12);   // Bred stands a touch taller than Beanie
     bredModel = model;
     bred.add(model);
     bredMixer = new THREE.AnimationMixer(model);
@@ -4053,8 +4054,15 @@ function tiltDir(n, angle, azimuth){
   return new THREE.Vector3().copy(n).multiplyScalar(Math.cos(angle)).addScaledVector(dir, Math.sin(angle)).normalize();
 }
 const PLAZA_STORY_SLOT_COUNT = PLAZA_DECOYS.length + 1; // eight friends + Doodles
-const PLAZA_STORY_RING_NEAR = 0.60;                     // 18 surface units from Percy
-const PLAZA_STORY_RING_FAR = 0.68;                      // 20.4 surface units from Percy
+// Distance from PERCY, not from Beanie - but she's normally standing right
+// next to him when a decoy spawns (she just finished talking to him), so the
+// old 18-20.4 units read as "spawns already inside" the notice-trigger's
+// range (noticeRange = guideNear*6 = 24, see the guide-arrow code) - it fired
+// the instant the decoy appeared, before she'd taken a single step. Pushed
+// well past that 24-unit threshold with real margin for however far she
+// happens to be standing from Percy at the time.
+const PLAZA_STORY_RING_NEAR = 1.15;                     // 34.5 surface units from Percy
+const PLAZA_STORY_RING_FAR = 1.28;                      // 38.4 surface units from Percy
 function clearCrowdAroundStorySpot(storyN, clearance=5.2){
   const wr = worldRefs.pigeon, R = bodies[PIGEON_I].r;
   if (!wr) return;
@@ -4804,7 +4812,7 @@ const CHICAGO_START_N = V().set(0.48, 0.86, 0.18).normalize();
 let camYaw = 0, camPitch = 0.3, camDist = 9;
 const camPos = camera.position.clone();
 const camUp = V().set(0,1,0);
-function followCam(dt, pos, up, fwd, dist, snap=false){
+function followCam(dt, pos, up, fwd, dist, snap=false, heightMul=1){
   camera.fov += (55 - camera.fov) * (snap ? 1 : Math.min(1, dt*8));
   camera.updateProjectionMatrix();
   cA.copy(fwd).multiplyScalar(-1);
@@ -4813,7 +4821,9 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
   cB.crossVectors(up, cA).normalize();            // side axis
   tmpQ.setFromAxisAngle(cB, -camPitch);
   cA.applyQuaternion(tmpQ);                       // pitch
-  cC.copy(pos).addScaledVector(cA, dist).addScaledVector(up, 7.5 - stepPunch)
+  // heightMul lets a caller pull the camera down closer to eye level (Summer's
+  // Garden POV) instead of the default high, looking-down framing.
+  cC.copy(pos).addScaledVector(cA, dist).addScaledVector(up, (7.5 - stepPunch) * heightMul)
     .addScaledVector(cB, stepSidePunch);
   // Keep the third-person camera outside the current spherical world -
   // also during 'landing' (its fallgetup phase calls followCam too), since
@@ -6556,7 +6566,11 @@ function updateWalk(dt){
     const bredDist = her.position.distanceTo(bredWorldPos(tmpV3));
     if (bredDist < BRED_GREET_DIST) startBredGreet();
   }
-  followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), camDist);
+  // Summer's Garden POV sits closer + lower (nearer eye level) than the default
+  // high, far framing, so she reads as big in frame like Winter does elsewhere.
+  const summerClose = curI === GARDEN_I && herSummerGroup;
+  followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2),
+    summerClose ? camDist * 0.6 : camDist, false, summerClose ? 0.38 : 1);
 }
 
 /* ---------- HUD / DOM ---------- */
@@ -6996,14 +7010,14 @@ const STICKER_LABELS = { chippy:'Chippy', bbak:'bbak', percy:'Percy', vanessa:'V
 const JOURNAL_PAGES = [
   { key:'books', theme:'theme-books', title:'Main Stacks', kicker:'Chapter I · 📚',
     tag:'the old library where you two used to study', tape:'rgba(180,138,86,.6)',
-    decor:['📚','📖','✒️','🔖','📚'], chars:['chippy','book1','book2','book3','book4','book5'],
+    decor:['📚'], chars:['chippy','book1','book2','book3','book4','book5'],
     entry:[`Bred's letter found me here, carried by the most out-of-breath little pigeon I've ever met.`,
       `Chippy is, somehow, an actual potato in an actual newsboy cap, napping on his own pile of books. He gave me this very notebook and told me to fill it up.`,
       `Found five books hidden around the stacks for him, one very sleepy new friend, and the start of everything.`],
     photos:['mainstacks stickers/birthday party with chippy.jpg', 'mainstacks stickers/our walk from mainstacks.jpg'] },
   { key:'cucumber', theme:'theme-cucumber', title:'Emerald Meadow', kicker:'Chapter II · 🌱',
     tag:'a whole planet ringed in cucumbers', tape:'rgba(150,198,108,.6)',
-    decor:['🥒','🌿','🍃','☘️','🥒','🌱'],
+    decor:['🌱'],
     chars:['bbak','cucumber','boba','burger','icecream','pizza','fries','popsicle','donut'],
     entry:[`An entire planet ringed in cucumbers. I did not ask questions.`,
       `bbak is a real polar bear who is somehow always melting. I brought him pizza, boba, popsicles — all wrong, he was very clear about that.`,
@@ -7011,14 +7025,14 @@ const JOURNAL_PAGES = [
     photos:[`meadow stickers/bbak's birth.jpeg`, 'meadow stickers/pizza at 3 pm.jpg', 'meadow stickers/pizza at capecod!.JPG'] },
   { key:'pigeon', theme:'theme-pigeon', title:'Pigeon Plaza', kicker:'Chapter III · 🕊️',
     tag:'so, SO many birds to say hi to', tape:'rgba(150,176,216,.66)',
-    decor:['🪶','🕊️','🌰','🪶'], chars:['percy','vanessa','nibbles','alfred','sam','sunny','otto','mochi','buckle','doodles'],
+    decor:['🕊️'], chars:['percy','vanessa','nibbles','alfred','sam','sunny','otto','mochi','buckle','doodles'],
     entry:[`So many birds. SO many. Percy was looking for a lost friend, and I met the whole plaza trying to help — Vanessa, Nibbles, Alfred, Sam, Sunny, Otto, Mochi, Buckle.`,
       `Every single one of them was convinced I'd come just for them. (Fair, honestly.)`,
       `Then Doodles — one lonely dodo who thought no one was coming for him. We told him he had a family now. He grew Percy huge enough to carry us both home.`],
     photos:[] },
   { key:'garden', theme:'theme-garden', title:'The Garden', kicker:'Chapter IV · 💐',
     tag:'happy birthday, Beanie 🤍', tape:'rgba(240,168,194,.62)',
-    decor:['🌸','💐','🌷','🦋','🌼'], chars:['bred'],
+    decor:['💐'], chars:['bred'],
     entry:[`And then — Bred. Standing by the couch like he'd been waiting the whole time, because he had.`,
       `He built me an entire universe, one little world at a time, just so I'd have somewhere to leap to.`,
       `I don't think I've ever felt this loved. Happy birthday to me, I guess. 🤍`],
@@ -7193,15 +7207,14 @@ function renderJournalPage(){
       `<div class="jcollage"></div>
        <div class="jpageFoot">${page.chars.filter(k=>metFriends.has(k)).length} / ${page.chars.length} collected here</div>`;
     const collage = journalPageREl.querySelector('.jcollage');
-    // faint themed doodles behind the stickers
-    const decorPos = collagePlace(page.decor.length, JOURNAL_PAGES.indexOf(page)*10+3, { sizeMin:10, sizeMax:22, rotMax:40, wide:1.4 });
-    page.decor.forEach((emoji, i) => {
-      const d = document.createElement('div');
-      d.className = 'jdoodle';
-      d.style.cssText = `left:${decorPos[i].x}%;top:${decorPos[i].y}%;font-size:${18+decorPos[i].size}px;--rot:${decorPos[i].rot}deg`;
-      d.textContent = emoji;
-      collage.appendChild(d);
-    });
+    // one signature decorative emoji per page (matches its own kicker) - a
+    // small fixed corner accent, not a scatter, so it reads as one
+    // deliberate flourish rather than a cluttered handful of different ones
+    const d = document.createElement('div');
+    d.className = 'jdoodle';
+    d.style.cssText = `left:90%;top:9%;font-size:40px;--rot:-9deg`;
+    d.textContent = page.decor[0];
+    collage.appendChild(d);
     // the character stickers
     const pos = collagePlace(page.chars.length, JOURNAL_PAGES.indexOf(page)*100+17, JOURNAL_LAYOUT[page.key]);
     page.chars.forEach((key, i) => {
