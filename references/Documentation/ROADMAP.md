@@ -2248,6 +2248,21 @@
             family" → lead him back → reunion → flock rings Percy → Percy grows
             + Beanie rides → Garden. Pigeons bounce while talking except Vanessa.
             Verified full flow, zero console errors (2026-07-13).
+      - [x] Fixed real bug: story pigeons (Alfred etc.) could appear invisible
+            for ~1-1.5s while their draco glb was still fetching/decoding —
+            spawnStoryPigeon() now shows an instant plush placeholder, swapped
+            for the real model the moment it's ready, so nobody is ever
+            invisible. Also upgraded the locator into a tall (16u) glowing
+            beam + pulsing bright orb + big arrow (was a small hovering cone),
+            visible from far across the now-bigger plaza; added
+            setMissionDone()/locatorVisible()/plazaModelDebug() test hooks.
+      - [x] Fixed real bug: number keys 1-6 silently did nothing once Chicago's
+            messenger pigeon had appeared (i.e. almost always) — qaWarp() ->
+            dismissChicagoMessenger() referenced `.up` on the messenger object,
+            which only has `.groundN` (renamed in an earlier edit), throwing
+            and aborting the warp before goto() ran. Fixed the property name;
+            verified all 1-5 warp correctly from a clean load AND with the
+            letter dialog open, zero console errors.
       - [x] Pigeon Plaza polish (2026-07-14): crowd 290→480 spread over the
             whole sphere, each pecking / walking around the surface / hopping+
             flapping, + 40 truly flying; Percy is now the real model

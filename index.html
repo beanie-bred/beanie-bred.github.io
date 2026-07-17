@@ -4058,6 +4058,7 @@ function spawnStoryPigeon(cfg){
   const n = tiltDir(worldRefs.pigeon.percyN, ringAngle, azimuth);
   clearCrowdAroundStorySpot(n);
   placeOn(g, holder, n, R, 0.02);
+<<<<<<< Updated upstream
   if (cfg.procedural){
     // no sculpted glb for this one yet - build the same plushPigeon() used
     // for the background crowd, just distinctly colored and full-size.
@@ -4069,6 +4070,18 @@ function spawnStoryPigeon(cfg){
       m.rotation.y = cfg.rotY || 0; m.scale.setScalar(cfg.scale || 1); inner.add(m);
     }).catch((e) => console.error('pigeon load failed', cfg.glb, e));
   }
+=======
+  // instant plush placeholder so she's never invisible while the real (draco)
+  // model is still fetching/decoding — swapped out the moment it's ready.
+  const placeholder = plushPigeon(PIGEON_VARIANTS[0]);
+  placeholder.scale.setScalar(cfg.scale || 1);
+  inner.add(placeholder);
+  loadModel(`./game-assets/pigeons/${cfg.glb}.glb`).then((m) => {
+    m.rotation.y = cfg.rotY || 0; m.scale.setScalar(cfg.scale || 1);
+    inner.remove(placeholder); inner.add(m);
+  }).catch((e) => console.error('pigeon load failed', cfg.glb, e));
+  const ph = Math.random()*6;
+>>>>>>> Stashed changes
   animators.push((t) => {
     // Never hop in conversation; the shared talk camera adds only a tiny,
     // slow side-to-side sway while this bird's own line is being spoken.
@@ -5010,6 +5023,7 @@ const targetRing = new THREE.Mesh(new THREE.TorusGeometry(1, 0.035, 8, 40),
 targetRing.visible = false;
 scene.add(targetRing);
 
+<<<<<<< Updated upstream
 // a flat N-pointed star outline, used for the locator below - built in the
 // local XY plane so it reads as a proper star silhouette (not just a blob)
 // when it's facing roughly toward the camera.
@@ -5050,6 +5064,27 @@ const locator = new THREE.Group();
     new THREE.MeshBasicMaterial({ color:0xffe6c0, transparent:true, opacity:0.18, depthWrite:false }));
   sparkle.add(ballo);
   locator.userData = { arrow: sparkle, ballo };
+=======
+/* ---------- world-space "locator" marker over the current NPC/goal ----------
+   A tall glowing beacon (beam + bright orb + arrow) so it reads from clear
+   across a big planet, not just from close up. */
+const locator = new THREE.Group();
+{
+  const BEAM_H = 16;
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.5, BEAM_H, 10, 1, true),
+    new THREE.MeshBasicMaterial({ color:0xffd166, transparent:true, opacity:0.5, depthWrite:false, side:THREE.DoubleSide }));
+  beam.position.y = BEAM_H/2; locator.add(beam);
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(1.1, 16, 12),
+    mat(0xffe9b0, { emissive:0xffc23e, emissiveIntensity:3.2, roughness:0.25 }));
+  orb.position.y = BEAM_H + 1.4; locator.add(orb);
+  const orbGlow = new THREE.Mesh(new THREE.SphereGeometry(2.0, 14, 10),
+    new THREE.MeshBasicMaterial({ color:0xffe0a0, transparent:true, opacity:0.3, depthWrite:false }));
+  orbGlow.position.copy(orb.position); locator.add(orbGlow);
+  const arrow = new THREE.Mesh(new THREE.ConeGeometry(1.1, 2.2, 6),
+    mat(0xffd166, { emissive:0xffb43e, emissiveIntensity:3, roughness:0.25 }));
+  arrow.rotation.x = Math.PI; arrow.position.y = BEAM_H - 1.6; locator.add(arrow);
+  locator.userData = { beam, orb, orbGlow, arrow, BEAM_H };
+>>>>>>> Stashed changes
 }
 locator.visible = false;
 scene.add(locator);
@@ -5061,6 +5096,7 @@ function updateLocator(t){
   const tp = b.guideFn(_locTmp);
   if (!tp){ locator.visible = false; return; }
   const n = new THREE.Vector3().subVectors(tp, b.center).normalize();
+<<<<<<< Updated upstream
   const bob = 0.35*Math.sin(t*2.2);
   // Hover height scales with the planet's own radius - a fixed low hover
   // (2.6) reads fine on tiny Chicago but gets hidden behind the curve of
@@ -5072,6 +5108,17 @@ function updateLocator(t){
   locator.quaternion.copy(quatFromBasis(n, tangentToward(locator.position, n, camera.position)));
   locator.userData.arrow.rotation.y = t*2;
   locator.userData.arrow.position.y = 1.4 + 0.14*Math.sin(t*3);   // little cute bounce
+=======
+  locator.position.copy(tp);
+  locator.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), n);
+  const u = locator.userData;
+  const pulse = 0.85 + 0.15*Math.sin(t*3);
+  u.arrow.position.y = (u.BEAM_H - 1.6) + 0.4*Math.sin(t*2.4);
+  u.arrow.rotation.y = t*2.4;
+  u.orb.scale.setScalar(pulse);
+  u.orbGlow.scale.setScalar(pulse*1.15);
+  u.beam.material.opacity = 0.4 + 0.15*Math.sin(t*2);
+>>>>>>> Stashed changes
   locator.visible = true;
 }
 function updateAim(t){
@@ -7475,6 +7522,7 @@ window.__world = {
     percyPos: percyWorldPos(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)),
     targetPos: h ? h.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)) : null,
     talking: !!plazaQuest.talkingPigeon }; },
+<<<<<<< Updated upstream
   flyingPigeonDebug(idx=0){
     if (!worldRefs.pigeon || !worldRefs.pigeon.flying) return null;
     const pg = worldRefs.pigeon.flying[idx];
@@ -7539,6 +7587,19 @@ window.__world = {
       plusZ: axisDot(0,0,1), minusZ: axisDot(0,0,-1),
       plusX: axisDot(1,0,0), minusX: axisDot(-1,0,0),
       holderQuat: h.quaternion.toArray().map(v=>+v.toFixed(3)) };
+=======
+  setMissionDone(i, v){ bodies[i].missionDone = v; },
+  locatorVisible(){ return locator.visible; },
+  plazaModelDebug(){
+    const h = plazaTargetHolder(); if (!h) return null;
+    const inner = h.children[0];
+    const box = new THREE.Box3().setFromObject(inner);
+    return { innerChildren: inner.children.length, holderVisible: h.visible, innerVisible: inner.visible,
+      innerPos: inner.position.toArray(), holderScale: h.scale.toArray(),
+      box: { min: box.min.toArray(), max: box.max.toArray() },
+      firstChild: inner.children[0] ? { type: inner.children[0].type, visible: inner.children[0].visible,
+        scale: inner.children[0].scale.toArray() } : null };
+>>>>>>> Stashed changes
   },
   bbakInfo(){ return worldRefs.cucumber ? { quest:{...bbakQuest}, missionDone:bodies[2].missionDone,
     bbakPos: bbakPos().toArray().map(v=>+v.toFixed(2)),
