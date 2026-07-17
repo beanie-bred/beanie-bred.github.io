@@ -3780,10 +3780,10 @@ function pickupFood(f){
   f.taken = true; f.holder.visible = false;
   bbakQuest.holding = f.name;
   playChime();
-  showToast(`🍨 picked up ${f.name}`, 'bring it to bbak!');
+  const gotSticker = earnSticker(f.name);
+  showToast(`🍨 picked up ${f.name}${gotSticker ? ' · 🏷️ new sticker!' : ''}`, 'bring it to bbak!');
   refreshBbakGuide();
   refreshFoodPocket();
-  earnSticker(f.name);
 }
 function pickupCuke(){
   const cuke = worldRefs.cucumber.cuke;
@@ -3795,10 +3795,10 @@ function pickupCuke(){
   for (let i = 0; i < 8; i++)
     spawnEphemeral(new THREE.Mesh(sparkGeo, sparkMat), her.position,
       randDir().multiplyScalar(2).addScaledVector(herUp(V()), 2), 0.7, 4);
-  showToast('🥒 got the special cucumber!', 'bring it to bbak!');
+  const gotSticker = earnSticker('cucumber');
+  showToast(`🥒 got the special cucumber!${gotSticker ? ' · 🏷️ new sticker!' : ''}`, 'bring it to bbak!');
   refreshBbakGuide();
   refreshFoodPocket();
-  earnSticker('cucumber');
 }
 function talkBbak(){
   const npc = { npcPos: () => bbakPos(), speaker:'🐻‍❄️ bbak', npcObj: worldRefs.cucumber.bbak };
@@ -7738,8 +7738,10 @@ window.__world = {
     const npc = dialog.npcPos ? dialog.npcPos() : null;
     const beanieFocus = isBeanieSpeaking() && !dialog.awaitingChoice;
     const subject = beanieFocus ? her.position : npc;
-    const subjectObj = dialogueVisualObject(beanieFocus ? her : dialog.npcObj, beanieFocus);
-    const frame = dialogueSubjectFrame(subjectObj, subject, up, beanieFocus ? 4.1 : 1.8, beanieFocus ? 0.62 : 0.68);
+    const rawSubjectObj = beanieFocus ? her : dialog.npcObj;
+    const subjectObj = dialogueVisualObject(rawSubjectObj, beanieFocus);
+    const distanceObj = subjectObj !== rawSubjectObj ? rawSubjectObj : null;
+    const frame = dialogueSubjectFrame(subjectObj, subject, up, beanieFocus ? 4.1 : 1.8, beanieFocus ? 0.62 : 0.68, distanceObj);
     const closeDistance = Math.max(3.6, Math.min(8, frame.height*1.6 + 1.6));
     return { beanieFocus, height: +frame.height.toFixed(3), closeDistance: +closeDistance.toFixed(3) };
   },
