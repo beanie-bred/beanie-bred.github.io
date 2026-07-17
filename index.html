@@ -216,22 +216,28 @@
   #journalPageLabel{color:#fff6e8;font-size:12.5px;min-width:120px;text-align:center;opacity:.9}
   #journalClose{border:none;cursor:pointer;width:34px;height:34px;border-radius:50%;
     font-size:14px;color:#fff;background:linear-gradient(135deg,#ff8fae,#e8547c);margin-left:6px}
-  /* ---- per-planet page themes: texture, palette, font ---- */
+  /* ---- per-planet page themes: texture, palette, font ----
+     Flat, solid base tones (not a soft gradient wash) plus real ruled
+     notebook lines and a secondary dot/grid texture on every theme, so each
+     page reads as actual book paper rather than a dreamy color blend. */
   .jpage.theme-books{color:#6b4a28;font-family:'Playfair Display',Georgia,serif;
-    background:linear-gradient(158deg,#f4e9d2,#e6d2a9),
-      repeating-linear-gradient(transparent 0 25px,rgba(120,90,50,.07) 25px 26px);
+    background:linear-gradient(#f0e2c4,#f0e2c4),
+      repeating-linear-gradient(transparent 0 25px,rgba(120,90,50,.12) 25px 26px),
+      radial-gradient(rgba(120,90,50,.07) 1px,transparent 1.4px) 0 0/9px 9px;
     border-left:14px solid #c8536a}
   .jpage.theme-cucumber{color:#3d6a33;font-family:'Comfortaa','Arial Rounded MT Bold',cursive;
-    background:radial-gradient(130% 95% at 28% 8%,#edf7de,#c9e6ad),
-      radial-gradient(rgba(255,255,255,.55) 1.6px,transparent 2px) 0 0/22px 22px}
+    background:linear-gradient(#e2f0d0,#e2f0d0),
+      repeating-linear-gradient(transparent 0 24px,rgba(70,110,50,.13) 24px 25px),
+      radial-gradient(rgba(255,255,255,.6) 1.6px,transparent 2px) 0 0/22px 22px}
   .jpage.theme-pigeon{color:#39496a;font-family:'Bungee','Comfortaa',cursive;
-    background:linear-gradient(#dde9f4,#c1d3e6),
-      radial-gradient(rgba(90,110,150,.17) 1.7px,transparent 1.9px) 0 0/15px 15px}
+    background:linear-gradient(#d5e5f2,#d5e5f2),
+      repeating-linear-gradient(transparent 0 22px,rgba(60,80,120,.13) 22px 23px),
+      repeating-linear-gradient(90deg,transparent 0 22px,rgba(60,80,120,.08) 22px 23px)}
   .jpage.theme-pigeon .jpageTitle{font-size:23px}
   .jpage.theme-garden{color:#a24d68;font-family:'Cormorant Garamond',Georgia,serif;
-    background:radial-gradient(120% 100% at 72% 16%,#fdeff3,#f6d7e1),
-      radial-gradient(circle at 18% 82%,rgba(255,175,198,.4),transparent 32%),
-      radial-gradient(circle at 88% 70%,rgba(255,195,150,.3),transparent 30%)}
+    background:linear-gradient(#fbe3ec,#fbe3ec),
+      repeating-linear-gradient(transparent 0 26px,rgba(210,110,145,.11) 26px 27px),
+      radial-gradient(rgba(255,180,200,.4) 1.8px,transparent 2.2px) 0 0/18px 18px}
   .jpage.theme-garden .jpageTitle{font-size:30px;font-weight:700}
   .jpage.theme-locked{color:#6b7280;font-family:'Comfortaa','Arial Rounded MT Bold',cursive;
     background:linear-gradient(158deg,#e6e8f0,#c9cdda)}
@@ -2356,8 +2362,12 @@ function buildBooks(g, R){
     // face-Beanie heading, same rotateZ-sway pattern dialogue birds use).
     const isTalkingToHim = dialog && dialog.npcObj === chippy;
     // face-Beanie heading (see updateTalkCam) only applies while talking;
-    // reset back to his default "facing the landing spot" pose otherwise.
-    if (!isTalkingToHim) chippyModel.rotation.set(0, 0, 0);
+    // reset back to his default "facing the landing spot" pose otherwise,
+    // plus his own gentle idle sway (on by default now, not just mid-chat).
+    if (!isTalkingToHim){
+      chippyModel.rotation.set(0, 0, 0);
+      chippyModel.rotateZ(Math.sin(t*1.1)*0.045);
+    }
   });
   // a few floating loose pages
   for (let i = 0; i < 9; i++){
@@ -2579,13 +2589,25 @@ function buildCucumber(g, R){
   // wrapped the same {holder,taken,name} shape pickupFood() already expects
   // so picking one up needs no special-case handling anywhere downstream.
   const groundCucumberHolders = [];
+  // Plain random directions let some land right on top of each other by pure
+  // chance (no minimum-spacing enforcement), which reads as clumpy in spots
+  // rather than spread across the meadow - reject and retry any candidate
+  // that lands too close to an already-placed one (same rejection-sampling
+  // idea used elsewhere in this file for clearance checks).
+  const placedCukeDirs = [];
+  const CUKE_MIN_ANGLE = 9 / R;   // ~9 world units of minimum spacing
   for (let i = 0; i < 90; i++){
+    let dir = randDir(), tries = 0;
+    while (tries < 20 && placedCukeDirs.some((d) => dir.angleTo(d) < CUKE_MIN_ANGLE)){
+      dir = randDir(); tries++;
+    }
+    placedCukeDirs.push(dir.clone());
     const holder = new THREE.Group();
     const c = makeCucumber(0.85);
     c.rotation.z = Math.PI/2; c.rotation.y = Math.random()*Math.PI;
     holder.add(c);
     holder.visible = false;
-    placeOn(g, holder, randDir(), R, 0.3);
+    placeOn(g, holder, dir, R, 0.3);
     groundCucumberHolders.push({ holder, taken:false, name:'cucumber' });
   }
   // pastel wildflower dots
@@ -2976,10 +2998,12 @@ function buildPigeons(g, R, ctx){
   percyHolder.userData.percy = percy;
   animators.push((t) => {
     if (percyHolder.userData.flying) return;
-    // Percy stays planted. Conversation sway is applied to the holder only
-    // while his own line is showing, along with every other dialogue bird.
+    // Percy stays planted (position never drifts). Conversation sway is
+    // applied to the HOLDER (a separate object) only while his own line is
+    // showing, same as every other dialogue bird - his own gentle idle sway
+    // below is independent of that and plays on default, not just mid-chat.
     percy.position.y += (0 - percy.position.y)*0.18;
-    percy.rotation.y += (0 - percy.rotation.y)*0.18;
+    percy.rotation.y += (Math.sin(t*1.3)*0.04 - percy.rotation.y)*0.18;
   });
   return { percyHolder, percyN, plazaN, crowd, flying, colliders };
 }
@@ -3269,6 +3293,11 @@ function buildGarden(g, R, ctx){
       if (bredWalkAction) bredWalkAction.setEffectiveWeight(0);
       if (bredWaveAction) bredWaveAction.setEffectiveWeight(0);
     };
+    bred.userData._dbg = () => ({
+      clips: gltf.animations.map(a => a.name + ':' + a.duration.toFixed(1)),
+      wave: bredWaveAction ? { t:+bredWaveAction.time.toFixed(2), w:+bredWaveAction.getEffectiveWeight().toFixed(2), run:bredWaveAction.isRunning(), scl:bredWaveAction.timeScale } : null,
+      idleW: bredIdleAction ? +bredIdleAction.getEffectiveWeight().toFixed(2) : null
+    });
   }).catch((err) => {
     console.error('Bred model failed to load, falling back to placeholder', err);
     const fallback = makeChibi('bred');
@@ -3717,7 +3746,7 @@ function nearestFood(){
 }
 function nearestFoodPickup(){
   if (!worldRefs.cucumber) return null;
-  if (bbakQuest.phase < 1) return null;   // nothing to pick up until bbak actually asks for something cold
+  if (bbakQuest.phase < 1 || bbakQuest.phase >= 2) return null;   // nothing to pick up before he asks, or after he's fed
   const R = 3.0, wr = worldRefs.cucumber;
   let best=null, bd=R;
   const consider = (obj, d) => { if (d < bd){ bd = d; best = obj; } };
@@ -3819,7 +3848,13 @@ function talkBbak(){
   // she hands it over - clear the pocket right away, then toss the exact food
   // she was holding through the air into bbak's mouth before he reacts to it.
   bbakQuest.holding = null; refreshFoodPocket();
-  tossFoodToBbak(h, () => {
+  // A beat before the toss actually launches, so the two-shot conversation
+  // camera (which only starts lerping into place THIS frame, above) has time
+  // to settle into frame first - starting the toss instantly threw it while
+  // the camera was still swinging in from wherever she was walking, which
+  // read as "I can't see the cutscene of her giving bbak the food" even
+  // though the toss itself was playing correctly the whole time.
+  setTimeout(() => tossFoodToBbak(h, () => {
     if (h === 'cucumber'){
       startDialog(BBAK_SUCCESS, () => {
         bbakQuest.phase = 2; bodies[2].missionDone = true;
@@ -3840,7 +3875,7 @@ function talkBbak(){
       refreshBbakGuide();
       if (justRevealed) startCukeRevealCutscene();
     }, npc);
-  });
+  }), 500);
 }
 refreshBbakGuide();
 
@@ -3902,17 +3937,22 @@ function updateCukeReveal(dt, t){
   if (cr.t < ACT1_DUR){
     const k1 = cr.t / ACT1_DUR;
     const smooth1 = k1*k1*(3-2*k1);
-    // One complete, slow planet-hugging 360. Keeping the lens low and aiming
-    // slightly down preserves the meadow/curved horizon instead of filling
-    // most of the composition with empty sky.
-    const dist = 8.8 - 1.9*smooth1, height = 1.65 - 0.35*smooth1;
+    // Pulled back to actually show the PLANET, not just Beanie's own patch of
+    // ground - cucumbers should read as sprouting all over Emerald Meadow,
+    // not in a tight circle around her feet. Distance/height scale off the
+    // world's own radius (b.r) so a good sweep of the curved surface is in
+    // frame regardless of exact world size.
+    const dist = b.r*(0.95 + 0.2*smooth1), height = b.r*(0.55 + 0.12*smooth1);
     const angle = smooth1*Math.PI*2;
     const dir = tmpV3.copy(cr.basisA).multiplyScalar(Math.cos(angle)).addScaledVector(cr.basisB, Math.sin(angle));
     camPos.copy(her.position).addScaledVector(up, height).addScaledVector(dir, dist);
     camUp.copy(up);
     camera.position.copy(camPos);
     camera.up.copy(camUp);
-    camera.lookAt(tmpV2.copy(her.position).addScaledVector(up, 0.62));
+    // Aim mostly at the planet's own center (so the wide curving ground
+    // fills the frame) with a slight bias toward her, rather than pinning
+    // the shot tightly on her the way the old close-up version did.
+    camera.lookAt(tmpV2.copy(b.center).lerp(her.position, 0.3));
     // the solid ring's spin winds down to a stop before the transformation begins…
     wr.setSolidSpinScale(Math.max(0, 1 - k1*2.2));
     // Ground growth remains the strong first beat. Its material stays fully
@@ -4087,8 +4127,15 @@ const PLAZA_STORY_SLOT_COUNT = PLAZA_DECOYS.length + 1; // eight friends + Doodl
 // the instant the decoy appeared, before she'd taken a single step. Pushed
 // well past that 24-unit threshold with real margin for however far she
 // happens to be standing from Percy at the time.
-const PLAZA_STORY_RING_NEAR = 1.15;                     // 34.5 surface units from Percy
-const PLAZA_STORY_RING_FAR = 1.28;                      // 38.4 surface units from Percy
+// Widened from a narrow 1.15-1.28 band (all 8 decoys sitting in one easily-
+// swept ring at nearly the same distance from Percy, reads as "too close
+// together") to a much broader spread of distances, so finding each one
+// is a real search rather than walking one predictable loop.
+const PLAZA_STORY_RING_NEAR = 1.05;                     // 31.5 surface units from Percy
+const PLAZA_STORY_RING_FAR = 1.75;                      // 52.5 surface units from Percy
+// Doodles is the finale reunion, not just one more ring stop - genuinely far
+// side of the planet, well past every decoy's own distance.
+const DOODLES_RING_ANGLE = Math.PI*0.82;
 function clearCrowdAroundStorySpot(storyN, clearance=5.2){
   const wr = worldRefs.pigeon, R = bodies[PIGEON_I].r;
   if (!wr) return;
@@ -4117,14 +4164,21 @@ function spawnStoryPigeon(cfg){
   const g = bodies[PIGEON_I].group, R = bodies[PIGEON_I].r;
   const holder = new THREE.Group();
   const inner = new THREE.Group(); holder.add(inner);
-  // Percy owns the center. Every named pigeon/dove gets a reserved slot on a
-  // broad outer ring, in story order, so later spawns can never overlap an
-  // earlier friend. Alternating radii adds a little natural looseness while
-  // keeping adjacent friends roughly 12+ surface units apart.
+  // Percy owns the center. Every named pigeon/dove gets a reserved slot in
+  // story order so later spawns can never overlap an earlier friend - evenly
+  // spaced by azimuth (plus a little jitter so it doesn't read as a perfect
+  // grid), each at its own RANDOM distance from Percy across a wide band
+  // (not just two alternating values) so the search actually spreads across
+  // the plaza instead of walking one predictable close-in loop. Doodles
+  // isn't part of that ring at all - genuinely the far side of the planet,
+  // matching his role as the actual finale.
+  const isDoodles = cfg.name === DOODLES_CFG.name;
   const decoySlot = PLAZA_DECOYS.findIndex((friend) => friend.name === cfg.name);
-  const slot = cfg.name === DOODLES_CFG.name ? PLAZA_DECOYS.length : Math.max(0, decoySlot);
-  const ringAngle = slot % 2 ? PLAZA_STORY_RING_FAR : PLAZA_STORY_RING_NEAR;
-  const azimuth = -0.35 + slot/PLAZA_STORY_SLOT_COUNT*Math.PI*2;
+  const slot = isDoodles ? PLAZA_DECOYS.length : Math.max(0, decoySlot);
+  const ringAngle = isDoodles ? DOODLES_RING_ANGLE
+    : PLAZA_STORY_RING_NEAR + Math.random()*(PLAZA_STORY_RING_FAR - PLAZA_STORY_RING_NEAR);
+  const azimuthJitter = (Math.random()-0.5) * (Math.PI*2/PLAZA_STORY_SLOT_COUNT) * 0.5;
+  const azimuth = -0.35 + slot/PLAZA_STORY_SLOT_COUNT*Math.PI*2 + azimuthJitter;
   const n = tiltDir(worldRefs.pigeon.percyN, ringAngle, azimuth);
   clearCrowdAroundStorySpot(n);
   placeOn(g, holder, n, R, 0.02);
@@ -4145,13 +4199,22 @@ function spawnStoryPigeon(cfg){
       inner.remove(placeholder); inner.add(m);
     }).catch((e) => console.error('pigeon load failed', cfg.glb, e));
   }
+  // Per-instance phase so every swaying bird doesn't oscillate in lockstep -
+  // reads as individually alive rather than one animation copy-pasted.
+  const swayPhase = Math.random()*Math.PI*2;
   animators.push((t) => {
     // Never hop in conversation; the shared talk camera adds only a tiny,
     // slow side-to-side sway while this bird's own line is being spoken.
     inner.position.y += (0 - inner.position.y)*0.15;
-    // face Beanie while talking, else idle
-    if (plazaQuest.talkingPigeon === holder)
+    // face Beanie while talking, else play this character's own idle sway
+    // (on by default now, not just mid-conversation) - cfg.bounce, already
+    // authored per-character (e.g. Vanessa is too regal for it), decides
+    // who gets one at all.
+    if (plazaQuest.talkingPigeon === holder){
       holder.quaternion.copy(quatFromBasis(n, tangentToward(holder.getWorldPosition(tmpVP), n, her.position)));
+    } else if (cfg.bounce){
+      inner.rotation.z = Math.sin(t*1.4 + swayPhase)*0.05;
+    }
   });
   // Give each named pigeon/dove a real footprint while every anonymous
   // background bird remains non-solid. Larger friends get a little more
@@ -4474,8 +4537,13 @@ function qaGiveNext(){
       showToast('🐦 QA: met Percy', 'mission revealed'); return;
     }
     if (plazaQuest.phase === 'searching' && plazaQuest.active){
+      // Name the actual bird just met (not a generic "a pigeon") - this QA
+      // shortcut always acts on plazaQuest.active regardless of which bird
+      // she's actually standing near, so a generic label read as "wrong
+      // bird" when it didn't match whoever was in front of her.
+      const metName = STICKER_LABELS[plazaQuest.active.userData.cfg.name] || 'a pigeon';
       meetFriend(plazaQuest.active.userData.cfg.name); plazaQuest.step++; spawnNextDecoy();
-      showToast('🐦 QA: met a pigeon', `${plazaQuest.step}/${PLAZA_DECOYS.length}`); return;
+      showToast(`🐦 QA: met ${metName}`, `${plazaQuest.step}/${PLAZA_DECOYS.length}`); return;
     }
     if (plazaQuest.phase === 'giveup'){
       plazaQuest.phase = 'seek-doodles'; plazaQuest.doodles = spawnStoryPigeon(DOODLES_CFG); refreshPlazaGuide();
@@ -5180,7 +5248,7 @@ function updateAim(t){
     const d = tmpV.length();
     const surf = her.position.distanceTo(b.center) - b.r;
     const ang = aimDir.angleTo(tmpV.normalize());
-    const th = Math.max(0.3, Math.atan2(b.r*1.7, d) + 0.12);
+    const th = Math.max(0.4, Math.atan2(b.r*1.7, d) + 0.12);
     // Keep the destination identity secret until its arrival title. Debug
     // state records only that a destination exists, never its story name.
     document.body.dataset.nextBody = 'mystery';
@@ -5569,7 +5637,12 @@ function updateBredGreet(dt){
 // Bred waves up close → idles → walks over to Beanie → she turns to face him →
 // hearts float up. Reuses the greet's sphere/facing math + the heart emitter. ----
 let bredCutscene = null;
-const BRED_CUT = { wave:2.6, idle:0.9, walk:4.2, turn:1.1, hearts:4.0 };
+// The full scripted ending. Beats: front-zoom idle WAVE (fixed far distance, never
+// his back) → he WALKS over → they MEET and SWAY side-on with hearts above their
+// heads while the sky turns pink and Pisces/Gemini fade in → two short talks →
+// he hands her a LETTER → friends gather and watch → the letter opens → THE END.
+const BRED_CUT = { wave:5.2, walk:4.4, meet:3.2, sky:4.5, talk1:0, talk2:0, letter:2.6, friends:3.6 };
+const BRED_FAR = 8.5;   // fixed far distance between them during the wave
 function startBredCutscene(){
   const bredG = worldRefs.garden && worldRefs.garden.bred;
   if (!bredG){ return; }
@@ -5581,30 +5654,37 @@ function startBredCutscene(){
   metFriends.add('bred');             // reaching Bred earns the Garden keepsake sticker
   if (journalPanelEl.classList.contains('show')) renderJournalPage();
   const up = herUp(new THREE.Vector3());
-  const fwd = herFwd(new THREE.Vector3());                 // Bred approaches from straight ahead of her
+  const fwd = herFwd(new THREE.Vector3());     // Beanie faces this way; Bred stands far along it, facing back
   const side = new THREE.Vector3().crossVectors(up, fwd).normalize();
   const onSphere = (p) => p.sub(g.center).normalize().multiplyScalar(g.r).add(g.center);
-  // Bred approaches from Beanie's SIDE (she starts facing `fwd`, unaware), so
-  // her turning to face him later actually reads as a turn. Start close enough
-  // that he stays in a Beanie-anchored frame the whole walk.
-  const bredStart = onSphere(new THREE.Vector3().copy(her.position).addScaledVector(side, 4.6));
-  const bredEnd   = onSphere(new THREE.Vector3().copy(her.position).addScaledVector(side, 1.6));
-  bredG.position.copy(bredStart);
-  bredG.quaternion.copy(faceBredWorld(bredG, up, tangentToward(bredStart, up, her.position)));
-  if (bredG.userData.playWave) bredG.userData.playWave(1.3);
+  const bredFar  = onSphere(new THREE.Vector3().copy(her.position).addScaledVector(fwd, BRED_FAR));
+  const bredNear = onSphere(new THREE.Vector3().copy(her.position).addScaledVector(fwd, 2.1));
+  bredG.position.copy(bredFar);
+  bredG.quaternion.copy(faceBredWorld(bredG, up, tangentToward(bredFar, up, her.position)));  // face Beanie
+  // Beanie faces Bred from the start — they look at each other across the meadow.
+  orientation.copy(quatFromBasis(up, fwd)); updatePose();
+  if (bredG.userData.setIdlePose) bredG.userData.setIdlePose();
+  if (bredG.userData.playWave) bredG.userData.playWave(1.35);   // idle wave, sped a little so the arm-up lands within the beat
   bredCutscene = { phase:'wave', t:0, bredG, up:up.clone(), fwd:fwd.clone(), side:side.clone(),
-    bredStart, bredEnd, herQ0:orientation.clone() };
+    bredFar, bredNear, herPos: her.position.clone(), heartT:0, letter:null };
+  cutsceneFlowerChars = [her, bredG];   // flowers bend away from both during the walk
   state = 'bredcutscene';
   promptEl.classList.remove('show'); guideEl.classList.remove('show');
   hudEl.classList.add('hidden'); missionEl.classList.add('hidden');
   reticleEl.classList.add('hidden'); targetRing.visible = false;
 }
-function spawnCutsceneHearts(n, mid, up, side){
-  for (let i=0;i<n;i++){
+// hearts drift up from ABOVE each head
+function heartsAboveHeads(bc, dt){
+  bc.heartT += dt;
+  if (bc.heartT < 0.35) return;
+  bc.heartT = 0;
+  for (const c of [her, bc.bredG]){
+    const head = tmpV3.copy(c.position).addScaledVector(bc.up, 2.15 + Math.random()*0.3);
     const h = new THREE.Mesh(heartGeo, heartBurstMat);
-    h.scale.setScalar(0.13 + Math.random()*0.14);
-    spawnEphemeral(h, tmpV3.copy(mid).addScaledVector(side, (Math.random()-0.5)*0.9),
-      randDir().multiplyScalar(0.45).addScaledVector(up, 0.6), 3 + Math.random()*2, 1 + Math.random()*2);
+    h.scale.setScalar(0.12 + Math.random()*0.10);
+    spawnEphemeral(h, head.addScaledVector(bc.side, (Math.random()-0.5)*0.5),
+      tmpV.copy(bc.up).multiplyScalar(0.5 + Math.random()*0.3).addScaledVector(bc.side, (Math.random()-0.5)*0.15),
+      2.6 + Math.random()*1.6, 0.6 + Math.random()*1.4, 0.9);
   }
 }
 function updateBredCutscene(dt){
@@ -5612,51 +5692,55 @@ function updateBredCutscene(dt){
   bc.t += dt;
   const faceHer = faceBredWorld(bredG, up, tangentToward(bredG.position, up, her.position));
   let camGoal, lookAt;
-  const closeOnBred = () => {
-    const front = tangentToward(bredG.position, up, her.position).negate();  // in front of his face
-    camGoal = cC.copy(bredG.position).addScaledVector(front, 3.0).addScaledVector(up, 1.5).addScaledVector(bc.side, 0.7);
-    lookAt = tmpV.copy(bredG.position).addScaledVector(up, 1.25);
+  // gentle synchronized sway once they're together (like slow-dancing side to side)
+  const applySway = () => {
+    const s = Math.sin(bc.t * 1.5) * 0.05;
+    if (herSummerGroup) herSummerGroup.rotation.z = s;
+    return s;
   };
-  // Robust two-shot: sit PERPENDICULAR to the live Beanie→Bred line (computed
-  // each frame, so sphere curvature can't twist it) and look at their midpoint.
-  // Bred crosses the frame toward her; her turn plays side-on to camera.
+  // camera zoom on Bred's FRONT (he faces Beanie, so his front points toward her;
+  // sit on the Beanie side of him and never behind him).
+  const closeOnBredFront = () => {
+    const toBeanie = tangentToward(bredG.position, up, her.position);   // from Bred toward her = his front
+    camGoal = cC.copy(bredG.position).addScaledVector(toBeanie, 3.2).addScaledVector(up, 1.35).addScaledVector(bc.side, 0.55);
+    lookAt = tmpV.copy(bredG.position).addScaledVector(up, 1.2);
+  };
+  // side-on two-shot: perpendicular to the live Beanie↔Bred line
   const framePair = (dist, high, along) => {
-    const mid = tmpV.copy(her.position).add(bredG.position).multiplyScalar(0.5).addScaledVector(up, 1.0);
+    const mid = tmpV.copy(her.position).add(bredG.position).multiplyScalar(0.5).addScaledVector(up, 1.05);
     const axis = new THREE.Vector3().subVectors(bredG.position, her.position).normalize();
     const perp = new THREE.Vector3().crossVectors(up, axis).normalize();
     camGoal = cC.copy(mid).addScaledVector(perp, dist).addScaledVector(up, high).addScaledVector(axis, along);
     lookAt = tmpV2.copy(mid);
   };
   if (bc.phase === 'wave'){
-    bredG.quaternion.copy(faceHer); closeOnBred();
-    if (bc.t > BRED_CUT.wave){ bc.phase='idle'; bc.t=0; if (bredG.userData.setIdlePose) bredG.userData.setIdlePose(); }
-  } else if (bc.phase === 'idle'){
-    bredG.quaternion.copy(faceHer); closeOnBred();
-    if (bc.t > BRED_CUT.idle){ bc.phase='walk'; bc.t=0; if (bredG.userData.setWalk) bredG.userData.setWalk(1); }
+    // he stands still at the far distance and idle-waves; camera on his FRONT
+    // only, slowly pushing IN on him as he waves.
+    bredG.quaternion.copy(faceHer);
+    const wp = Math.min(1, bc.t / BRED_CUT.wave);
+    const zoom = 4.3 - 2.0 * (wp*wp*(3-2*wp));                 // slow dolly-in
+    const toBeanie = tangentToward(bredG.position, up, her.position);   // his front
+    camGoal = cC.copy(bredG.position).addScaledVector(toBeanie, zoom).addScaledVector(up, 1.3).addScaledVector(bc.side, 0.45);
+    lookAt = tmpV.copy(bredG.position).addScaledVector(up, 1.15);
+    if (bc.t > BRED_CUT.wave){ bc.phase='walk'; bc.t=0; if (bredG.userData.setWalk) bredG.userData.setWalk(1); }
   } else if (bc.phase === 'walk'){
     const k = Math.min(1, bc.t/BRED_CUT.walk), e = k*k*(3-2*k);
-    bredG.position.lerpVectors(bc.bredStart, bc.bredEnd, e).addScaledVector(up, Math.abs(Math.sin(e*Math.PI*6))*0.07);
-    bredG.quaternion.copy(faceHer); framePair(6.6, 1.9, 0);
-    if (bc.t > BRED_CUT.walk){ bc.phase='turn'; bc.t=0; bredG.position.copy(bc.bredEnd);
+    bredG.position.lerpVectors(bc.bredFar, bc.bredNear, e).addScaledVector(up, Math.abs(Math.sin(e*Math.PI*7))*0.06);
+    bredG.quaternion.copy(faceHer); framePair(6.2, 1.7, 0);
+    if (bc.t > BRED_CUT.walk){ bc.phase='meet'; bc.t=0; bredG.position.copy(bc.bredNear);
       if (bredG.userData.setIdlePose) bredG.userData.setIdlePose(); }
-  } else if (bc.phase === 'turn'){
-    const k = Math.min(1, bc.t/BRED_CUT.turn), e = k*k*(3-2*k);
-    const herFaceBred = quatFromBasis(herUp(new THREE.Vector3()), tangentToward(her.position, up, bredG.position));
-    orientation.slerpQuaternions(bc.herQ0, herFaceBred, e); updatePose();
-    bredG.quaternion.copy(faceHer); framePair(5.6, 1.7, 0);
-    if (bc.t > BRED_CUT.turn){ bc.phase='hearts'; bc.t=0;
-      spawnCutsceneHearts(20, tmpV3.copy(her.position).add(bredG.position).multiplyScalar(0.5).addScaledVector(up, 1.3), up, bc.side); }
-  } else if (bc.phase === 'hearts'){
-    bredG.quaternion.copy(faceHer);
-    if (Math.random() < 0.5) spawnCutsceneHearts(1, tmpV3.copy(her.position).add(bredG.position).multiplyScalar(0.5).addScaledVector(up, 1.3), up, bc.side);
-    framePair(5.0, 1.6, 0);
-    if (bc.t > BRED_CUT.hearts){ bc.phase='card'; bc.t=0;
-      cardOverlay.classList.remove('hidden'); }   // "a card is waiting…"; closing it plays THE END
+  } else if (bc.phase === 'meet'){
+    // together now: side-on two-shot, both sway, hearts rise from above their heads
+    bredG.quaternion.copy(faceHer); applySway(); heartsAboveHeads(bc, dt); framePair(5.2, 1.55, 0);
+    if (bc.t > BRED_CUT.meet){ bc.phase='sky'; bc.t=0; startPinkSky(); }
+  } else if (bc.phase === 'sky'){
+    bredG.quaternion.copy(faceHer); applySway(); heartsAboveHeads(bc, dt);
+    updatePinkSky(bc.t / BRED_CUT.sky); framePair(5.0, 1.5, 0);
+    if (bc.t > BRED_CUT.sky){ bc.phase='card'; bc.t=0; cardOverlay.classList.remove('hidden'); }   // TEMP: → card until talk/letter/friends are added
   } else if (bc.phase === 'card'){
-    // hold the two-shot behind the card overlay until she opens it (→ THE END)
-    bredG.quaternion.copy(faceHer); framePair(5.0, 1.6, 0);
+    bredG.quaternion.copy(faceHer); applySway(); framePair(5.0, 1.5, 0);
   }
-  camPos.lerp(camGoal, 1 - Math.exp(-3.5*dt)); camera.position.copy(camPos);
+  camPos.lerp(camGoal, 1 - Math.exp(-3.3*dt)); camera.position.copy(camPos);
   camUp.lerp(up, 1 - Math.exp(-3*dt)).normalize(); camera.up.copy(camUp);
   camera.lookAt(lookAt);
 }
@@ -5669,6 +5753,75 @@ function endBredCutscene(){
   bredGreeted = true;
   state = 'walk';
   hudEl.classList.remove('hidden'); reticleEl.classList.remove('hidden');
+}
+// characters the Garden flowers should also bend away from (set during the cutscene)
+let cutsceneFlowerChars = null;
+// ---- romantic pink sky + fading Pisces / Gemini constellations for the ending ----
+let pinkSky = null, cutsceneConstellations = null;
+const PISCES_STARS = [[-0.95,0.35],[-1.05,0.55],[-0.9,0.72],[-0.68,0.68],[-0.6,0.46],[-0.78,0.3],
+  [-0.32,0.1],[0.05,-0.22],[0.5,0.02],[0.82,0.26],[0.66,0.52]];
+const PISCES_LINES = [[0,1],[1,2],[2,3],[3,4],[4,5],[5,0],[4,6],[6,7],[7,8],[8,9],[9,10],[10,8]];
+const GEMINI_STARS = [[-0.32,0.85],[-0.36,0.42],[-0.3,0.0],[-0.24,-0.42],
+  [0.32,0.85],[0.36,0.42],[0.3,0.0],[0.24,-0.42]];
+const GEMINI_LINES = [[0,1],[1,2],[2,3],[4,5],[5,6],[6,7],[0,4],[3,7]];
+function placeConstellation(originPos, dir, upRef, size, stars2D, lines, color){
+  const R = 620;
+  const center = new THREE.Vector3().copy(originPos).addScaledVector(dir, R);
+  const tx = new THREE.Vector3().crossVectors(upRef, dir).normalize();
+  const ty = new THREE.Vector3().crossVectors(dir, tx).normalize();
+  const pts = stars2D.map(([x,y]) => new THREE.Vector3().copy(center).addScaledVector(tx, x*size).addScaledVector(ty, y*size));
+  const group = new THREE.Group(); const mats = [], lineMats = [];
+  const starGeo = new THREE.SphereGeometry(2.6, 8, 6);
+  for (const p of pts){
+    const m = new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0, fog:false, depthTest:false });
+    const s = new THREE.Mesh(starGeo, m); s.position.copy(p); s.renderOrder = 5; group.add(s); mats.push(m);
+  }
+  for (const [i,j] of lines){
+    const lg = new THREE.BufferGeometry().setFromPoints([pts[i], pts[j]]);
+    const lm = new THREE.LineBasicMaterial({ color, transparent:true, opacity:0, fog:false, depthTest:false });
+    const ln = new THREE.Line(lg, lm); ln.renderOrder = 4; group.add(ln); lineMats.push(lm);
+  }
+  scene.add(group);
+  return { group, mats, lineMats };
+}
+function startPinkSky(){
+  if (pinkSky) return;
+  const g = bodies[GARDEN_I];
+  const bc = bredCutscene, up = bc.up;
+  // big inverted dome, pink gradient by height along `up`
+  const geo = new THREE.SphereGeometry(700, 32, 20);
+  const pos = geo.attributes.position, col = [];
+  const top = new THREE.Color(0xff9ec6), horizon = new THREE.Color(0xffe3ea);
+  for (let i=0;i<pos.count;i++){
+    const y = Math.max(0, pos.getY(i)/700);
+    const c = horizon.clone().lerp(top, y); col.push(c.r,c.g,c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const mat = new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, transparent:true, opacity:0, depthWrite:false, fog:false });
+  pinkSky = new THREE.Mesh(geo, mat);
+  pinkSky.position.copy(g.center);
+  pinkSky.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), up));
+  pinkSky.renderOrder = -1;
+  scene.add(pinkSky);
+  // Pisces high overhead (toward where they face); Gemini low + far on the horizon ahead
+  const piscesDir = new THREE.Vector3().copy(up).multiplyScalar(0.9).addScaledVector(bc.fwd, 0.42).normalize();
+  const geminiDir = new THREE.Vector3().copy(bc.fwd).multiplyScalar(0.94).addScaledVector(up, 0.26).addScaledVector(bc.side, -0.3).normalize();
+  cutsceneConstellations = [
+    placeConstellation(bc.herPos, piscesDir, up, 78, PISCES_STARS, PISCES_LINES, 0xffffff),
+    placeConstellation(bc.herPos, geminiDir, up, 44, GEMINI_STARS, GEMINI_LINES, 0xeaf0ff)
+  ];
+}
+function updatePinkSky(p){
+  const e = Math.min(1, Math.max(0, p));
+  if (pinkSky) pinkSky.material.opacity = e * 0.9;
+  const cp = Math.max(0, (e - 0.3) / 0.7);
+  if (cutsceneConstellations){
+    for (const con of cutsceneConstellations){
+      con.mats.forEach((m,i) => { m.opacity = cp * (0.65 + 0.35*Math.sin(simT*3.2 + i*1.7)); });  // twinkle
+      con.lineMats.forEach(m => { m.opacity = cp * 0.45; });
+    }
+  }
+  if (scene.fog) scene.fog.color.lerp(new THREE.Color(0xf9cfdd), 0.04);
 }
 function startLandingSequence(bi){
   curI = bi;
@@ -5871,11 +6024,12 @@ function arrive(bi){
     updateDots();
     if (firstVisit){
       // Meeting the world's main friend is flavor/greeting, never an actual
-      // fetch-quest step - award that one sticker the moment the page itself
-      // unlocks rather than making her specifically hunt down and talk to
-      // him, since she'd earn it within seconds of arriving anyway.
-      const autoKey = JOURNAL_AUTO_STICKER[b.worldIndex];
-      if (autoKey) earnSticker(autoKey);
+      // fetch-quest step, and the same goes for any bonus "extra" sticker
+      // that has no mission of its own (a couple/group portrait, say) -
+      // award all of them the moment the page itself unlocks rather than
+      // making her specifically hunt each one down, since she'd see the
+      // real moment they depict within seconds of arriving anyway.
+      for (const autoKey of JOURNAL_AUTO_STICKER[b.worldIndex] || []) earnSticker(autoKey);
       // A beat after the HUD/mission banner above finish settling back in -
       // firing instantly would collide with them on screen, same reason the
       // arrival toast right below this is skipped entirely.
@@ -6179,13 +6333,22 @@ function updatePercyFlight(dt, t){
     camUp.lerp(pf.up0, 1-Math.exp(-2*dt)).normalize();
     camera.position.copy(camPos); camera.up.copy(camUp);
     camera.lookAt(tmpV.copy(pf.p0).addScaledVector(pf.up0, 2.2));
-  } else if (pf.t < 16.0){                             // Beanie takes a breath, then hops on
+  } else if (!pf.mounted){                             // Beanie takes a breath, then hops on
+    // Gated on !pf.mounted, NOT `pf.t < 16.0` (the old condition) - k reaches
+    // >=1 only exactly AT pf.t===16.0, which is already outside a strict
+    // "< 16.0" branch, so the mount trigger below could structurally never
+    // fire: every frame either had k<1 (still in this branch) or had already
+    // fallen through to the fly-away else (t>=16.0), with no frame where both
+    // "k>=1" and "still in this branch" were true at once. Beanie would lerp
+    // to just short of the mount point and freeze there forever while Percy
+    // flew off without her - confirmed live via percyFlyDebug(): mounted
+    // stayed false and herWorldPos was frozen while holderPos kept moving.
     noticeBubbleEl.classList.remove('show');
-    const k = (pf.t - 13.0)/3.0, s = k*k*(3-2*k);
+    const k = Math.min(1, (pf.t - 13.0)/3.0), s = k*k*(3-2*k);
     const mount = tmpV3.set(0, 0.62, -0.05).applyMatrix4(holder.matrixWorld);
     her.position.lerpVectors(pf.herStart, mount, s);
     her.position.addScaledVector(pf.up0, Math.sin(s*Math.PI)*1.6);
-    if (!pf.mounted && k >= 1){
+    if (k >= 1){
       pf.mounted = true;
       holder.attach(her);
       her.userData.sit(true);
@@ -6698,7 +6861,22 @@ function updateWalk(dt){
     const bearing = Math.atan2(V().crossVectors(gFwd, gToward).dot(gUp), gFwd.dot(gToward));
     guideArrowEl.style.opacity = 1;
     guideArrowEl.style.transform = `rotate(${-bearing}rad)`;
-    guideLabelEl.innerHTML = '🚀 a new world is calling…';
+    // updateAim() (runs earlier this same frame) already computes how close
+    // the CAMERA's current look direction is to a real lock, in
+    // dataset.aimAngle/aimThreshold - surfacing that as a live "warmer/
+    // colder" readout gives actual progressive feedback instead of a mute
+    // arrow plus a binary lock reticle with nothing in between, which was
+    // the "impossible to find" complaint (worst on the biggest hops, e.g.
+    // Cucumber Meadow -> Pigeon Plaza, where the lock window is tightest).
+    const aimAngle = parseFloat(document.body.dataset.aimAngle);
+    const aimThresh = parseFloat(document.body.dataset.aimThreshold);
+    let hint = '🚀 a new world is calling… look around!';
+    if (!isNaN(aimAngle) && !isNaN(aimThresh)){
+      const ratio = aimAngle / aimThresh;
+      if (ratio < 1) hint = '🚀 almost there, hold it!';
+      else if (ratio < 2.5) hint = '🚀 getting warmer…';
+    }
+    guideLabelEl.innerHTML = hint;
     guideEl.classList.add('show');
   } else {
     guideEl.classList.remove('show');
@@ -7165,11 +7343,11 @@ muteBtn.addEventListener('click', () => {
    notebook alongside Bred's letter in Chicago, and every character she meets
    for the first time earns a matching sticker inside it. */
 const STICKER_FILES = {
-  chippy:'chippy sticker.png', bbak:'bbak sticker.png', percy:'percy sticker.png',
+  chippy:'chippy sticker.png', bbak:'meadow stickers/bbak sticker.png', percy:'percy sticker.png',
   vanessa:'victoria sticker.png', nibbles:'nibbles sticker.png', alfred:'alfred sticker.png',
   sam:'sam sticker.png', sunny:'sunny sticker.png', otto:'otto sticker.png',
   mochi:'mochi sticker.png', buckle:'buckle sticker.png', doodles:'doodles sticker.png',
-  bred:'beanie-bred sticker.png',
+  bred:'garden stickers/beanie-bred sticker.png',
   // earned by picking up each of Chippy's 5 gift books (see pickupBook()) -
   // filenames are exactly as delivered, including the stray space in book 1's.
   book1:'mainstacks stickers/book 1 sticker .png', book2:'mainstacks stickers/book 2 sticker.png',
@@ -7181,7 +7359,13 @@ const STICKER_FILES = {
   cucumber:'meadow stickers/cucumber-sticker.png', boba:'meadow stickers/boba-sticker.png',
   burger:'meadow stickers/burgers-sticker.png', icecream:'meadow stickers/ice cream-sticker.png',
   pizza:'meadow stickers/pizza-sticker.png', fries:'meadow stickers/frenchfries-sticker.png',
-  popsicle:'meadow stickers/popsicle-sticker.png', donut:'meadow stickers/donut sticker.png',
+  popsicle:'meadow stickers/popsicle-sticker.png', donut:'meadow stickers/donut-sticker.png',
+  cake:'meadow stickers/cake sticker.png',
+  // "extra" stickers with no mission attached (see JOURNAL_AUTO_STICKER) -
+  // couple/group portraits added to the folders alongside the per-friend art.
+  percyDuo:'pigeon plaza/beanie-percy sticker.png',
+  bredCold:'garden stickers/beanie-bred-cold sticker.png', bredNap:'garden stickers/beanie-bred-nap.png',
+  family:'garden stickers/family sticker.png', friends:'garden stickers/friends.png',
 };
 const STICKER_LABELS = { chippy:'Chippy', bbak:'bbak', percy:'Percy', vanessa:'Vanessa',
   nibbles:'Nibbles', alfred:'Alfred', sam:'Sam', sunny:'Sunny', otto:'Otto', mochi:'Mochi',
@@ -7191,7 +7375,8 @@ const STICKER_LABELS = { chippy:'Chippy', bbak:'bbak', percy:'Percy', vanessa:'V
   book1:'Knits for Cold Cities', book2:'Pigeons: A Love Story', book3:'The Deep Blue: a Whale Tale',
   book4:'A Field Guide to Cucumbers', book5:'Percy the Brave',
   cucumber:'Cucumber', boba:'Boba', burger:'Burger', icecream:'Ice Cream', pizza:'Pizza',
-  fries:'Fries', popsicle:'Popsicle', donut:'Donut' };
+  fries:'Fries', popsicle:'Popsicle', donut:'Donut', cake:'Cake',
+  percyDuo:'Beanie & Percy', bredCold:'Bundled Up', bredNap:'Nap Time', family:'Family', friends:'Friends' };
 // One themed scrapbook PAGE per planet — each with its own font/texture/accent
 // (see the .theme-* CSS) and its own collage of the friends that live there.
 const JOURNAL_PAGES = [
@@ -7201,29 +7386,39 @@ const JOURNAL_PAGES = [
     entry:[`Bred's letter found me here, carried by the most out-of-breath little pigeon I've ever met.`,
       `Chippy is, somehow, an actual potato in an actual newsboy cap, napping on his own pile of books. He gave me this very notebook and told me to fill it up.`,
       `Found five books hidden around the stacks for him, one very sleepy new friend, and the start of everything.`],
-    photos:['mainstacks stickers/birthday party with chippy.jpg', 'mainstacks stickers/our walk from mainstacks.jpg'] },
+    photos:['mainstacks stickers/birthday party with chippy.jpg', 'mainstacks stickers/our walk from mainstacks.jpg',
+      'mainstacks stickers/percy at stacks.jpeg'] },
   { key:'cucumber', theme:'theme-cucumber', title:'Emerald Meadow', kicker:'Chapter II · 🌱',
     tag:'a whole planet ringed in cucumbers', tape:'rgba(150,198,108,.6)',
     decor:['🌱'],
-    chars:['bbak','cucumber','boba','burger','icecream','pizza','fries','popsicle','donut'],
+    chars:['bbak','cucumber','boba','burger','icecream','pizza','fries','popsicle','donut','cake'],
     entry:[`An entire planet ringed in cucumbers. I did not ask questions.`,
       `bbak is a real polar bear who is somehow always melting. I brought him pizza, boba, popsicles, all wrong, he was very clear about that.`,
       `One perfect cucumber later, we were friends for life.`],
-    photos:[`meadow stickers/bbak's birth.jpeg`, 'meadow stickers/pizza at 3 pm.jpg', 'meadow stickers/pizza at capecod!.JPG'] },
+    photos:[`meadow stickers/bbak's birth.jpeg`, 'meadow stickers/pizza at 3 pm.jpg', 'meadow stickers/pizza at capecod!.JPG',
+      'meadow stickers/cool japanese doughnuts.JPG', 'meadow stickers/doughnut vault!.JPG',
+      'meadow stickers/lemonade~ lemonade~ .JPG', 'meadow stickers/mochi! .JPG',
+      `meadow stickers/my baby's birthday and me.JPG`, 'meadow stickers/popsicles with my babe.JPG',
+      'meadow stickers/unlimited sago!.JPG'] },
   { key:'pigeon', theme:'theme-pigeon', title:'Pigeon Plaza', kicker:'Chapter III · 🕊️',
     tag:'so, SO many birds to say hi to', tape:'rgba(150,176,216,.66)',
-    decor:['🕊️'], chars:['percy','vanessa','nibbles','alfred','sam','sunny','otto','mochi','buckle','doodles'],
+    decor:['🕊️'], chars:['percy','vanessa','nibbles','alfred','sam','sunny','otto','mochi','buckle','doodles','percyDuo'],
     entry:[`So many birds. SO many. Percy was looking for a lost friend, and I met the whole plaza trying to help: Vanessa, Nibbles, Alfred, Sam, Sunny, Otto, Mochi, Buckle.`,
       `Every single one of them was convinced I'd come just for them. (Fair, honestly.)`,
       `Then Doodles, one lonely dodo who thought no one was coming for him. We told him he had a family now. He grew Percy huge enough to carry us both home.`],
-    photos:[] },
+    photos:['pigeon plaza/at the field museum.JPG', 'pigeon plaza/awesome pigeon shot.JPG',
+      'pigeon plaza/on the way to see my baby.JPG', `pigeon plaza/percy's first appearance.JPG`] },
   { key:'garden', theme:'theme-garden', title:'The Garden', kicker:'Chapter IV · 💐',
     tag:'happy birthday, Beanie 🤍', tape:'rgba(240,168,194,.62)',
-    decor:['💐'], chars:['bred'],
+    decor:['💐'], chars:['bred','bredCold','bredNap','family','friends'],
     entry:[`And then, Bred. Standing by the couch like he'd been waiting the whole time, because he had.`,
       `He built me an entire universe, one little world at a time, just so I'd have somewhere to leap to.`,
       `I don't think I've ever felt this loved. Happy birthday to me, I guess. 🤍`],
-    photos:[] },
+    photos:['garden stickers/100th year anniversary! jk.JPG', 'garden stickers/brush!.JPG',
+      'garden stickers/dance party!.JPG', 'garden stickers/heh.JPG', 'garden stickers/i love you my baby.JPG',
+      'garden stickers/miss japan so much!.JPG', 'garden stickers/piano!.JPG', 'garden stickers/spring break!.JPG',
+      'garden stickers/tower view selfie!.JPG', 'garden stickers/unlimited sago!.JPG', 'garden stickers/vomit eggs!.JPG',
+      'garden stickers/windy city 2.JPG', 'garden stickers/windy city.JPG'] },
 ];
 const JOURNAL_TOTAL = JOURNAL_PAGES.reduce((n, p) => n + p.chars.length, 0);
 // worldIndex each page's planet corresponds to (see WORLD_DEFS/visitedWorlds)
@@ -7234,7 +7429,10 @@ const JOURNAL_PAGE_WORLD = { books:1, cucumber:2, pigeon:3, garden:4 };
 // dialogue, never an actual fetch-quest step - awarded the instant the page
 // itself unlocks (see arrive()) rather than gating it behind hunting him
 // down, since she'd meet him within seconds of arriving there anyway.
-const JOURNAL_AUTO_STICKER = { 1:'chippy', 2:'bbak', 3:'percy', 4:'bred' };
+const JOURNAL_AUTO_STICKER = {
+  1:['chippy'], 2:['bbak'], 3:['percy','percyDuo'],
+  4:['bred','bredCold','bredNap','family','friends'],
+};
 // Post-it-sized stickers (see JOURNAL_LAYOUT below) fit far fewer per page
 // than the old small icon grid - `perPage` chunks a world's chars across as
 // many sticker spreads as it takes rather than cramming everyone in small.
@@ -7242,7 +7440,7 @@ const JOURNAL_LAYOUT = {
   books:    { cols:2, sizeMin:34, sizeMax:38, rotMax:10, perPage:4 },
   cucumber: { cols:2, sizeMin:32, sizeMax:36, rotMax:10, perPage:4 },
   pigeon:   { cols:2, sizeMin:32, sizeMax:36, rotMax:10, perPage:4 },
-  garden:   { hero:72 },
+  garden:   { cols:2, sizeMin:34, sizeMax:38, rotMax:10, perPage:4 },
 };
 // Flatten JOURNAL_PAGES into individual two-page SPREADS. Each world's chars
 // chunk into groups of `perPage` - chunk 0 carries the full diary text
@@ -7250,12 +7448,18 @@ const JOURNAL_LAYOUT = {
 // and a planet with real photos gets one more, dedicated spread for those
 // too ("everything has to be visible"). journalPageIndex indexes into THIS
 // flat list, not directly into JOURNAL_PAGES.
+const PHOTOS_PER_SPREAD = 4;   // split across both halves, 2 a side - matches the sizing already verified for that count
 const JOURNAL_SPREADS = JOURNAL_PAGES.flatMap((page) => {
   const perPage = (JOURNAL_LAYOUT[page.key] && JOURNAL_LAYOUT[page.key].perPage) || page.chars.length;
   const chunks = [];
   for (let i = 0; i < page.chars.length; i += perPage) chunks.push(page.chars.slice(i, i + perPage));
   const spreads = chunks.map((chunkChars, chunkIndex) => ({ page, part:'main', chunkChars, chunkIndex, chunkCount:chunks.length }));
-  if (page.photos && page.photos.length) spreads.push({ page, part:'photos' });
+  // Photos also chunk rather than always cramming a whole world's photos
+  // onto one spread - post-it-sized polaroids only fit so many before
+  // they'd start overlapping (see the sticker chunking above, same idea).
+  const photoChunks = [];
+  for (let i = 0; i < (page.photos ? page.photos.length : 0); i += PHOTOS_PER_SPREAD) photoChunks.push(page.photos.slice(i, i + PHOTOS_PER_SPREAD));
+  photoChunks.forEach((photoChunk, i) => spreads.push({ page, part:'photos', photoChunk, photoChunkIndex:i, photoChunkCount:photoChunks.length }));
   return spreads;
 });
 // Encode each path segment separately - some sticker files live in a
@@ -7453,19 +7657,22 @@ function renderJournalPage(){
   } else {
     // photos spread: a small recurring header on the left so it's still
     // identifiable at a glance, real captioned photos taped across both
-    // halves (split roughly evenly between them)
+    // halves (split roughly evenly between them) - this chunk only, see
+    // PHOTOS_PER_SPREAD/JOURNAL_SPREADS above.
+    const photoChunk = spread.photoChunk;
     journalPageLEl.className = 'jpage jpage-l ' + page.theme;
     journalPageLEl.innerHTML =
       `<div class="jpageKicker">${page.kicker}</div>
        <div class="jpageTitle">${page.title}</div>
-       <div class="jpageTag">a few real photos along the way</div>
+       <div class="jpageTag">${spread.photoChunkCount > 1 ? `more real photos (${spread.photoChunkIndex+1}/${spread.photoChunkCount})` : 'a few real photos along the way'}</div>
        <div class="jcollage"></div>`;
     journalPageREl.className = 'jpage jpage-r ' + page.theme;
     journalPageREl.innerHTML = `<div class="jcollage"></div>`;
     const pageIdx = JOURNAL_PAGES.indexOf(page);
-    const half = Math.ceil(page.photos.length / 2);
-    renderPhotoCollage(journalPageLEl.querySelector('.jcollage'), page.photos.slice(0, half), pageIdx*100+41, page.tape);
-    renderPhotoCollage(journalPageREl.querySelector('.jcollage'), page.photos.slice(half), pageIdx*100+61, page.tape);
+    const seedBase = pageIdx*1000 + spread.photoChunkIndex*100;
+    const half = Math.ceil(photoChunk.length / 2);
+    renderPhotoCollage(journalPageLEl.querySelector('.jcollage'), photoChunk.slice(0, half), seedBase+41, page.tape);
+    renderPhotoCollage(journalPageREl.querySelector('.jcollage'), photoChunk.slice(half), seedBase+61, page.tape);
   }
   journalPageLabelEl.textContent = `${journalPageIndex+1} / ${JOURNAL_SPREADS.length} · ${metFriends.size}/${JOURNAL_TOTAL} collected`;
 }
@@ -7683,6 +7890,20 @@ window.__world = {
   bgmDebug(){ return { volume: bgmRecording ? +bgmRecording.volume.toFixed(3) : null, key: bgmKey, fading: !!bgmFadeFrame, state }; },
   clearIntroLock(){ introLocked = false; },   // debug-only: skip past Chicago's letter-gate for testing other worlds
   debugMeetFriend(key){ meetFriend(key); },   // debug-only: earn a sticker without playing through its real trigger
+  percyFlyDebug(){
+    if (!percyFly) return null;
+    const holder = percyFly.holder;
+    return {
+      t: +percyFly.t.toFixed(2), mounted: percyFly.mounted,
+      holderPos: holder.position.toArray().map(v=>+v.toFixed(2)),
+      holderScale: +holder.scale.x.toFixed(2),
+      herParent: her.parent ? (her.parent === holder ? 'holder' : her.parent.type) : 'none',
+      herLocalPos: her.position.toArray().map(v=>+v.toFixed(3)),
+      herWorldPos: her.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)),
+      herVisible: her.visible,
+      herScale: her.scale.toArray().map(v=>+v.toFixed(3)),
+    };
+  },
   talkFrameDebug(){
     if (!dialog) return null;
     const up = herUp(new THREE.Vector3());
@@ -7950,6 +8171,7 @@ window.__world = {
       groundCukeScale: +wr.groundCucumberHolders[0].holder.scale.x.toFixed(3) }; },
   triggerCukeReveal(){ startCukeRevealCutscene(); },
   playBredCutscene(){ startBredCutscene(); },
+  bredWaveDebug(){ const b = worldRefs.garden && worldRefs.garden.bred; return b && b.userData._dbg ? b.userData._dbg() : 'no-bred'; },
   jumpChain(){ const n = bodies[curI].chainNext; if (n != null) jumpTo(bodies[n]); },
   get chainNext(){ return bodies[curI].chainNext; },
   pump(seconds){                    // advance the simulation manually (testing when tab is hidden)
