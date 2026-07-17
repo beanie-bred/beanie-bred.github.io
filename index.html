@@ -121,7 +121,7 @@
      book (not the page) is what makes that rotation read as a page swinging
      open in 3D instead of just squashing flat. */
   #journalCover{position:relative;padding:16px;border-radius:22px;
-    background:linear-gradient(155deg,#caa06a,#a9784a 55%,#8f6038);
+    background:linear-gradient(155deg,#5f93da,#3f6bb0 55%,#2c4f8c);
     box-shadow:inset 0 2px 3px rgba(255,255,255,.35),inset 0 -3px 8px rgba(0,0,0,.35),
       0 26px 60px rgba(0,0,0,.5);
     transform:scale(.85) translateY(10px);opacity:0;
@@ -188,18 +188,12 @@
   .jsticker.badge.locked img{display:none}
   .jsticker.badge.got{background:radial-gradient(circle at 35% 30%,#fff,#eef2fa 75%)}
   .jsticker.badge.got img{padding:6%;box-sizing:border-box}
-  /* a little strip of "washi tape" holding each collected sticker down */
-  .jsticker.got::before{content:'';position:absolute;top:-4%;left:50%;
-    transform:translateX(-50%) rotate(-5deg);width:44%;height:13px;
-    background:var(--tape,rgba(255,209,102,.7));opacity:.62;border-radius:1px;
-    box-shadow:0 1px 2px rgba(0,0,0,.12)}
-  .jsticker.badge.got::before{content:none}   /* a pinned badge doesn't need washi tape */
   /* real photos, taped in like an actual Polaroid - white card, thick
      bottom border for the caption (the filename itself, exactly as typed) */
   .jpolaroid{position:absolute;transform:translate(-50%,-50%) rotate(var(--rot));
-    aspect-ratio:.82;background:#fff;box-sizing:border-box;padding:6% 6% 25% 6%;
+    aspect-ratio:.82;background:#fff;box-sizing:border-box;padding:4% 4% 16% 4%;
     box-shadow:0 10px 22px rgba(0,0,0,.32),0 2px 5px rgba(0,0,0,.18)}
-  .jpolaroid .jphoto{width:100%;height:100%;object-fit:cover;display:block;background:#ddd}
+  .jpolaroid .jphoto{width:100%;height:100%;object-fit:contain;display:block;background:#fff}
   .jpolaroid .jcaption{position:absolute;left:6%;right:6%;bottom:5%;text-align:center;
     font-family:'Caveat',cursive;font-weight:600;font-size:15px;line-height:1.15;color:#3a3530;
     overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
@@ -239,6 +233,14 @@
       radial-gradient(circle at 18% 82%,rgba(255,175,198,.4),transparent 32%),
       radial-gradient(circle at 88% 70%,rgba(255,195,150,.3),transparent 30%)}
   .jpage.theme-garden .jpageTitle{font-size:30px;font-weight:700}
+  .jpage.theme-locked{color:#6b7280;font-family:'Comfortaa','Arial Rounded MT Bold',cursive;
+    background:linear-gradient(158deg,#e6e8f0,#c9cdda)}
+  /* big centered emoji filling an otherwise-empty left page - either the
+     lock icon (page not yet visited) or a continuation chunk's own decor,
+     standing in for repeating the full diary text on every sticker page */
+  .jpageCenterMark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    font-size:72px;opacity:.32}
+  .jpageCenterMark.locked{opacity:.22}
   /* "met a new friend" toast - like #toast but with a sticker thumbnail */
   #friendToast{position:fixed;top:76px;left:50%;transform:translateX(-50%) translateY(-8px);z-index:23;
     display:flex;align-items:center;gap:16px;padding:16px 34px 16px 16px;border-radius:999px;
@@ -438,7 +440,7 @@
 <div id="foodPocket"><div id="foodPocketIcon"></div><div id="foodPocketLabel"></div></div>
 <div id="dots" class="hidden"></div>
 <button id="muteBtn" class="hidden">🔊</button>
-<button id="journalBtn" class="hidden" title="Beanie's journal">📔</button>
+<button id="journalBtn" class="hidden" title="Beanie's journal">📘</button>
 <div id="journalPanel" class="hidden">
   <div id="journalCover">
     <div id="journalRibbon"></div>
@@ -1004,7 +1006,7 @@ function playBgm(key, fadeSeconds=2.5){
 const BGM_QUIET_STATES = new Set(['walk', 'talk']);
 function updateBgmDucking(dt){
   if (!bgmRecording || bgmFadeFrame) return;   // an in-flight track-switch fade owns the volume until it finishes
-  const target = BGM_QUIET_STATES.has(state) ? 0.14 : 0.52;
+  const target = BGM_QUIET_STATES.has(state) ? 0.07 : 0.52;
   bgmRecording.volume += (target - bgmRecording.volume) * Math.min(1, dt*1.5);
 }
 // Attempt audible autoplay as soon as the page opens. Browsers that prohibit
@@ -3554,8 +3556,8 @@ function chippyPos(out){ return worldRefs.books.chippy.getWorldPosition(out || n
 const CHIPPY_ASK_LINES = [
   `Oh! Hello Rachel. *yaaawn* …I was just about to make some tea. 🍵`,
   { speaker:'Rachel 🐰', text:`Chippy! I didn't expect to find you way out here, buried in books.`, alt:`Of course I'd find you in the coziest pile of books imaginable, Chippy.` },
-  `Say, while the kettle boils, would you fetch me something to read?`,
-  { speaker:'Rachel 🐰', text:`Of course, this whole place is basically ours to raid, right?`, alt:`Five favourites coming right up. Save me a cup of tea!` },
+  `Say, do a little something for me, and I'll tell you exactly where to go next. Deal?`,
+  { speaker:'Rachel 🐰', text:`Deal. What do you need, Chippy?`, alt:`I'm listening. What's the job?` },
   `Bring me 5 of your favourite books from around here. The glowy ones! ✨`,
   `Press A to pick each one up, then come back to me. Off you pop!`,
 ];
@@ -3565,8 +3567,8 @@ const CHIPPY_NEED_MORE = [
 const CHIPPY_DONE_LINES = [
   `Ooh! Now THESE are good picks. *happy squeak* 🥔`,
   `Perfect reading for a slow afternoon. Thank you, Rachel!`,
-  { speaker:'Rachel 🐰', text:`Happy to help. Enjoy your tea, Chippy.`, alt:`Anytime, Chippy. Those books better be worth staying awake for!` },
-  `Now, the way onward. Aim past the tallest stack and leap. Go find him! 🤍`,
+  { speaker:'Rachel 🐰', text:`Happy to help. Now, you promised: where do I go?`, alt:`A deal's a deal, Chippy. Where am I headed next?` },
+  `Just like I said! Aim past the tallest stack and leap. There's a polar bear waiting on the next planet, go find him! 🤍`,
 ];
 bodies[1].guideNear = 3.6;
 function nearestUncollected(){
@@ -3644,6 +3646,7 @@ const BBAK_INTRO = [
   `This whole place used to be solid ice and snow, believe it or not. Now it's all melted into... this. A meadow.`,
   { speaker:'Rachel 🐰', text:`That's awful. There has to be SOMETHING I can do for you.`, alt:`Tell me what you need. I'm not leaving you to melt out here.` },
   `This global-warming business is melting my brain, too. I need something COLD.`,
+  `Cool me down, and I'll point you toward exactly where to go next. Deal?`,
   `Fetch me a cold treat? Grab a glowy snack (press A) and bring it back to me.`,
   { speaker:'Rachel 🐰', text:`On it. Hang in there, bbak.`, alt:`One freezing-cold rescue snack, coming right up!` },
 ];
@@ -3669,7 +3672,7 @@ const BBAK_HINT = [
 const BBAK_NEEDCUKE = [`No no, the glowing green CUCUMBER I told you about. Go get it! 🥒`];
 const BBAK_SUCCESS = [
   `*CATCH* Ahhh… *CRUNCH* …cold and crisp and perfect. You're the best, Rachel. 💙`,
-  `I feel cooler already. Now go on, aim at the next world and leap! 🤍`,
+  `I feel cooler already. Just like I promised: there's a plaza full of pigeons ahead, and one named Percy is expecting you. Now go on, aim at the next world and leap! 🤍`,
 ];
 // Toss whatever she's holding - a real 3D model of that exact food - through
 // the air into bbak's mouth, then run onDone once it lands.
@@ -4919,27 +4922,46 @@ function dialogueVisualObject(obj, beanieFocus){
   if (worldRefs.books && obj === worldRefs.books.chippy) return worldRefs.books.chippyModel || null;
   return obj;
 }
-function dialogueSubjectFrame(obj, fallbackPos, up, fallbackHeight, faceFraction=0.76){
-  const fallbackFocus = new THREE.Vector3().copy(fallbackPos).addScaledVector(up, fallbackHeight*faceFraction);
-  if (!obj || !obj.isObject3D || !obj.visible) return { focus:fallbackFocus, height:fallbackHeight };
+// Projects every corner of `obj`'s world bounding box onto `up`, returning
+// the [low, high] extent along that axis - works on any spherical planet and
+// still finds the true upper/lower face after the model is rotated, unlike
+// reading world-space size.y from its parent.
+function verticalExtent(obj, up){
   obj.updateWorldMatrix(true, true);
   const box = new THREE.Box3().setFromObject(obj, true);
-  if (box.isEmpty()) return { focus:fallbackFocus, height:fallbackHeight };
-
-  // Project every bounding-box corner onto the planet's real up direction.
-  // This works on every spherical planet and still finds the upper face after
-  // the model is rotated, unlike reading world-space size.y from its parent.
+  if (box.isEmpty()) return null;
   let low = Infinity, high = -Infinity;
   for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]){
     const level = x*up.x + y*up.y + z*up.z;
     low = Math.min(low, level); high = Math.max(high, level);
   }
-  const rawHeight = high - low;
+  return { box, low, high };
+}
+// `distanceObj`, when given, is a LARGER anchor used only to size the
+// camera's pull-back distance (see updateTalkCam - it passes the pre-
+// dialogueVisualObject() original whenever that function swapped in a
+// smaller stand-in, e.g. Chippy's dialogue anchor owns the books he sits on,
+// but framing focus/face on the whole pile puts his face too low). Without
+// this, the smaller `obj` alone under-measures the total height and the
+// camera sits too close, leaving whatever `obj` excludes - like Chippy's
+// book-pile seat - poking out past the bottom of frame.
+function dialogueSubjectFrame(obj, fallbackPos, up, fallbackHeight, faceFraction=0.76, distanceObj=null){
+  const fallbackFocus = new THREE.Vector3().copy(fallbackPos).addScaledVector(up, fallbackHeight*faceFraction);
+  if (!obj || !obj.isObject3D || !obj.visible) return { focus:fallbackFocus, height:fallbackHeight };
+  const ext = verticalExtent(obj, up);
+  if (!ext) return { focus:fallbackFocus, height:fallbackHeight };
+  const rawHeight = ext.high - ext.low;
   if (!Number.isFinite(rawHeight) || rawHeight < 0.1) return { focus:fallbackFocus, height:fallbackHeight };
-  const height = Math.max(0.65, Math.min(5.2, rawHeight));
-  const center = box.getCenter(new THREE.Vector3());
-  const faceLevel = low + rawHeight*faceFraction;
+  const center = ext.box.getCenter(new THREE.Vector3());
+  const faceLevel = ext.low + rawHeight*faceFraction;
   center.addScaledVector(up, faceLevel - center.dot(up));
+
+  let heightLow = ext.low, heightHigh = ext.high;
+  if (distanceObj && distanceObj.isObject3D && distanceObj.visible){
+    const dExt = verticalExtent(distanceObj, up);
+    if (dExt){ heightLow = Math.min(heightLow, dExt.low); heightHigh = Math.max(heightHigh, dExt.high); }
+  }
+  const height = Math.max(0.65, Math.min(5.2, heightHigh - heightLow));
   return { focus:center, height };
 }
 function updateTalkCam(dt){
@@ -4952,8 +4974,10 @@ function updateTalkCam(dt){
   const side = new THREE.Vector3().crossVectors(up, toNpc).normalize().multiplyScalar(CONVO_BEANIE_LEFT);
   const beanieFocus = isBeanieSpeaking() && !dialog.awaitingChoice;
   const subject = beanieFocus ? her.position : npc;
-  const subjectObj = dialogueVisualObject(beanieFocus ? her : dialog.npcObj, beanieFocus);
-  const frame = dialogueSubjectFrame(subjectObj, subject, up, beanieFocus ? 4.1 : 1.8, beanieFocus ? 0.62 : 0.68);
+  const rawSubjectObj = beanieFocus ? her : dialog.npcObj;
+  const subjectObj = dialogueVisualObject(rawSubjectObj, beanieFocus);
+  const distanceObj = subjectObj !== rawSubjectObj ? rawSubjectObj : null;
+  const frame = dialogueSubjectFrame(subjectObj, subject, up, beanieFocus ? 4.1 : 1.8, beanieFocus ? 0.62 : 0.68, distanceObj);
   const subjectHeight = frame.height;
   // Genshin-like upper-body framing. Small characters such as pigeons get an
   // actually close camera rather than inheriting Beanie's much larger scale.
@@ -5555,6 +5579,9 @@ function startBredCutscene(){
   curI = GARDEN_I;
   if (bredG.parent !== scene) scene.attach(bredG);
   her.userData.moving = false;
+  bredGreeted = true;                 // consume the endgame greet trigger (this IS the reunion now)
+  metFriends.add('bred');             // reaching Bred earns the Garden keepsake sticker
+  if (journalPanelEl.classList.contains('show')) renderJournalPage();
   const up = herUp(new THREE.Vector3());
   const fwd = herFwd(new THREE.Vector3());                 // Bred approaches from straight ahead of her
   const side = new THREE.Vector3().crossVectors(up, fwd).normalize();
@@ -5625,7 +5652,11 @@ function updateBredCutscene(dt){
     bredG.quaternion.copy(faceHer);
     if (Math.random() < 0.5) spawnCutsceneHearts(1, tmpV3.copy(her.position).add(bredG.position).multiplyScalar(0.5).addScaledVector(up, 1.3), up, bc.side);
     framePair(5.0, 1.6, 0);
-    if (bc.t > BRED_CUT.hearts){ endBredCutscene(); return; }
+    if (bc.t > BRED_CUT.hearts){ bc.phase='card'; bc.t=0;
+      cardOverlay.classList.remove('hidden'); }   // "a card is waiting…"; closing it plays THE END
+  } else if (bc.phase === 'card'){
+    // hold the two-shot behind the card overlay until she opens it (→ THE END)
+    bredG.quaternion.copy(faceHer); framePair(5.0, 1.6, 0);
   }
   camPos.lerp(camGoal, 1 - Math.exp(-3.5*dt)); camera.position.copy(camPos);
   camUp.lerp(up, 1 - Math.exp(-3*dt)).normalize(); camera.up.copy(camUp);
@@ -5837,8 +5868,21 @@ function arrive(bi){
   // world by name, and a toast at the same time would sit right on top of
   // the mission banner/guide chip and visually collide with them.
   if (b.isWorld){
+    const firstVisit = !visitedWorlds[b.worldIndex];
     visitedWorlds[b.worldIndex] = true;
     updateDots();
+    if (firstVisit){
+      // Meeting the world's main friend is flavor/greeting, never an actual
+      // fetch-quest step - award that one sticker the moment the page itself
+      // unlocks rather than making her specifically hunt down and talk to
+      // him, since she'd earn it within seconds of arriving anyway.
+      const autoKey = JOURNAL_AUTO_STICKER[b.worldIndex];
+      if (autoKey) earnSticker(autoKey);
+      // A beat after the HUD/mission banner above finish settling back in -
+      // firing instantly would collide with them on screen, same reason the
+      // arrival toast right below this is skipped entirely.
+      setTimeout(() => showToast('📘 new page unlocked!', "check Beanie's journal"), 900);
+    }
     // Books/Cucumber/Pigeon's full mission text spells out the actual task
     // (e.g. "bring him 5 favourite books") before she's even met Chippy/
     // bbak/Percy - that detail is held back here and revealed instead right
@@ -6527,9 +6571,33 @@ function updateWalk(dt){
     // ↑ ↓ walk forward/backward along her current facing - no turning, so
     // backing up never spins her whole body around.
     const preForward = tmpQ2.copy(orientation);
-    orientation.multiply(tmpQ.setFromAxisAngle(X_AXIS, iz*moveSpeed*dt/b.r));
+    const forwardAngle = iz*moveSpeed*dt/b.r;
+    orientation.multiply(tmpQ.setFromAxisAngle(X_AXIS, forwardAngle));
     orientation.normalize();
-    if (isBlocked(b, orientation)) orientation.copy(preForward);   // bump back
+    if (isBlocked(b, orientation)){
+      // Wall-slide instead of a hard stop: a rotation around her own LOCAL
+      // Z_AXIS (her forward axis) shifts WHERE she stands on the sphere
+      // without changing WHICH WAY she faces - Rz leaves the axis it rotates
+      // around invariant, and that axis IS herFwd. Composing a small sideways
+      // nudge like that with the SAME forward step (both from the known-good
+      // preForward, not the blocked orientation) reads as stepping diagonally
+      // around an obstacle's edge, without needing to know its actual shape.
+      // Fresh Quaternions here (not tmpQ/tmpQ2, both already live above) -
+      // see the shared-scratch-var aliasing gotcha.
+      const forwardQ = new THREE.Quaternion().setFromAxisAngle(X_AXIS, forwardAngle);
+      const sideAngle = HER_FOOTPRINT*1.5/b.r;
+      let resolved = null;
+      outer:
+      for (const mag of [sideAngle, sideAngle*2]){
+        for (const dir of [1, -1]){
+          const candidate = preForward.clone()
+            .multiply(new THREE.Quaternion().setFromAxisAngle(Z_AXIS, dir*mag))
+            .multiply(forwardQ).normalize();
+          if (!isBlocked(b, candidate)){ resolved = candidate; break outer; }
+        }
+      }
+      orientation.copy(resolved || preForward);   // slide around it, or bump back if fully boxed in
+    }
   }
   orientation.normalize();
   u.inner.rotation.y *= Math.exp(-10*dt);
@@ -6680,12 +6748,12 @@ function updateWalk(dt){
   } else {
     promptEl.classList.remove('show');
   }
-  // reaching Bred on the Garden: the whole endgame is now one scripted
-  // cutscene (she notices him → he turns, waves, walks over and hands her a
-  // letter → card → THE END), kicked off once when she gets within range.
+  // reaching Bred on the Garden kicks off the reunion cutscene (he waves, walks
+  // over, she turns to him, hearts) which then flows into the letter → card →
+  // THE END, once, when she gets within range.
   if (curI === GARDEN_I && !bredGreeted){
     const bredDist = her.position.distanceTo(bredWorldPos(tmpV3));
-    if (bredDist < BRED_GREET_DIST) startBredGreet();
+    if (bredDist < BRED_GREET_DIST) startBredCutscene();
   }
   // Summer's Garden POV sits closer + lower (nearer eye level) than the default
   // high, far framing, so she reads as big in frame like Winter does elsewhere.
@@ -6872,7 +6940,7 @@ const CHICAGO_LETTER_LINES = [
   `"Beanie, I built you a little universe. Every world is something you love. Leap across them all and follow them to the very end…"`,
   `"…and I'll be waiting for you there. Come find me. 🤍 Bred"`,
   { speaker:'Rachel 🐰', text:`He built me a whole universe? …okay. Okay! I'm doing this.`, alt:`A whole universe from Bred… there's no way I'm turning back now.` },
-  `Oh, almost forgot! He also sent this tiny notebook. 📔 Somewhere to keep records of things, he said, for whatever you find along the way.`,
+  `Oh, almost forgot! He also sent this tiny notebook. 📘 Somewhere to keep records of things, he said, for whatever you find along the way.`,
   { speaker:'Rachel 🐰', text:`Thank you for carrying all that this far, little pigeon.`, alt:`You flew all this way for me. Thank you. You did amazing.` },
   `So don't stop, okay? Aim at the next little world and leap. Off you go!`,
 ];
@@ -7141,32 +7209,54 @@ const JOURNAL_PAGES = [
     decor:['🌱'],
     chars:['bbak','cucumber','boba','burger','icecream','pizza','fries','popsicle','donut'],
     entry:[`An entire planet ringed in cucumbers. I did not ask questions.`,
-      `bbak is a real polar bear who is somehow always melting. I brought him pizza, boba, popsicles — all wrong, he was very clear about that.`,
+      `bbak is a real polar bear who is somehow always melting. I brought him pizza, boba, popsicles, all wrong, he was very clear about that.`,
       `One perfect cucumber later, we were friends for life.`],
     photos:[`meadow stickers/bbak's birth.jpeg`, 'meadow stickers/pizza at 3 pm.jpg', 'meadow stickers/pizza at capecod!.JPG'] },
   { key:'pigeon', theme:'theme-pigeon', title:'Pigeon Plaza', kicker:'Chapter III · 🕊️',
     tag:'so, SO many birds to say hi to', tape:'rgba(150,176,216,.66)',
     decor:['🕊️'], chars:['percy','vanessa','nibbles','alfred','sam','sunny','otto','mochi','buckle','doodles'],
-    entry:[`So many birds. SO many. Percy was looking for a lost friend, and I met the whole plaza trying to help — Vanessa, Nibbles, Alfred, Sam, Sunny, Otto, Mochi, Buckle.`,
+    entry:[`So many birds. SO many. Percy was looking for a lost friend, and I met the whole plaza trying to help: Vanessa, Nibbles, Alfred, Sam, Sunny, Otto, Mochi, Buckle.`,
       `Every single one of them was convinced I'd come just for them. (Fair, honestly.)`,
-      `Then Doodles — one lonely dodo who thought no one was coming for him. We told him he had a family now. He grew Percy huge enough to carry us both home.`],
+      `Then Doodles, one lonely dodo who thought no one was coming for him. We told him he had a family now. He grew Percy huge enough to carry us both home.`],
     photos:[] },
   { key:'garden', theme:'theme-garden', title:'The Garden', kicker:'Chapter IV · 💐',
     tag:'happy birthday, Beanie 🤍', tape:'rgba(240,168,194,.62)',
     decor:['💐'], chars:['bred'],
-    entry:[`And then — Bred. Standing by the couch like he'd been waiting the whole time, because he had.`,
+    entry:[`And then, Bred. Standing by the couch like he'd been waiting the whole time, because he had.`,
       `He built me an entire universe, one little world at a time, just so I'd have somewhere to leap to.`,
       `I don't think I've ever felt this loved. Happy birthday to me, I guess. 🤍`],
     photos:[] },
 ];
 const JOURNAL_TOTAL = JOURNAL_PAGES.reduce((n, p) => n + p.chars.length, 0);
-// Flatten JOURNAL_PAGES into individual two-page SPREADS - normally just one
-// (chapter text + sticker collage), but a planet with real photos gets a
-// second, dedicated spread for them too rather than cramming everything onto
-// one page ("everything has to be visible"). journalPageIndex indexes into
-// THIS flat list, not directly into JOURNAL_PAGES.
+// worldIndex each page's planet corresponds to (see WORLD_DEFS/visitedWorlds)
+// - used both to lock a page until she's actually been there, and to know
+// which "no mission" friend sticker to auto-award the moment it unlocks.
+const JOURNAL_PAGE_WORLD = { books:1, cucumber:2, pigeon:3, garden:4 };
+// The world's own main friend is met through ordinary arrival/greeting
+// dialogue, never an actual fetch-quest step - awarded the instant the page
+// itself unlocks (see arrive()) rather than gating it behind hunting him
+// down, since she'd meet him within seconds of arriving there anyway.
+const JOURNAL_AUTO_STICKER = { 1:'chippy', 2:'bbak', 3:'percy', 4:'bred' };
+// Post-it-sized stickers (see JOURNAL_LAYOUT below) fit far fewer per page
+// than the old small icon grid - `perPage` chunks a world's chars across as
+// many sticker spreads as it takes rather than cramming everyone in small.
+const JOURNAL_LAYOUT = {
+  books:    { cols:2, sizeMin:34, sizeMax:38, rotMax:10, perPage:4 },
+  cucumber: { cols:2, sizeMin:32, sizeMax:36, rotMax:10, perPage:4 },
+  pigeon:   { cols:2, sizeMin:32, sizeMax:36, rotMax:10, perPage:4 },
+  garden:   { hero:72 },
+};
+// Flatten JOURNAL_PAGES into individual two-page SPREADS. Each world's chars
+// chunk into groups of `perPage` - chunk 0 carries the full diary text
+// alongside its sticker collage, later chunks are a lighter continuation -
+// and a planet with real photos gets one more, dedicated spread for those
+// too ("everything has to be visible"). journalPageIndex indexes into THIS
+// flat list, not directly into JOURNAL_PAGES.
 const JOURNAL_SPREADS = JOURNAL_PAGES.flatMap((page) => {
-  const spreads = [{ page, part:'main' }];
+  const perPage = (JOURNAL_LAYOUT[page.key] && JOURNAL_LAYOUT[page.key].perPage) || page.chars.length;
+  const chunks = [];
+  for (let i = 0; i < page.chars.length; i += perPage) chunks.push(page.chars.slice(i, i + perPage));
+  const spreads = chunks.map((chunkChars, chunkIndex) => ({ page, part:'main', chunkChars, chunkIndex, chunkCount:chunks.length }));
   if (page.photos && page.photos.length) spreads.push({ page, part:'photos' });
   return spreads;
 });
@@ -7185,7 +7275,7 @@ function captionFromFile(file){
 // photos per half-page, so they can sit big rather than needing a dense grid.
 function renderPhotoCollage(container, photos, seed, tape){
   if (!photos.length) return;
-  const opts = photos.length === 1 ? { hero:55 } : { cols:2, sizeMin:34, sizeMax:40, rotMax:10 };
+  const opts = photos.length === 1 ? { hero:68 } : { cols:2, sizeMin:38, sizeMax:44, rotMax:8, jitter:0.5 };
   const pos = collagePlace(photos.length, seed, opts);
   photos.forEach((file, i) => {
     const p = document.createElement('div');
@@ -7305,24 +7395,37 @@ function collagePlace(n, seed, o){
   }
   return raw.map(p => ({ x:margin+p.x*scale, y:margin+p.y*scale, size:p.size*scale, rot:p.rot }));
 }
-const JOURNAL_LAYOUT = {
-  books:    { hero:44, heroX:24, crowdLeft:48, cols:2, sizeMin:18, sizeMax:21, rotMax:12 },
-  cucumber: { hero:40, heroX:22, crowdLeft:44, cols:2, sizeMin:17, sizeMax:20, rotMax:14 },
-  pigeon:   { cols:3, sizeMin:17, sizeMax:20, rotMax:15 },
-  garden:   { hero:64 },
-};
 function renderJournalPage(){
   const spread = JOURNAL_SPREADS[journalPageIndex];
   const page = spread.page;
-  if (spread.part === 'main'){
-    // left page: her own handwritten account of that world
-    journalPageLEl.className = 'jpage jpage-l ' + page.theme;
+  if (!visitedWorlds[JOURNAL_PAGE_WORLD[page.key]]){
+    // Don't reveal a planet's page before she's actually been there - both
+    // halves stay a simple locked placeholder regardless of part/chunk.
+    journalPageLEl.className = 'jpage jpage-l theme-locked';
     journalPageLEl.innerHTML =
-      `<div class="jpageKicker">${page.kicker}</div>
-       <div class="jpageTitle">${page.title}</div>
-       <div class="jpageTag">${page.tag}</div>
-       <div class="jjournal">${page.entry.map(p => `<p>${p}</p>`).join('')}</div>`;
-    // right page: the sticker collage
+      `<div class="jpageKicker">??? · 🔒</div>
+       <div class="jpageTitle">Not yet discovered</div>
+       <div class="jpageTag">land here to fill in this page</div>`;
+    journalPageREl.className = 'jpage jpage-r theme-locked';
+    journalPageREl.innerHTML = `<div class="jpageCenterMark locked">🔒</div>`;
+    journalPageLabelEl.textContent = `${journalPageIndex+1} / ${JOURNAL_SPREADS.length} · ${metFriends.size}/${JOURNAL_TOTAL} collected`;
+    return;
+  }
+  if (spread.part === 'main'){
+    // left page: her own handwritten account of that world - the full entry
+    // only on the first chunk. Later chunks are just more friends from the
+    // same page, not a new chapter, so they get a light header instead of
+    // repeating the whole thing.
+    journalPageLEl.className = 'jpage jpage-l ' + page.theme;
+    journalPageLEl.innerHTML = spread.chunkIndex === 0
+      ? `<div class="jpageKicker">${page.kicker}</div>
+         <div class="jpageTitle">${page.title}</div>
+         <div class="jpageTag">${page.tag}</div>
+         <div class="jjournal">${page.entry.map(p => `<p>${p}</p>`).join('')}</div>`
+      : `<div class="jpageKicker">${page.kicker}</div>
+         <div class="jpageTitle">${page.title}</div>
+         <div class="jpageCenterMark">${page.decor[0]}</div>`;
+    // right page: this chunk's sticker collage
     journalPageREl.className = 'jpage jpage-r ' + page.theme;
     journalPageREl.innerHTML =
       `<div class="jcollage"></div>
@@ -7336,9 +7439,10 @@ function renderJournalPage(){
     d.style.cssText = `left:90%;top:9%;font-size:40px;--rot:-9deg`;
     d.textContent = page.decor[0];
     collage.appendChild(d);
-    // the character stickers
-    const pos = collagePlace(page.chars.length, JOURNAL_PAGES.indexOf(page)*100+17, JOURNAL_LAYOUT[page.key]);
-    page.chars.forEach((key, i) => {
+    // this chunk's character stickers
+    const chunkChars = spread.chunkChars;
+    const pos = collagePlace(chunkChars.length, JOURNAL_PAGES.indexOf(page)*100+17+spread.chunkIndex*31, JOURNAL_LAYOUT[page.key]);
+    chunkChars.forEach((key, i) => {
       const got = metFriends.has(key);
       const st = document.createElement('div');
       st.className = 'jsticker ' + (got ? 'got' : 'locked') + (page.key === 'pigeon' ? ' badge' : '');
