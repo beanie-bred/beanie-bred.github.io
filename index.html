@@ -3315,9 +3315,11 @@ function buildGarden(g, R, ctx){
     fallback.userData.sit(false);
     bred.add(fallback);
   });
-  // percy (real model, puppy-sized) + chippy resting beside him
+  // bbak, percy and chippy sit in a row facing OUTWARD (couch local +z, toward
+  // Rachel) - same way Bred faces. (Percy used to sit rotated toward the back of
+  // the couch; bbak wasn't here at all.)
   const percy = new THREE.Group();
-  percy.position.set(1.15, 0.9, 0.1); percy.rotation.y = -0.4 + Math.PI;
+  percy.position.set(1.2, 0.9, 0.12); percy.rotation.y = -0.35;   // right seat, facing front, slight turn to center
   couch.add(percy);
   loadModel('./game-assets/percy/percy.glb').then((model) => { percy.add(model); })
     .catch((err) => {
@@ -3326,7 +3328,7 @@ function buildGarden(g, R, ctx){
       percy.add(fb);
     });
   const chippyPlush = new THREE.Group();
-  chippyPlush.position.set(-1.25, 1.03, 0.15); chippyPlush.rotation.y = 0.5;
+  chippyPlush.position.set(-1.2, 1.03, 0.15); chippyPlush.rotation.y = 0.35;   // left seat, facing front, slight turn to center
   couch.add(chippyPlush);
   loadModel('./game-assets/chippy/chippy.glb').then((model) => {
     model.scale.setScalar(1.35);
@@ -3336,9 +3338,18 @@ function buildGarden(g, R, ctx){
     const fb = makeChippy(); fb.scale.setScalar(1.35);
     chippyPlush.add(fb);
   });
+  // bbak (polar bear) sitting in the middle seat, also facing outward
+  const bbakPlush = new THREE.Group();
+  bbakPlush.position.set(-0.02, 0.86, 0.05); bbakPlush.rotation.y = 0;
+  couch.add(bbakPlush);
+  let bbakCouchModel = null;
+  loadModel('./game-assets/bbak/bbak.glb').then((model) => {
+    model.scale.setScalar(1.25); bbakCouchModel = model; bbakPlush.add(model);
+  }).catch((err) => { console.error('bbak couch model failed to load', err); });
   animators.push((t, dt) => {
     percy.position.y = 0.9 + Math.abs(Math.sin(t*1.9))*0.02;
     if (chippyPlush.children[0]) chippyPlush.children[0].scale.setScalar(1 + 0.03*Math.sin(t*1.5));
+    if (bbakCouchModel) bbakCouchModel.scale.setScalar(1.25 + 0.03*Math.sin(t*1.3));   // gentle breathing
     // the real rigged wave is driven by the AnimationMixer now (see
     // bred.userData.playWave, triggered from the greet cutscene) - just tick it.
     if (bredMixer) bredMixer.update(dt);
@@ -4804,16 +4815,22 @@ function animBeanieSkinned(dt){
     const w = idleAction.getEffectiveWeight();
     idleAction.setEffectiveWeight(w + ((1 - walkTarget - talkTarget) - w) * Math.min(1, dt*8));
   }
-  // Keep only a barely visible planted-foot settle while running. The earlier
-  // version leaned and dropped the whole model too far on every step, which
-  // read as a rumble/wobble instead of natural weight.
+  // Give her walk WEIGHT: a rhythmic vertical dip on each footfall (two per
+  // stride) plus a slow side-to-side weight shift + lean, so she reads as
+  // stepping with her body's weight instead of gliding/shifting. Applies to both
+  // the Winter and Summer models; scaled by how much she's actually walking so it
+  // fades cleanly in and out. (The old version only did a tiny run-only settle.)
   const modelGroup = showSummer ? herSummerGroup : herWinterGroup;
   if (modelGroup){
     u.runPlantWeight *= Math.exp(-10.5*dt);
     const plant = run ? u.runPlantWeight : 0;
-    const targetX = u.runPlantSide * plant * 0.012;
-    const targetY = HER_MODEL_LIFT - plant * 0.018;
-    const targetLean = -u.runPlantSide * plant * 0.014;
+    const walkAmt = walkAction ? walkAction.getEffectiveWeight() : 0;
+    const bob  = moving ? Math.abs(Math.sin(u.walkP)) : 0;   // 0..1, twice per stride = each footfall
+    const sway = moving ? Math.sin(u.walkP * 0.5) : 0;       // one slow L/R weight shift per stride
+    const bobAmp = run ? 0.05 : 0.085;                       // stronger for the walk-weight emphasis
+    const targetX    = (u.runPlantSide * plant * 0.012) + sway * walkAmt * 0.035;
+    const targetY    = HER_MODEL_LIFT - plant * 0.018 - bob * walkAmt * bobAmp;
+    const targetLean = (-u.runPlantSide * plant * 0.014) - sway * walkAmt * 0.035;
     const settle = Math.min(1, dt*14);
     modelGroup.position.x += (targetX - modelGroup.position.x) * settle;
     modelGroup.position.y += (targetY - modelGroup.position.y) * settle;
@@ -5695,19 +5712,19 @@ const BRED_STRIDE_SPEED = 2.9;
 const CUT_HER = CONFIG.herName, CUT_BRED = CONFIG.yourName;   // 'Rachel 🐰' / 'Bred 🍞'
 // the reunion conversation (auto-plays; see cutsceneSayTick)
 const CUT_STAR_TALK = [
-  { speaker:CUT_HER,  text:`Bred… the whole sky turned pink. It's so beautiful up here. 🌸` },
-  { speaker:CUT_BRED, text:`Look — right above us. That's Pisces. Two fish, tied together so they never drift apart.` },
-  { speaker:CUT_HER,  text:`…and that little one, so far away, just starting to sparkle?` },
-  { speaker:CUT_BRED, text:`Gemini. The twins. Two souls that always find their way back to each other.` },
+  { speaker:CUT_HER,  text:`Babe, look. The whole sky went pink. 🌸` },
+  { speaker:CUT_BRED, text:`See those stars right above us? That's Pisces. Two fish that always swim together.` },
+  { speaker:CUT_HER,  text:`And that little one, way out there, just starting to sparkle?` },
+  { speaker:CUT_BRED, text:`That's Gemini, jagi. The twins. They always find their way back to each other.` },
 ];
 const CUT_LOVE_TALK = [
-  { speaker:CUT_HER,  text:`I missed you so much, Bred. Every single day I was away.` },
-  { speaker:CUT_BRED, text:`I crossed a whole universe just to stand here with you again.` },
-  { speaker:CUT_BRED, text:`Not one day went by that I didn't think about you, Rachel.` },
-  { speaker:CUT_HER,  text:`I love you. I always have, and I always will. 🍞🩷` },
+  { speaker:CUT_HER,  text:`I missed you so much, jagi. Every single day.` },
+  { speaker:CUT_BRED, text:`I know, babe. I came all this way just to find you again.` },
+  { speaker:CUT_BRED, text:`I thought about you the whole time I was gone.` },
+  { speaker:CUT_HER,  text:`I love you, babe. I always will. 🍞🩷` },
 ];
 const CUT_LETTER_LINE = [
-  { speaker:CUT_BRED, text:`I… wrote you something. I couldn't fit it all into words out loud.` },
+  { speaker:CUT_BRED, text:`I wrote you something, jagi. There was too much to say out loud.` },
 ];
 // ---- auto-playing cutscene dialogue: drives the normal dialog box but keeps
 // state==='bredcutscene', so the romantic sway camera keeps running underneath.
@@ -5923,19 +5940,19 @@ function updateBredCutscene(dt){
     if (bc.t > BRED_CUT.meet){ bc.phase='sky'; bc.t=0; startPinkSky(); }
   } else if (bc.phase === 'sky'){
     bredG.quaternion.copy(faceHer); applySway(); heartsAboveHeads(bc, sdt);
-    updatePinkSky(bc.t / BRED_CUT.sky); framePair(5.0, 1.15, Math.sin(bc.t*0.2)*0.8, 3.4);   // tilt up: reveal the pink sky + Pisces/Gemini
+    updatePinkSky(bc.t / BRED_CUT.sky); framePair(6.4, 1.35, Math.sin(bc.t*0.2)*0.5, 2.5);   // pulled back + gentle up-tilt: full bodies AND the sky/constellations
     if (bc.t > BRED_CUT.sky){ bc.phase='starTalk'; bc.t=0;
       cutsceneSayStart(bc, CUT_STAR_TALK); }
   } else if (bc.phase === 'starTalk'){
     // they gaze up and talk about the constellations while they sway
     bredG.quaternion.copy(faceHer); applySway(); heartsAboveHeads(bc, sdt); updatePinkSky(1);
-    framePair(4.8, 1.3, Math.sin(bc.t*0.16)*1.0, 3.0);   // still gazing up at the constellations
+    framePair(6.2, 1.4, Math.sin(bc.t*0.16)*0.6, 2.4);   // still gazing up at the constellations, full bodies in frame
     if (cutsceneSayTick(bc, sdt)){ bc.phase='loveTalk'; bc.t=0;
       cutsceneSayStart(bc, CUT_LOVE_TALK); }
   } else if (bc.phase === 'loveTalk'){
     // how much they missed each other, and how much they love each other
     bredG.quaternion.copy(faceHer); applySway(); heartsAboveHeads(bc, sdt); updatePinkSky(1);
-    framePair(4.4, 1.5, Math.sin(bc.t*0.16 + 1)*0.9, 1.5);   // back down onto their faces for the love confession
+    framePair(5.0, 1.5, Math.sin(bc.t*0.16 + 1)*0.6, 1.7);   // back down onto their faces for the love confession
     if (cutsceneSayTick(bc, sdt)){ bc.phase='letter'; bc.t=0;
       bc.letterStage='say'; cutsceneSayStart(bc, CUT_LETTER_LINE); }
   } else if (bc.phase === 'letter'){
@@ -6026,13 +6043,17 @@ function startPinkSky(){
   if (pinkSky) return;
   const g = bodies[GARDEN_I];
   const bc = bredCutscene, up = bc.up;
-  // big inverted dome, pink gradient by height along `up`
+  // big inverted dome, pink gradient by height along `up` - darker and richer
+  // than a flat pastel: warm coral-pink low near the horizon (last of the
+  // sunset), deepening through rose into a dark plum-pink overhead where the
+  // constellations actually show up against it.
   const geo = new THREE.SphereGeometry(700, 32, 20);
   const pos = geo.attributes.position, col = [];
-  const top = new THREE.Color(0xff6fae), horizon = new THREE.Color(0xffc2d8);   // richer romantic pink
+  const top = new THREE.Color(0x3d1b3a), mid = new THREE.Color(0x9c3a68), horizon = new THREE.Color(0xdd7360);
   for (let i=0;i<pos.count;i++){
     const y = Math.max(0, pos.getY(i)/700);
-    const c = horizon.clone().lerp(top, y); col.push(c.r,c.g,c.b);
+    const c = y < 0.5 ? horizon.clone().lerp(mid, y*2) : mid.clone().lerp(top, (y-0.5)*2);
+    col.push(c.r,c.g,c.b);
   }
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   const mat = new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, transparent:true, opacity:0, depthWrite:false, fog:false });
@@ -6045,8 +6066,11 @@ function startPinkSky(){
   // so the sky beat's upward tilt frames them: Pisces large and high, Gemini
   // smaller, lower and further toward the horizon ("in the far distance").
   // camera sits on +side and looks toward (-side + up), so constellations go on -side.
-  const piscesDir = new THREE.Vector3().copy(up).multiplyScalar(0.72).addScaledVector(bc.side, -0.55).addScaledVector(bc.fwd, 0.28).normalize();
-  const geminiDir = new THREE.Vector3().copy(up).multiplyScalar(0.4).addScaledVector(bc.side, -0.86).addScaledVector(bc.fwd, -0.2).normalize();
+  // Lower elevations than before so both fit in frame WITH the couple (a steep
+  // tilt to catch high stars cut their bodies off). Pisces upper + forward-left,
+  // Gemini lower + far to the side ("in the far distance").
+  const piscesDir = new THREE.Vector3().copy(up).multiplyScalar(0.42).addScaledVector(bc.side, -0.42).addScaledVector(bc.fwd, 0.52).normalize();
+  const geminiDir = new THREE.Vector3().copy(up).multiplyScalar(0.28).addScaledVector(bc.side, -0.82).addScaledVector(bc.fwd, -0.24).normalize();
   cutsceneConstellations = [
     placeConstellation(bc.herPos, piscesDir, up, 100, PISCES_STARS, PISCES_LINES, 0xffffff),
     placeConstellation(bc.herPos, geminiDir, up, 60, GEMINI_STARS, GEMINI_LINES, 0xeaf0ff)
@@ -6062,7 +6086,7 @@ function updatePinkSky(p){
       con.lineMats.forEach(m => { m.opacity = cp * 0.6; });
     }
   }
-  if (scene.fog) scene.fog.color.lerp(new THREE.Color(0xf7bcd0), 0.05);
+  if (scene.fog) scene.fog.color.lerp(new THREE.Color(0xb85c72), 0.05);   // matches the darker dusk sky's mid tone
 }
 function startLandingSequence(bi){
   curI = bi;
@@ -7175,8 +7199,10 @@ function updateWalk(dt){
   // Summer's Garden POV sits closer + lower (nearer eye level) than the default
   // high, far framing, so she reads as big in frame like Winter does elsewhere.
   const summerClose = curI === GARDEN_I && herSummerGroup;
+  // Winter gameplay POV pulled in closer + lower (was full camDist at a high
+  // angle, which read as too far/zoomed-out); Summer's Garden POV is closer still.
   followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2),
-    summerClose ? camDist * 0.6 : camDist, false, summerClose ? 0.38 : 1);
+    summerClose ? camDist * 0.6 : camDist * 0.72, false, summerClose ? 0.38 : 0.55);
 }
 
 /* ---------- HUD / DOM ---------- */
