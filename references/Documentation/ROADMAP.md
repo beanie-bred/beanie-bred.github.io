@@ -1,4 +1,41 @@
 # ROADMAP
+- [x] **Critical fix: the live site wasn't loading at all** (2026-07-17).
+      Reported as "the game isn't playing at beanie-bred.github.io." Root
+      cause: `index.html` had been committed with FOUR unresolved
+      `git stash pop` merge-conflict blocks still in it (`<<<<<<< Updated
+      upstream` / `=======` / `>>>>>>> Stashed changes`), which broke the
+      module script's syntax so it silently failed to run at all — no
+      canvas, no asset requests beyond the HTML/logo, `window.__world`
+      never got assigned, SPACE did nothing. Confirmed via `node --check`
+      on the extracted script (`Unexpected token '<<'`) and, after fixing
+      the obvious syntax, via a `import()`-from-blob runtime trace that
+      pinpointed a second, subtler issue.
+      - Resolved each conflict on its actual merits, not blindly picking
+        one side: merged the pigeon-spawn conflict (kept both the
+        `cfg.procedural` branch AND the instant-placeholder-then-swap
+        loading it was competing with); picked the tall glowing beam+orb
+        locator over an older star-sprite locator design (matches
+        `STORYLINE.md`'s existing description); and merged a `window.__world`
+        debug-hooks conflict where both sides had only ever added
+        non-overlapping helper methods.
+      - **Second bug found via runtime trace, not just node --check**:
+        resolving the locator conflict deleted `starGeometry()` entirely
+        along with the star-sprite locator that used it — but
+        `buildChicago()` also calls `starGeometry()` independently (for the
+        rooftop flag's stars), unrelated to the locator. `node --check`
+        can't catch a missing top-level function (that's a ReferenceError
+        at call time, not a parse error), so this only surfaced by actually
+        running the script in a page and catching the thrown error
+        (`starGeometry is not defined`, inside `buildChicago`). Re-added the
+        function on its own, independent of which locator design won.
+      - Verified end-to-end in a real browser: `window.__world` exists,
+        `start()` reaches `state:'walk'`, arrow-key movement actually moves
+        her, zero console errors.
+      - **Lesson for next time**: `node --check` on the extracted module
+        catches syntax errors but NOT "this identifier doesn't exist at
+        runtime" bugs from an incomplete conflict resolution — always
+        follow it with an actual run (or the blob-`import()` trace trick
+        above) before trusting a conflict resolution is complete.
 - [x] Pigeon Plaza decoy spawn distance, journal close button, one decor
       emoji per page (2026-07-17): four small requests together.
       - **Pigeon decoy spawn distance**: `PLAZA_STORY_RING_NEAR`/`_FAR`
