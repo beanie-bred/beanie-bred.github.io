@@ -6069,8 +6069,8 @@ function startPinkSky(){
   // Lower elevations than before so both fit in frame WITH the couple (a steep
   // tilt to catch high stars cut their bodies off). Pisces upper + forward-left,
   // Gemini lower + far to the side ("in the far distance").
-  const piscesDir = new THREE.Vector3().copy(up).multiplyScalar(0.42).addScaledVector(bc.side, -0.42).addScaledVector(bc.fwd, 0.52).normalize();
-  const geminiDir = new THREE.Vector3().copy(up).multiplyScalar(0.28).addScaledVector(bc.side, -0.82).addScaledVector(bc.fwd, -0.24).normalize();
+  const piscesDir = new THREE.Vector3().copy(up).multiplyScalar(0.45).addScaledVector(bc.side, -0.72).addScaledVector(bc.fwd, 0.36).normalize();   // upper-left (mirror of Gemini's depth, so it's reliably in the same view cone)
+  const geminiDir = new THREE.Vector3().copy(up).multiplyScalar(0.3).addScaledVector(bc.side, -0.72).addScaledVector(bc.fwd, -0.36).normalize();  // lower-right, far
   cutsceneConstellations = [
     placeConstellation(bc.herPos, piscesDir, up, 100, PISCES_STARS, PISCES_LINES, 0xffffff),
     placeConstellation(bc.herPos, geminiDir, up, 60, GEMINI_STARS, GEMINI_LINES, 0xeaf0ff)
