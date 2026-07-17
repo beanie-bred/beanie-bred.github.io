@@ -3222,14 +3222,21 @@ function buildGarden(g, R, ctx){
   couch.add(bred);
   let bredModel = null, bredMixer = null, bredWaveAction = null;
   bred.userData.playWave = () => {};   // safe no-op until the model loads
-  loadModelFull('./game-assets/bred/bred_wave.glb').then((gltf) => {
+  loadModelFull('./game-assets/bred/bred_anim.glb').then((gltf) => {
     const model = gltf.scene;
     model.rotation.y = Math.PI; // face outward, toward the camera/Rachel
     model.scale.setScalar(1.12);   // Bred stands a touch taller than Beanie
     bredModel = model;
     bred.add(model);
     bredMixer = new THREE.AnimationMixer(model);
-    const waveClip = gltf.animations.find((a) => a.name === 'Wave');
+    const findClip = (n) => gltf.animations.find((a) => a.name === n);
+    const waveClip = findClip('Wave'), idleClip = findClip('Idle'), walkClip = findClip('Walk');
+    // Idle + Walk are looping locomotion clips held at weight 0 until the
+    // cutscene fades them in; Wave stays a play-once frozen resting pose so the
+    // existing greet cutscene keeps working unchanged.
+    let bredIdleAction = null, bredWalkAction = null;
+    if (idleClip){ bredIdleAction = bredMixer.clipAction(idleClip); bredIdleAction.play(); bredIdleAction.setEffectiveWeight(0); }
+    if (walkClip){ bredWalkAction = bredMixer.clipAction(walkClip); bredWalkAction.play(); bredWalkAction.setEffectiveWeight(0); }
     if (waveClip){
       bredWaveAction = bredMixer.clipAction(waveClip);
       bredWaveAction.setLoop(THREE.LoopOnce);
@@ -3238,12 +3245,28 @@ function buildGarden(g, R, ctx){
       bredWaveAction.paused = true;     // frozen on the resting first frame
       bredWaveAction.time = 0;
       bred.userData.playWave = (speed = 2.0) => {
+        if (bredIdleAction) bredIdleAction.setEffectiveWeight(0);
+        if (bredWalkAction) bredWalkAction.setEffectiveWeight(0);
+        bredWaveAction.setEffectiveWeight(1);
         bredWaveAction.reset();
         bredWaveAction.timeScale = speed;   // sped up so the whole wave reads within the approach
         bredWaveAction.paused = false;
         bredWaveAction.play();
       };
     }
+    // Cutscene locomotion control: 0 = idle breathing, 1 = walk cycle. Fading
+    // walk in drops the wave so he isn't frozen mid-stride.
+    bred.userData.setWalk = (amt) => {
+      amt = Math.max(0, Math.min(1, amt));
+      if (bredWalkAction) bredWalkAction.setEffectiveWeight(amt);
+      if (bredIdleAction) bredIdleAction.setEffectiveWeight(1 - amt);
+      if (bredWaveAction) bredWaveAction.setEffectiveWeight(0);
+    };
+    bred.userData.setIdlePose = () => {   // pure breathing idle, no wave/walk
+      if (bredIdleAction) bredIdleAction.setEffectiveWeight(1);
+      if (bredWalkAction) bredWalkAction.setEffectiveWeight(0);
+      if (bredWaveAction) bredWaveAction.setEffectiveWeight(0);
+    };
   }).catch((err) => {
     console.error('Bred model failed to load, falling back to placeholder', err);
     const fallback = makeChibi('bred');
@@ -5520,6 +5543,97 @@ function updateBredGreet(dt){
   }
   // 'done' just holds the framing behind the card overlay until she closes it
 }
+// ---- Bred → Beanie love cutscene (triggerable via __world.playBredCutscene):
+// Bred waves up close → idles → walks over to Beanie → she turns to face him →
+// hearts float up. Reuses the greet's sphere/facing math + the heart emitter. ----
+let bredCutscene = null;
+const BRED_CUT = { wave:2.6, idle:0.9, walk:4.2, turn:1.1, hearts:4.0 };
+function startBredCutscene(){
+  const bredG = worldRefs.garden && worldRefs.garden.bred;
+  if (!bredG){ return; }
+  const g = bodies[GARDEN_I];
+  curI = GARDEN_I;
+  if (bredG.parent !== scene) scene.attach(bredG);
+  her.userData.moving = false;
+  const up = herUp(new THREE.Vector3());
+  const fwd = herFwd(new THREE.Vector3());                 // Bred approaches from straight ahead of her
+  const side = new THREE.Vector3().crossVectors(up, fwd).normalize();
+  const onSphere = (p) => p.sub(g.center).normalize().multiplyScalar(g.r).add(g.center);
+  // Bred approaches from Beanie's SIDE (she starts facing `fwd`, unaware), so
+  // her turning to face him later actually reads as a turn. Start close enough
+  // that he stays in a Beanie-anchored frame the whole walk.
+  const bredStart = onSphere(new THREE.Vector3().copy(her.position).addScaledVector(side, 4.6));
+  const bredEnd   = onSphere(new THREE.Vector3().copy(her.position).addScaledVector(side, 1.6));
+  bredG.position.copy(bredStart);
+  bredG.quaternion.copy(faceBredWorld(bredG, up, tangentToward(bredStart, up, her.position)));
+  if (bredG.userData.playWave) bredG.userData.playWave(1.3);
+  bredCutscene = { phase:'wave', t:0, bredG, up:up.clone(), fwd:fwd.clone(), side:side.clone(),
+    bredStart, bredEnd, herQ0:orientation.clone() };
+  state = 'bredcutscene';
+  promptEl.classList.remove('show'); guideEl.classList.remove('show');
+  hudEl.classList.add('hidden'); missionEl.classList.add('hidden');
+  reticleEl.classList.add('hidden'); targetRing.visible = false;
+}
+function spawnCutsceneHearts(n, mid, up, side){
+  for (let i=0;i<n;i++){
+    const h = new THREE.Mesh(heartGeo, heartBurstMat);
+    h.scale.setScalar(0.13 + Math.random()*0.14);
+    spawnEphemeral(h, tmpV3.copy(mid).addScaledVector(side, (Math.random()-0.5)*0.9),
+      randDir().multiplyScalar(0.45).addScaledVector(up, 0.6), 3 + Math.random()*2, 1 + Math.random()*2);
+  }
+}
+function updateBredCutscene(dt){
+  const bc = bredCutscene, bredG = bc.bredG, up = bc.up;
+  bc.t += dt;
+  const faceHer = faceBredWorld(bredG, up, tangentToward(bredG.position, up, her.position));
+  let camGoal, lookAt;
+  const closeOnBred = () => {
+    const front = tangentToward(bredG.position, up, her.position).negate();  // in front of his face
+    camGoal = cC.copy(bredG.position).addScaledVector(front, 3.0).addScaledVector(up, 1.5).addScaledVector(bc.side, 0.7);
+    lookAt = tmpV.copy(bredG.position).addScaledVector(up, 1.25);
+  };
+  // Anchor the shot on Beanie (stable) with the camera in FRONT (along `fwd`);
+  // Bred walks IN from `side`, so both stay framed and her turn plays to camera.
+  const framePair = (fwdDist, high, sideAmt) => {
+    const anchor = tmpV.copy(her.position).addScaledVector(bc.side, 1.1).addScaledVector(up, 1.0);
+    camGoal = cC.copy(anchor).addScaledVector(bc.fwd, fwdDist).addScaledVector(up, high).addScaledVector(bc.side, sideAmt);
+    lookAt = tmpV2.copy(anchor);
+  };
+  if (bc.phase === 'wave'){
+    bredG.quaternion.copy(faceHer); closeOnBred();
+    if (bc.t > BRED_CUT.wave){ bc.phase='idle'; bc.t=0; if (bredG.userData.setIdlePose) bredG.userData.setIdlePose(); }
+  } else if (bc.phase === 'idle'){
+    bredG.quaternion.copy(faceHer); closeOnBred();
+    if (bc.t > BRED_CUT.idle){ bc.phase='walk'; bc.t=0; if (bredG.userData.setWalk) bredG.userData.setWalk(1); }
+  } else if (bc.phase === 'walk'){
+    const k = Math.min(1, bc.t/BRED_CUT.walk), e = k*k*(3-2*k);
+    bredG.position.lerpVectors(bc.bredStart, bc.bredEnd, e).addScaledVector(up, Math.abs(Math.sin(e*Math.PI*6))*0.07);
+    bredG.quaternion.copy(faceHer); framePair(7.0, 1.9, 0.6);
+    if (bc.t > BRED_CUT.walk){ bc.phase='turn'; bc.t=0; bredG.position.copy(bc.bredEnd);
+      if (bredG.userData.setIdlePose) bredG.userData.setIdlePose(); }
+  } else if (bc.phase === 'turn'){
+    const k = Math.min(1, bc.t/BRED_CUT.turn), e = k*k*(3-2*k);
+    const herFaceBred = quatFromBasis(herUp(new THREE.Vector3()), tangentToward(her.position, up, bredG.position));
+    orientation.slerpQuaternions(bc.herQ0, herFaceBred, e); updatePose();
+    bredG.quaternion.copy(faceHer); framePair(6.2, 1.8, 0.5);
+    if (bc.t > BRED_CUT.turn){ bc.phase='hearts'; bc.t=0;
+      spawnCutsceneHearts(20, tmpV3.copy(her.position).add(bredG.position).multiplyScalar(0.5).addScaledVector(up, 1.3), up, bc.side); }
+  } else if (bc.phase === 'hearts'){
+    bredG.quaternion.copy(faceHer);
+    if (Math.random() < 0.5) spawnCutsceneHearts(1, tmpV3.copy(her.position).add(bredG.position).multiplyScalar(0.5).addScaledVector(up, 1.3), up, bc.side);
+    framePair(5.6, 1.7, 0.4);
+    if (bc.t > BRED_CUT.hearts){ endBredCutscene(); return; }
+  }
+  camPos.lerp(camGoal, 1 - Math.exp(-3.5*dt)); camera.position.copy(camPos);
+  camUp.lerp(up, 1 - Math.exp(-3*dt)).normalize(); camera.up.copy(camUp);
+  camera.lookAt(lookAt);
+}
+function endBredCutscene(){
+  if (bredCutscene && bredCutscene.bredG.userData.setIdlePose) bredCutscene.bredG.userData.setIdlePose();
+  bredCutscene = null;
+  state = 'walk';
+  hudEl.classList.remove('hidden'); reticleEl.classList.remove('hidden');
+}
 function startLandingSequence(bi){
   curI = bi;
   updatePose();
@@ -7323,7 +7437,7 @@ function step(dt){
   // visible during an actual cutscene.
   const isCutsceneState = state === 'intro' || state === 'fly' || state === 'landing'
     || state === 'doodlesreunion' || state === 'percyfly' || state === 'finale' || state === 'cukeReveal' || state === 'theend'
-    || state === 'bredgreet';
+    || state === 'bredgreet' || state === 'bredcutscene';
   if (isCutsceneState) missionEl.classList.add('hidden');
 
   if (state === 'intro'){
@@ -7355,6 +7469,7 @@ function step(dt){
   else if (state === 'percyfly') updatePercyFlight(dt, t);
   else if (state === 'finale')   updateFinale(dt, t);
   else if (state === 'bredgreet') updateBredGreet(dt);
+  else if (state === 'bredcutscene') updateBredCutscene(dt);
   else if (state === 'theend')   updateTheEnd(dt);
   else if (state === 'cukeReveal') updateCukeReveal(dt, t);
   else if (state === 'notice')   updateNotice(dt);
@@ -7711,6 +7826,7 @@ window.__world = {
       cukeRevealState: cukeReveal ? { t:+cukeReveal.t.toFixed(2), fadeStarted:!!cukeReveal.fadeStarted, solidHidden:!!cukeReveal.solidHidden } : null,
       groundCukeScale: +wr.groundCucumberHolders[0].holder.scale.x.toFixed(3) }; },
   triggerCukeReveal(){ startCukeRevealCutscene(); },
+  playBredCutscene(){ startBredCutscene(); },
   jumpChain(){ const n = bodies[curI].chainNext; if (n != null) jumpTo(bodies[n]); },
   get chainNext(){ return bodies[curI].chainNext; },
   pump(seconds){                    // advance the simulation manually (testing when tab is hidden)
