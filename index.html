@@ -6,7 +6,7 @@
 <title>Beanie &amp; Bred World 🐰🍞🌎🩷</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=Playfair+Display:wght@700;800&family=Comfortaa:wght@600;700&family=Bungee&family=Cormorant+Garamond:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=Playfair+Display:wght@700;800&family=Comfortaa:wght@600;700&family=Bungee&family=Cormorant+Garamond:wght@700&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root{ --gold:#ffd166; --pink:#f2a0b4; --ink:#3a3050; }
   *{margin:0;padding:0;box-sizing:border-box}
@@ -121,7 +121,7 @@
      book (not the page) is what makes that rotation read as a page swinging
      open in 3D instead of just squashing flat. */
   #journalCover{position:relative;padding:16px;border-radius:22px;
-    background:linear-gradient(155deg,#caa06a,#a9784a 55%,#8f6038);
+    background:linear-gradient(155deg,#5f93da,#3f6bb0 55%,#2c4f8c);
     box-shadow:inset 0 2px 3px rgba(255,255,255,.35),inset 0 -3px 8px rgba(0,0,0,.35),
       0 26px 60px rgba(0,0,0,.5);
     transform:scale(.85) translateY(10px);opacity:0;
@@ -135,27 +135,42 @@
     background:linear-gradient(#e8547c,#c43860);
     clip-path:polygon(0 0,100% 0,100% 100%,50% 78%,0 100%);
     box-shadow:0 3px 8px rgba(0,0,0,.3);z-index:1}
-  /* One scrapbook PAGE per planet, flipped through with the nav below. Each
-     page carries its own theme class (background texture + font + accent),
-     and its characters are a scattered collage of sticker silhouettes — dark
-     shape placeholders until met, full stickers once collected. */
-  #journalBook{position:relative;width:min(540px,92vw);height:min(600px,84vh);perspective:2200px}
-  .jpage{position:absolute;inset:0;border-radius:6px 15px 15px 6px;overflow:hidden;
-    display:flex;flex-direction:column;padding:22px 22px 12px;
-    transform-origin:left center;transform:rotateY(-102deg);opacity:0;
-    box-shadow:inset 9px 0 18px -12px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.25);
+  /* A real two-page SPREAD per planet (left = her own handwritten memories,
+     right = the sticker collage), flipped through with the nav below. Each
+     half carries the same theme class (background texture + font + accent)
+     so the two sides read as one continuous page, hinged at a shared spine
+     down the middle. */
+  #journalBook{position:relative;width:min(980px,95vw);height:min(600px,84vh);
+    perspective:2200px;display:flex;gap:3px}
+  .jpage{position:relative;flex:1 1 50%;min-width:0;overflow:hidden;
+    display:flex;flex-direction:column;padding:22px 22px 12px;opacity:0;
     transition:transform .55s cubic-bezier(.34,1.1,.4,1),opacity .4s ease;transition-delay:.18s}
+  .jpage-l{border-radius:15px 4px 4px 15px;transform-origin:right center;transform:rotateY(74deg);
+    box-shadow:inset -9px 0 18px -12px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.25)}
+  .jpage-r{border-radius:4px 15px 15px 4px;transform-origin:left center;transform:rotateY(-74deg);
+    box-shadow:inset 9px 0 18px -12px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.25)}
   #journalPanel.show .jpage{transform:rotateY(0deg);opacity:1}
-  /* replayable page-turn when navigating between planets */
-  @keyframes jflip{0%{transform:rotateY(-70deg);opacity:0}100%{transform:rotateY(0);opacity:1}}
-  .jpage.turning{animation:jflip .42s cubic-bezier(.34,1.05,.4,1)}
+  /* replayable page-turn when navigating between planets - mirrored so both
+     halves swing open from the shared centre spine, same as the initial
+     open above */
+  @keyframes jflipR{0%{transform:rotateY(-55deg);opacity:0}100%{transform:rotateY(0);opacity:1}}
+  @keyframes jflipL{0%{transform:rotateY(55deg);opacity:0}100%{transform:rotateY(0);opacity:1}}
+  .jpage-r.turning{animation:jflipR .42s cubic-bezier(.34,1.05,.4,1)}
+  .jpage-l.turning{animation:jflipL .42s cubic-bezier(.34,1.05,.4,1)}
   .jpageKicker{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;opacity:.62}
   .jpageTitle{font-size:27px;line-height:1.02;margin:1px 0 2px}
   .jpageTag{font-size:12.5px;opacity:.65;font-style:italic;margin-bottom:8px}
+  /* her own handwritten-feeling account of that world, in one shared "hand"
+     across every page (the sticker/theme decoration is what varies, not the
+     handwriting itself) - sits in the remaining space below the tag on the
+     left-hand page. */
+  .jjournal{flex:1;min-height:0;overflow:hidden auto;font-family:'Caveat',cursive;
+    font-size:22px;line-height:1.42;font-weight:500;opacity:.88}
+  .jjournal p{margin:0 0 .5em}
   .jcollage{position:relative;flex:1;width:100%;min-height:0}
-  /* faint themed doodles scattered behind the stickers */
+  /* one small signature emoji per page, tucked in a corner */
   .jdoodle{position:absolute;transform:translate(-50%,-50%) rotate(var(--rot));
-    opacity:.14;pointer-events:none;line-height:1}
+    opacity:.28;pointer-events:none;line-height:1}
   .jsticker{position:absolute;transform:translate(-50%,-50%) rotate(var(--rot))}
   .jsticker img{width:100%;height:100%;object-fit:contain;display:block}
   .jsticker.got img{filter:drop-shadow(0 5px 7px rgba(0,0,0,.22))}
@@ -173,20 +188,34 @@
   .jsticker.badge.locked img{display:none}
   .jsticker.badge.got{background:radial-gradient(circle at 35% 30%,#fff,#eef2fa 75%)}
   .jsticker.badge.got img{padding:6%;box-sizing:border-box}
-  /* a little strip of "washi tape" holding each collected sticker down */
-  .jsticker.got::before{content:'';position:absolute;top:-4%;left:50%;
-    transform:translateX(-50%) rotate(-5deg);width:44%;height:13px;
-    background:var(--tape,rgba(255,209,102,.7));opacity:.62;border-radius:1px;
+  /* real photos, taped in like an actual Polaroid - white card, thick
+     bottom border for the caption (the filename itself, exactly as typed) */
+  .jpolaroid{position:absolute;transform:translate(-50%,-50%) rotate(var(--rot));
+    aspect-ratio:.82;background:#fff;box-sizing:border-box;padding:4% 4% 16% 4%;
+    box-shadow:0 10px 22px rgba(0,0,0,.32),0 2px 5px rgba(0,0,0,.18)}
+  .jpolaroid .jphoto{width:100%;height:100%;object-fit:contain;display:block;background:#fff}
+  .jpolaroid .jcaption{position:absolute;left:6%;right:6%;bottom:5%;text-align:center;
+    font-family:'Caveat',cursive;font-weight:600;font-size:15px;line-height:1.15;color:#3a3530;
+    overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .jpolaroid::before{content:'';position:absolute;top:-5%;left:50%;transform:translateX(-50%) rotate(-4deg);
+    width:34%;height:9%;background:var(--tape,rgba(255,209,102,.7));opacity:.68;border-radius:1px;
     box-shadow:0 1px 2px rgba(0,0,0,.12)}
-  .jsticker.badge.got::before{content:none}   /* a pinned badge doesn't need washi tape */
   .jpageFoot{font-size:11.5px;opacity:.6;text-align:right;margin-top:4px}
+  /* side-by-side halves are too cramped on a narrow phone screen - stack
+     them instead so each gets the FULL width (taller book to compensate) */
+  @media(max-width:700px){
+    #journalBook{flex-direction:column;width:min(420px,92vw);height:min(680px,86vh);gap:4px}
+    .jpage-l{border-radius:15px 15px 4px 4px}
+    .jpage-r{border-radius:4px 4px 15px 15px}
+    .jjournal{font-size:19px}
+  }
   #journalNav{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:12px}
   #journalNav button{border:none;cursor:pointer;color:#fff;font-size:14px;
     background:rgba(255,255,255,.16);width:34px;height:34px;border-radius:50%}
   #journalNav button:hover{background:rgba(255,255,255,.28)}
   #journalPageLabel{color:#fff6e8;font-size:12.5px;min-width:120px;text-align:center;opacity:.9}
-  #journalClose{border:none;cursor:pointer;padding:8px 20px;border-radius:999px;
-    font-size:12.5px;color:#fff;background:linear-gradient(135deg,#ff8fae,#e8547c);margin-left:6px}
+  #journalClose{border:none;cursor:pointer;width:34px;height:34px;border-radius:50%;
+    font-size:14px;color:#fff;background:linear-gradient(135deg,#ff8fae,#e8547c);margin-left:6px}
   /* ---- per-planet page themes: texture, palette, font ---- */
   .jpage.theme-books{color:#6b4a28;font-family:'Playfair Display',Georgia,serif;
     background:linear-gradient(158deg,#f4e9d2,#e6d2a9),
@@ -204,6 +233,14 @@
       radial-gradient(circle at 18% 82%,rgba(255,175,198,.4),transparent 32%),
       radial-gradient(circle at 88% 70%,rgba(255,195,150,.3),transparent 30%)}
   .jpage.theme-garden .jpageTitle{font-size:30px;font-weight:700}
+  .jpage.theme-locked{color:#6b7280;font-family:'Comfortaa','Arial Rounded MT Bold',cursive;
+    background:linear-gradient(158deg,#e6e8f0,#c9cdda)}
+  /* big centered emoji filling an otherwise-empty left page - either the
+     lock icon (page not yet visited) or a continuation chunk's own decor,
+     standing in for repeating the full diary text on every sticker page */
+  .jpageCenterMark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    font-size:72px;opacity:.32}
+  .jpageCenterMark.locked{opacity:.22}
   /* "met a new friend" toast - like #toast but with a sticker thumbnail */
   #friendToast{position:fixed;top:76px;left:50%;transform:translateX(-50%) translateY(-8px);z-index:23;
     display:flex;align-items:center;gap:16px;padding:16px 34px 16px 16px;border-radius:999px;
@@ -403,18 +440,19 @@
 <div id="foodPocket"><div id="foodPocketIcon"></div><div id="foodPocketLabel"></div></div>
 <div id="dots" class="hidden"></div>
 <button id="muteBtn" class="hidden">🔊</button>
-<button id="journalBtn" class="hidden" title="Beanie's journal">📔</button>
+<button id="journalBtn" class="hidden" title="Beanie's journal">📘</button>
 <div id="journalPanel" class="hidden">
   <div id="journalCover">
     <div id="journalRibbon"></div>
     <div id="journalBook">
-      <div id="journalPage" class="jpage"></div>
+      <div id="journalPageL" class="jpage jpage-l"></div>
+      <div id="journalPageR" class="jpage jpage-r"></div>
     </div>
     <div id="journalNav">
       <button id="journalPrev" aria-label="previous page">◀</button>
       <span id="journalPageLabel"></span>
       <button id="journalNext" aria-label="next page">▶</button>
-      <button id="journalClose">close ✕</button>
+      <button id="journalClose">✕</button>
     </div>
   </div>
 </div>
@@ -968,7 +1006,7 @@ function playBgm(key, fadeSeconds=2.5){
 const BGM_QUIET_STATES = new Set(['walk', 'talk']);
 function updateBgmDucking(dt){
   if (!bgmRecording || bgmFadeFrame) return;   // an in-flight track-switch fade owns the volume until it finishes
-  const target = BGM_QUIET_STATES.has(state) ? 0.14 : 0.52;
+  const target = BGM_QUIET_STATES.has(state) ? 0.07 : 0.52;
   bgmRecording.volume += (target - bgmRecording.volume) * Math.min(1, dt*1.5);
 }
 // Attempt audible autoplay as soon as the page opens. Browsers that prohibit
@@ -3186,13 +3224,21 @@ function buildGarden(g, R, ctx){
   couch.add(bred);
   let bredModel = null, bredMixer = null, bredWaveAction = null;
   bred.userData.playWave = () => {};   // safe no-op until the model loads
-  loadModelFull('./game-assets/bred/bred_wave.glb').then((gltf) => {
+  loadModelFull('./game-assets/bred/bred_anim.glb').then((gltf) => {
     const model = gltf.scene;
     model.rotation.y = Math.PI; // face outward, toward the camera/Rachel
+    model.scale.setScalar(1.12);   // Bred stands a touch taller than Beanie
     bredModel = model;
     bred.add(model);
     bredMixer = new THREE.AnimationMixer(model);
-    const waveClip = gltf.animations.find((a) => a.name === 'Wave');
+    const findClip = (n) => gltf.animations.find((a) => a.name === n);
+    const waveClip = findClip('Wave'), idleClip = findClip('Idle'), walkClip = findClip('Walk');
+    // Idle + Walk are looping locomotion clips held at weight 0 until the
+    // cutscene fades them in; Wave stays a play-once frozen resting pose so the
+    // existing greet cutscene keeps working unchanged.
+    let bredIdleAction = null, bredWalkAction = null;
+    if (idleClip){ bredIdleAction = bredMixer.clipAction(idleClip); bredIdleAction.play(); bredIdleAction.setEffectiveWeight(0); }
+    if (walkClip){ bredWalkAction = bredMixer.clipAction(walkClip); bredWalkAction.play(); bredWalkAction.setEffectiveWeight(0); }
     if (waveClip){
       bredWaveAction = bredMixer.clipAction(waveClip);
       bredWaveAction.setLoop(THREE.LoopOnce);
@@ -3201,12 +3247,28 @@ function buildGarden(g, R, ctx){
       bredWaveAction.paused = true;     // frozen on the resting first frame
       bredWaveAction.time = 0;
       bred.userData.playWave = (speed = 2.0) => {
+        if (bredIdleAction) bredIdleAction.setEffectiveWeight(0);
+        if (bredWalkAction) bredWalkAction.setEffectiveWeight(0);
+        bredWaveAction.setEffectiveWeight(1);
         bredWaveAction.reset();
         bredWaveAction.timeScale = speed;   // sped up so the whole wave reads within the approach
         bredWaveAction.paused = false;
         bredWaveAction.play();
       };
     }
+    // Cutscene locomotion control: 0 = idle breathing, 1 = walk cycle. Fading
+    // walk in drops the wave so he isn't frozen mid-stride.
+    bred.userData.setWalk = (amt) => {
+      amt = Math.max(0, Math.min(1, amt));
+      if (bredWalkAction) bredWalkAction.setEffectiveWeight(amt);
+      if (bredIdleAction) bredIdleAction.setEffectiveWeight(1 - amt);
+      if (bredWaveAction) bredWaveAction.setEffectiveWeight(0);
+    };
+    bred.userData.setIdlePose = () => {   // pure breathing idle, no wave/walk
+      if (bredIdleAction) bredIdleAction.setEffectiveWeight(1);
+      if (bredWalkAction) bredWalkAction.setEffectiveWeight(0);
+      if (bredWaveAction) bredWaveAction.setEffectiveWeight(0);
+    };
   }).catch((err) => {
     console.error('Bred model failed to load, falling back to placeholder', err);
     const fallback = makeChibi('bred');
@@ -3494,8 +3556,8 @@ function chippyPos(out){ return worldRefs.books.chippy.getWorldPosition(out || n
 const CHIPPY_ASK_LINES = [
   `Oh! Hello Rachel. *yaaawn* …I was just about to make some tea. 🍵`,
   { speaker:'Rachel 🐰', text:`Chippy! I didn't expect to find you way out here, buried in books.`, alt:`Of course I'd find you in the coziest pile of books imaginable, Chippy.` },
-  `Say, while the kettle boils, would you fetch me something to read?`,
-  { speaker:'Rachel 🐰', text:`Of course, this whole place is basically ours to raid, right?`, alt:`Five favourites coming right up. Save me a cup of tea!` },
+  `Say, do a little something for me, and I'll tell you exactly where to go next. Deal?`,
+  { speaker:'Rachel 🐰', text:`Deal. What do you need, Chippy?`, alt:`I'm listening. What's the job?` },
   `Bring me 5 of your favourite books from around here. The glowy ones! ✨`,
   `Press A to pick each one up, then come back to me. Off you pop!`,
 ];
@@ -3505,8 +3567,8 @@ const CHIPPY_NEED_MORE = [
 const CHIPPY_DONE_LINES = [
   `Ooh! Now THESE are good picks. *happy squeak* 🥔`,
   `Perfect reading for a slow afternoon. Thank you, Rachel!`,
-  { speaker:'Rachel 🐰', text:`Happy to help. Enjoy your tea, Chippy.`, alt:`Anytime, Chippy. Those books better be worth staying awake for!` },
-  `Now, the way onward. Aim past the tallest stack and leap. Go find him! 🤍`,
+  { speaker:'Rachel 🐰', text:`Happy to help. Now, you promised: where do I go?`, alt:`A deal's a deal, Chippy. Where am I headed next?` },
+  `Just like I said! Aim past the tallest stack and leap. There's a polar bear waiting on the next planet, go find him! 🤍`,
 ];
 bodies[1].guideNear = 3.6;
 function nearestUncollected(){
@@ -3584,6 +3646,7 @@ const BBAK_INTRO = [
   `This whole place used to be solid ice and snow, believe it or not. Now it's all melted into... this. A meadow.`,
   { speaker:'Rachel 🐰', text:`That's awful. There has to be SOMETHING I can do for you.`, alt:`Tell me what you need. I'm not leaving you to melt out here.` },
   `This global-warming business is melting my brain, too. I need something COLD.`,
+  `Cool me down, and I'll point you toward exactly where to go next. Deal?`,
   `Fetch me a cold treat? Grab a glowy snack (press A) and bring it back to me.`,
   { speaker:'Rachel 🐰', text:`On it. Hang in there, bbak.`, alt:`One freezing-cold rescue snack, coming right up!` },
 ];
@@ -3609,7 +3672,7 @@ const BBAK_HINT = [
 const BBAK_NEEDCUKE = [`No no, the glowing green CUCUMBER I told you about. Go get it! 🥒`];
 const BBAK_SUCCESS = [
   `*CATCH* Ahhh… *CRUNCH* …cold and crisp and perfect. You're the best, Rachel. 💙`,
-  `I feel cooler already. Now go on, aim at the next world and leap! 🤍`,
+  `I feel cooler already. Just like I promised: there's a plaza full of pigeons ahead, and one named Percy is expecting you. Now go on, aim at the next world and leap! 🤍`,
 ];
 // Toss whatever she's holding - a real 3D model of that exact food - through
 // the air into bbak's mouth, then run onDone once it lands.
@@ -4017,8 +4080,15 @@ function tiltDir(n, angle, azimuth){
   return new THREE.Vector3().copy(n).multiplyScalar(Math.cos(angle)).addScaledVector(dir, Math.sin(angle)).normalize();
 }
 const PLAZA_STORY_SLOT_COUNT = PLAZA_DECOYS.length + 1; // eight friends + Doodles
-const PLAZA_STORY_RING_NEAR = 0.60;                     // 18 surface units from Percy
-const PLAZA_STORY_RING_FAR = 0.68;                      // 20.4 surface units from Percy
+// Distance from PERCY, not from Beanie - but she's normally standing right
+// next to him when a decoy spawns (she just finished talking to him), so the
+// old 18-20.4 units read as "spawns already inside" the notice-trigger's
+// range (noticeRange = guideNear*6 = 24, see the guide-arrow code) - it fired
+// the instant the decoy appeared, before she'd taken a single step. Pushed
+// well past that 24-unit threshold with real margin for however far she
+// happens to be standing from Percy at the time.
+const PLAZA_STORY_RING_NEAR = 1.15;                     // 34.5 surface units from Percy
+const PLAZA_STORY_RING_FAR = 1.28;                      // 38.4 surface units from Percy
 function clearCrowdAroundStorySpot(storyN, clearance=5.2){
   const wr = worldRefs.pigeon, R = bodies[PIGEON_I].r;
   if (!wr) return;
@@ -4781,7 +4851,7 @@ const CHICAGO_START_N = V().set(0.48, 0.86, 0.18).normalize();
 let camYaw = 0, camPitch = 0.3, camDist = 9;
 const camPos = camera.position.clone();
 const camUp = V().set(0,1,0);
-function followCam(dt, pos, up, fwd, dist, snap=false){
+function followCam(dt, pos, up, fwd, dist, snap=false, heightMul=1){
   camera.fov += (55 - camera.fov) * (snap ? 1 : Math.min(1, dt*8));
   camera.updateProjectionMatrix();
   cA.copy(fwd).multiplyScalar(-1);
@@ -4790,7 +4860,9 @@ function followCam(dt, pos, up, fwd, dist, snap=false){
   cB.crossVectors(up, cA).normalize();            // side axis
   tmpQ.setFromAxisAngle(cB, -camPitch);
   cA.applyQuaternion(tmpQ);                       // pitch
-  cC.copy(pos).addScaledVector(cA, dist).addScaledVector(up, 7.5 - stepPunch)
+  // heightMul lets a caller pull the camera down closer to eye level (Summer's
+  // Garden POV) instead of the default high, looking-down framing.
+  cC.copy(pos).addScaledVector(cA, dist).addScaledVector(up, (7.5 - stepPunch) * heightMul)
     .addScaledVector(cB, stepSidePunch);
   // Keep the third-person camera outside the current spherical world -
   // also during 'landing' (its fallgetup phase calls followCam too), since
@@ -4863,27 +4935,46 @@ function dialogueVisualObject(obj, beanieFocus){
   if (worldRefs.books && obj === worldRefs.books.chippy) return worldRefs.books.chippyModel || null;
   return obj;
 }
-function dialogueSubjectFrame(obj, fallbackPos, up, fallbackHeight, faceFraction=0.76){
-  const fallbackFocus = new THREE.Vector3().copy(fallbackPos).addScaledVector(up, fallbackHeight*faceFraction);
-  if (!obj || !obj.isObject3D || !obj.visible) return { focus:fallbackFocus, height:fallbackHeight };
+// Projects every corner of `obj`'s world bounding box onto `up`, returning
+// the [low, high] extent along that axis - works on any spherical planet and
+// still finds the true upper/lower face after the model is rotated, unlike
+// reading world-space size.y from its parent.
+function verticalExtent(obj, up){
   obj.updateWorldMatrix(true, true);
   const box = new THREE.Box3().setFromObject(obj, true);
-  if (box.isEmpty()) return { focus:fallbackFocus, height:fallbackHeight };
-
-  // Project every bounding-box corner onto the planet's real up direction.
-  // This works on every spherical planet and still finds the upper face after
-  // the model is rotated, unlike reading world-space size.y from its parent.
+  if (box.isEmpty()) return null;
   let low = Infinity, high = -Infinity;
   for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]){
     const level = x*up.x + y*up.y + z*up.z;
     low = Math.min(low, level); high = Math.max(high, level);
   }
-  const rawHeight = high - low;
+  return { box, low, high };
+}
+// `distanceObj`, when given, is a LARGER anchor used only to size the
+// camera's pull-back distance (see updateTalkCam - it passes the pre-
+// dialogueVisualObject() original whenever that function swapped in a
+// smaller stand-in, e.g. Chippy's dialogue anchor owns the books he sits on,
+// but framing focus/face on the whole pile puts his face too low). Without
+// this, the smaller `obj` alone under-measures the total height and the
+// camera sits too close, leaving whatever `obj` excludes - like Chippy's
+// book-pile seat - poking out past the bottom of frame.
+function dialogueSubjectFrame(obj, fallbackPos, up, fallbackHeight, faceFraction=0.76, distanceObj=null){
+  const fallbackFocus = new THREE.Vector3().copy(fallbackPos).addScaledVector(up, fallbackHeight*faceFraction);
+  if (!obj || !obj.isObject3D || !obj.visible) return { focus:fallbackFocus, height:fallbackHeight };
+  const ext = verticalExtent(obj, up);
+  if (!ext) return { focus:fallbackFocus, height:fallbackHeight };
+  const rawHeight = ext.high - ext.low;
   if (!Number.isFinite(rawHeight) || rawHeight < 0.1) return { focus:fallbackFocus, height:fallbackHeight };
-  const height = Math.max(0.65, Math.min(5.2, rawHeight));
-  const center = box.getCenter(new THREE.Vector3());
-  const faceLevel = low + rawHeight*faceFraction;
+  const center = ext.box.getCenter(new THREE.Vector3());
+  const faceLevel = ext.low + rawHeight*faceFraction;
   center.addScaledVector(up, faceLevel - center.dot(up));
+
+  let heightLow = ext.low, heightHigh = ext.high;
+  if (distanceObj && distanceObj.isObject3D && distanceObj.visible){
+    const dExt = verticalExtent(distanceObj, up);
+    if (dExt){ heightLow = Math.min(heightLow, dExt.low); heightHigh = Math.max(heightHigh, dExt.high); }
+  }
+  const height = Math.max(0.65, Math.min(5.2, heightHigh - heightLow));
   return { focus:center, height };
 }
 function updateTalkCam(dt){
@@ -4896,8 +4987,10 @@ function updateTalkCam(dt){
   const side = new THREE.Vector3().crossVectors(up, toNpc).normalize().multiplyScalar(CONVO_BEANIE_LEFT);
   const beanieFocus = isBeanieSpeaking() && !dialog.awaitingChoice;
   const subject = beanieFocus ? her.position : npc;
-  const subjectObj = dialogueVisualObject(beanieFocus ? her : dialog.npcObj, beanieFocus);
-  const frame = dialogueSubjectFrame(subjectObj, subject, up, beanieFocus ? 4.1 : 1.8, beanieFocus ? 0.62 : 0.68);
+  const rawSubjectObj = beanieFocus ? her : dialog.npcObj;
+  const subjectObj = dialogueVisualObject(rawSubjectObj, beanieFocus);
+  const distanceObj = subjectObj !== rawSubjectObj ? rawSubjectObj : null;
+  const frame = dialogueSubjectFrame(subjectObj, subject, up, beanieFocus ? 4.1 : 1.8, beanieFocus ? 0.62 : 0.68, distanceObj);
   const subjectHeight = frame.height;
   // Genshin-like upper-body framing. Small characters such as pigeons get an
   // actually close camera rather than inheriting Beanie's much larger scale.
@@ -5521,6 +5614,111 @@ function updateBredGreet(dt){
   }
   // 'done' just holds the framing behind the card overlay until she closes it
 }
+// ---- Bred → Beanie love cutscene (triggerable via __world.playBredCutscene):
+// Bred waves up close → idles → walks over to Beanie → she turns to face him →
+// hearts float up. Reuses the greet's sphere/facing math + the heart emitter. ----
+let bredCutscene = null;
+const BRED_CUT = { wave:2.6, idle:0.9, walk:4.2, turn:1.1, hearts:4.0 };
+function startBredCutscene(){
+  const bredG = worldRefs.garden && worldRefs.garden.bred;
+  if (!bredG){ return; }
+  const g = bodies[GARDEN_I];
+  curI = GARDEN_I;
+  if (bredG.parent !== scene) scene.attach(bredG);
+  her.userData.moving = false;
+  bredGreeted = true;                 // consume the endgame greet trigger (this IS the reunion now)
+  metFriends.add('bred');             // reaching Bred earns the Garden keepsake sticker
+  if (journalPanelEl.classList.contains('show')) renderJournalPage();
+  const up = herUp(new THREE.Vector3());
+  const fwd = herFwd(new THREE.Vector3());                 // Bred approaches from straight ahead of her
+  const side = new THREE.Vector3().crossVectors(up, fwd).normalize();
+  const onSphere = (p) => p.sub(g.center).normalize().multiplyScalar(g.r).add(g.center);
+  // Bred approaches from Beanie's SIDE (she starts facing `fwd`, unaware), so
+  // her turning to face him later actually reads as a turn. Start close enough
+  // that he stays in a Beanie-anchored frame the whole walk.
+  const bredStart = onSphere(new THREE.Vector3().copy(her.position).addScaledVector(side, 4.6));
+  const bredEnd   = onSphere(new THREE.Vector3().copy(her.position).addScaledVector(side, 1.6));
+  bredG.position.copy(bredStart);
+  bredG.quaternion.copy(faceBredWorld(bredG, up, tangentToward(bredStart, up, her.position)));
+  if (bredG.userData.playWave) bredG.userData.playWave(1.3);
+  bredCutscene = { phase:'wave', t:0, bredG, up:up.clone(), fwd:fwd.clone(), side:side.clone(),
+    bredStart, bredEnd, herQ0:orientation.clone() };
+  state = 'bredcutscene';
+  promptEl.classList.remove('show'); guideEl.classList.remove('show');
+  hudEl.classList.add('hidden'); missionEl.classList.add('hidden');
+  reticleEl.classList.add('hidden'); targetRing.visible = false;
+}
+function spawnCutsceneHearts(n, mid, up, side){
+  for (let i=0;i<n;i++){
+    const h = new THREE.Mesh(heartGeo, heartBurstMat);
+    h.scale.setScalar(0.13 + Math.random()*0.14);
+    spawnEphemeral(h, tmpV3.copy(mid).addScaledVector(side, (Math.random()-0.5)*0.9),
+      randDir().multiplyScalar(0.45).addScaledVector(up, 0.6), 3 + Math.random()*2, 1 + Math.random()*2);
+  }
+}
+function updateBredCutscene(dt){
+  const bc = bredCutscene, bredG = bc.bredG, up = bc.up;
+  bc.t += dt;
+  const faceHer = faceBredWorld(bredG, up, tangentToward(bredG.position, up, her.position));
+  let camGoal, lookAt;
+  const closeOnBred = () => {
+    const front = tangentToward(bredG.position, up, her.position).negate();  // in front of his face
+    camGoal = cC.copy(bredG.position).addScaledVector(front, 3.0).addScaledVector(up, 1.5).addScaledVector(bc.side, 0.7);
+    lookAt = tmpV.copy(bredG.position).addScaledVector(up, 1.25);
+  };
+  // Robust two-shot: sit PERPENDICULAR to the live Beanie→Bred line (computed
+  // each frame, so sphere curvature can't twist it) and look at their midpoint.
+  // Bred crosses the frame toward her; her turn plays side-on to camera.
+  const framePair = (dist, high, along) => {
+    const mid = tmpV.copy(her.position).add(bredG.position).multiplyScalar(0.5).addScaledVector(up, 1.0);
+    const axis = new THREE.Vector3().subVectors(bredG.position, her.position).normalize();
+    const perp = new THREE.Vector3().crossVectors(up, axis).normalize();
+    camGoal = cC.copy(mid).addScaledVector(perp, dist).addScaledVector(up, high).addScaledVector(axis, along);
+    lookAt = tmpV2.copy(mid);
+  };
+  if (bc.phase === 'wave'){
+    bredG.quaternion.copy(faceHer); closeOnBred();
+    if (bc.t > BRED_CUT.wave){ bc.phase='idle'; bc.t=0; if (bredG.userData.setIdlePose) bredG.userData.setIdlePose(); }
+  } else if (bc.phase === 'idle'){
+    bredG.quaternion.copy(faceHer); closeOnBred();
+    if (bc.t > BRED_CUT.idle){ bc.phase='walk'; bc.t=0; if (bredG.userData.setWalk) bredG.userData.setWalk(1); }
+  } else if (bc.phase === 'walk'){
+    const k = Math.min(1, bc.t/BRED_CUT.walk), e = k*k*(3-2*k);
+    bredG.position.lerpVectors(bc.bredStart, bc.bredEnd, e).addScaledVector(up, Math.abs(Math.sin(e*Math.PI*6))*0.07);
+    bredG.quaternion.copy(faceHer); framePair(6.6, 1.9, 0);
+    if (bc.t > BRED_CUT.walk){ bc.phase='turn'; bc.t=0; bredG.position.copy(bc.bredEnd);
+      if (bredG.userData.setIdlePose) bredG.userData.setIdlePose(); }
+  } else if (bc.phase === 'turn'){
+    const k = Math.min(1, bc.t/BRED_CUT.turn), e = k*k*(3-2*k);
+    const herFaceBred = quatFromBasis(herUp(new THREE.Vector3()), tangentToward(her.position, up, bredG.position));
+    orientation.slerpQuaternions(bc.herQ0, herFaceBred, e); updatePose();
+    bredG.quaternion.copy(faceHer); framePair(5.6, 1.7, 0);
+    if (bc.t > BRED_CUT.turn){ bc.phase='hearts'; bc.t=0;
+      spawnCutsceneHearts(20, tmpV3.copy(her.position).add(bredG.position).multiplyScalar(0.5).addScaledVector(up, 1.3), up, bc.side); }
+  } else if (bc.phase === 'hearts'){
+    bredG.quaternion.copy(faceHer);
+    if (Math.random() < 0.5) spawnCutsceneHearts(1, tmpV3.copy(her.position).add(bredG.position).multiplyScalar(0.5).addScaledVector(up, 1.3), up, bc.side);
+    framePair(5.0, 1.6, 0);
+    if (bc.t > BRED_CUT.hearts){ bc.phase='card'; bc.t=0;
+      cardOverlay.classList.remove('hidden'); }   // "a card is waiting…"; closing it plays THE END
+  } else if (bc.phase === 'card'){
+    // hold the two-shot behind the card overlay until she opens it (→ THE END)
+    bredG.quaternion.copy(faceHer); framePair(5.0, 1.6, 0);
+  }
+  camPos.lerp(camGoal, 1 - Math.exp(-3.5*dt)); camera.position.copy(camPos);
+  camUp.lerp(up, 1 - Math.exp(-3*dt)).normalize(); camera.up.copy(camUp);
+  camera.lookAt(lookAt);
+}
+function endBredCutscene(){
+  if (bredCutscene && bredCutscene.bredG.userData.setIdlePose) bredCutscene.bredG.userData.setIdlePose();
+  bredCutscene = null;
+  // Bred now stands right next to Beanie; mark the endgame greet consumed so
+  // updateWalk doesn't immediately re-trigger it (and its letter/card) the
+  // instant we hand control back.
+  bredGreeted = true;
+  state = 'walk';
+  hudEl.classList.remove('hidden'); reticleEl.classList.remove('hidden');
+}
 function startLandingSequence(bi){
   curI = bi;
   updatePose();
@@ -5717,8 +5915,21 @@ function arrive(bi){
   // world by name, and a toast at the same time would sit right on top of
   // the mission banner/guide chip and visually collide with them.
   if (b.isWorld){
+    const firstVisit = !visitedWorlds[b.worldIndex];
     visitedWorlds[b.worldIndex] = true;
     updateDots();
+    if (firstVisit){
+      // Meeting the world's main friend is flavor/greeting, never an actual
+      // fetch-quest step - award that one sticker the moment the page itself
+      // unlocks rather than making her specifically hunt down and talk to
+      // him, since she'd earn it within seconds of arriving anyway.
+      const autoKey = JOURNAL_AUTO_STICKER[b.worldIndex];
+      if (autoKey) earnSticker(autoKey);
+      // A beat after the HUD/mission banner above finish settling back in -
+      // firing instantly would collide with them on screen, same reason the
+      // arrival toast right below this is skipped entirely.
+      setTimeout(() => showToast('📘 new page unlocked!', "check Beanie's journal"), 900);
+    }
     // Books/Cucumber/Pigeon's full mission text spells out the actual task
     // (e.g. "bring him 5 favourite books") before she's even met Chippy/
     // bbak/Percy - that detail is held back here and revealed instead right
@@ -6407,9 +6618,33 @@ function updateWalk(dt){
     // ↑ ↓ walk forward/backward along her current facing - no turning, so
     // backing up never spins her whole body around.
     const preForward = tmpQ2.copy(orientation);
-    orientation.multiply(tmpQ.setFromAxisAngle(X_AXIS, iz*moveSpeed*dt/b.r));
+    const forwardAngle = iz*moveSpeed*dt/b.r;
+    orientation.multiply(tmpQ.setFromAxisAngle(X_AXIS, forwardAngle));
     orientation.normalize();
-    if (isBlocked(b, orientation)) orientation.copy(preForward);   // bump back
+    if (isBlocked(b, orientation)){
+      // Wall-slide instead of a hard stop: a rotation around her own LOCAL
+      // Z_AXIS (her forward axis) shifts WHERE she stands on the sphere
+      // without changing WHICH WAY she faces - Rz leaves the axis it rotates
+      // around invariant, and that axis IS herFwd. Composing a small sideways
+      // nudge like that with the SAME forward step (both from the known-good
+      // preForward, not the blocked orientation) reads as stepping diagonally
+      // around an obstacle's edge, without needing to know its actual shape.
+      // Fresh Quaternions here (not tmpQ/tmpQ2, both already live above) -
+      // see the shared-scratch-var aliasing gotcha.
+      const forwardQ = new THREE.Quaternion().setFromAxisAngle(X_AXIS, forwardAngle);
+      const sideAngle = HER_FOOTPRINT*1.5/b.r;
+      let resolved = null;
+      outer:
+      for (const mag of [sideAngle, sideAngle*2]){
+        for (const dir of [1, -1]){
+          const candidate = preForward.clone()
+            .multiply(new THREE.Quaternion().setFromAxisAngle(Z_AXIS, dir*mag))
+            .multiply(forwardQ).normalize();
+          if (!isBlocked(b, candidate)){ resolved = candidate; break outer; }
+        }
+      }
+      orientation.copy(resolved || preForward);   // slide around it, or bump back if fully boxed in
+    }
   }
   orientation.normalize();
   u.inner.rotation.y *= Math.exp(-10*dt);
@@ -6560,14 +6795,18 @@ function updateWalk(dt){
   } else {
     promptEl.classList.remove('show');
   }
-  // reaching Bred on the Garden: the whole endgame is now one scripted
-  // cutscene (she notices him → he turns, waves, walks over and hands her a
-  // letter → card → THE END), kicked off once when she gets within range.
+  // reaching Bred on the Garden kicks off the reunion cutscene (he waves, walks
+  // over, she turns to him, hearts) which then flows into the letter → card →
+  // THE END, once, when she gets within range.
   if (curI === GARDEN_I && !bredGreeted){
     const bredDist = her.position.distanceTo(bredWorldPos(tmpV3));
-    if (bredDist < BRED_GREET_DIST) startBredGreet();
+    if (bredDist < BRED_GREET_DIST) startBredCutscene();
   }
-  followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2), camDist);
+  // Summer's Garden POV sits closer + lower (nearer eye level) than the default
+  // high, far framing, so she reads as big in frame like Winter does elsewhere.
+  const summerClose = curI === GARDEN_I && herSummerGroup;
+  followCam(dt, her.position, herUp(tmpV), herFwd(tmpV2),
+    summerClose ? camDist * 0.6 : camDist, false, summerClose ? 0.38 : 1);
 }
 
 /* ---------- HUD / DOM ---------- */
@@ -6589,7 +6828,8 @@ const muteBtn = document.getElementById('muteBtn');
 if (QA_AUDIO_MUTED) muteBtn.textContent = '🔇';
 const journalBtn = document.getElementById('journalBtn');
 const journalPanelEl = document.getElementById('journalPanel');
-const journalPageEl = document.getElementById('journalPage');
+const journalPageLEl = document.getElementById('journalPageL');
+const journalPageREl = document.getElementById('journalPageR');
 const journalPageLabelEl = document.getElementById('journalPageLabel');
 const journalPrevEl = document.getElementById('journalPrev');
 const journalNextEl = document.getElementById('journalNext');
@@ -6747,7 +6987,7 @@ const CHICAGO_LETTER_LINES = [
   `"Beanie, I built you a little universe. Every world is something you love. Leap across them all and follow them to the very end…"`,
   `"…and I'll be waiting for you there. Come find me. 🤍 Bred"`,
   { speaker:'Rachel 🐰', text:`He built me a whole universe? …okay. Okay! I'm doing this.`, alt:`A whole universe from Bred… there's no way I'm turning back now.` },
-  `Oh, almost forgot! He also sent this tiny notebook. 📔 Somewhere to keep records of things, he said, for whatever you find along the way.`,
+  `Oh, almost forgot! He also sent this tiny notebook. 📘 Somewhere to keep records of things, he said, for whatever you find along the way.`,
   { speaker:'Rachel 🐰', text:`Thank you for carrying all that this far, little pigeon.`, alt:`You flew all this way for me. Thank you. You did amazing.` },
   `So don't stop, okay? Aim at the next little world and leap. Off you go!`,
 ];
@@ -6990,7 +7230,7 @@ const STICKER_FILES = {
   cucumber:'meadow stickers/cucumber-sticker.png', boba:'meadow stickers/boba-sticker.png',
   burger:'meadow stickers/burgers-sticker.png', icecream:'meadow stickers/ice cream-sticker.png',
   pizza:'meadow stickers/pizza-sticker.png', fries:'meadow stickers/frenchfries-sticker.png',
-  popsicle:'meadow stickers/popsicle-sticker.png',
+  popsicle:'meadow stickers/popsicle-sticker.png', donut:'meadow stickers/donut sticker.png',
 };
 const STICKER_LABELS = { chippy:'Chippy', bbak:'bbak', percy:'Percy', vanessa:'Vanessa',
   nibbles:'Nibbles', alfred:'Alfred', sam:'Sam', sunny:'Sunny', otto:'Otto', mochi:'Mochi',
@@ -7000,29 +7240,105 @@ const STICKER_LABELS = { chippy:'Chippy', bbak:'bbak', percy:'Percy', vanessa:'V
   book1:'Knits for Cold Cities', book2:'Pigeons: A Love Story', book3:'The Deep Blue: a Whale Tale',
   book4:'A Field Guide to Cucumbers', book5:'Percy the Brave',
   cucumber:'Cucumber', boba:'Boba', burger:'Burger', icecream:'Ice Cream', pizza:'Pizza',
-  fries:'Fries', popsicle:'Popsicle' };
+  fries:'Fries', popsicle:'Popsicle', donut:'Donut' };
 // One themed scrapbook PAGE per planet — each with its own font/texture/accent
 // (see the .theme-* CSS) and its own collage of the friends that live there.
 const JOURNAL_PAGES = [
   { key:'books', theme:'theme-books', title:'Main Stacks', kicker:'Chapter I · 📚',
     tag:'the old library where you two used to study', tape:'rgba(180,138,86,.6)',
-    decor:['📚','📖','✒️','🔖','📚'], chars:['chippy','book1','book2','book3','book4','book5'] },
+    decor:['📚'], chars:['chippy','book1','book2','book3','book4','book5'],
+    entry:[`Bred's letter found me here, carried by the most out-of-breath little pigeon I've ever met.`,
+      `Chippy is, somehow, an actual potato in an actual newsboy cap, napping on his own pile of books. He gave me this very notebook and told me to fill it up.`,
+      `Found five books hidden around the stacks for him, one very sleepy new friend, and the start of everything.`],
+    photos:['mainstacks stickers/birthday party with chippy.jpg', 'mainstacks stickers/our walk from mainstacks.jpg'] },
   { key:'cucumber', theme:'theme-cucumber', title:'Emerald Meadow', kicker:'Chapter II · 🌱',
     tag:'a whole planet ringed in cucumbers', tape:'rgba(150,198,108,.6)',
-    decor:['🥒','🌿','🍃','☘️','🥒','🌱'],
-    chars:['bbak','cucumber','boba','burger','icecream','pizza','fries','popsicle'] },
+    decor:['🌱'],
+    chars:['bbak','cucumber','boba','burger','icecream','pizza','fries','popsicle','donut'],
+    entry:[`An entire planet ringed in cucumbers. I did not ask questions.`,
+      `bbak is a real polar bear who is somehow always melting. I brought him pizza, boba, popsicles, all wrong, he was very clear about that.`,
+      `One perfect cucumber later, we were friends for life.`],
+    photos:[`meadow stickers/bbak's birth.jpeg`, 'meadow stickers/pizza at 3 pm.jpg', 'meadow stickers/pizza at capecod!.JPG'] },
   { key:'pigeon', theme:'theme-pigeon', title:'Pigeon Plaza', kicker:'Chapter III · 🕊️',
     tag:'so, SO many birds to say hi to', tape:'rgba(150,176,216,.66)',
-    decor:['🪶','🕊️','🌰','🪶'], chars:['percy','vanessa','nibbles','alfred','sam','sunny','otto','mochi','buckle','doodles'] },
+    decor:['🕊️'], chars:['percy','vanessa','nibbles','alfred','sam','sunny','otto','mochi','buckle','doodles'],
+    entry:[`So many birds. SO many. Percy was looking for a lost friend, and I met the whole plaza trying to help: Vanessa, Nibbles, Alfred, Sam, Sunny, Otto, Mochi, Buckle.`,
+      `Every single one of them was convinced I'd come just for them. (Fair, honestly.)`,
+      `Then Doodles, one lonely dodo who thought no one was coming for him. We told him he had a family now. He grew Percy huge enough to carry us both home.`],
+    photos:[] },
   { key:'garden', theme:'theme-garden', title:'The Garden', kicker:'Chapter IV · 💐',
     tag:'happy birthday, Beanie 🤍', tape:'rgba(240,168,194,.62)',
-    decor:['🌸','💐','🌷','🦋','🌼'], chars:['bred'] },
+    decor:['💐'], chars:['bred'],
+    entry:[`And then, Bred. Standing by the couch like he'd been waiting the whole time, because he had.`,
+      `He built me an entire universe, one little world at a time, just so I'd have somewhere to leap to.`,
+      `I don't think I've ever felt this loved. Happy birthday to me, I guess. 🤍`],
+    photos:[] },
 ];
 const JOURNAL_TOTAL = JOURNAL_PAGES.reduce((n, p) => n + p.chars.length, 0);
+// worldIndex each page's planet corresponds to (see WORLD_DEFS/visitedWorlds)
+// - used both to lock a page until she's actually been there, and to know
+// which "no mission" friend sticker to auto-award the moment it unlocks.
+const JOURNAL_PAGE_WORLD = { books:1, cucumber:2, pigeon:3, garden:4 };
+// The world's own main friend is met through ordinary arrival/greeting
+// dialogue, never an actual fetch-quest step - awarded the instant the page
+// itself unlocks (see arrive()) rather than gating it behind hunting him
+// down, since she'd meet him within seconds of arriving there anyway.
+const JOURNAL_AUTO_STICKER = { 1:'chippy', 2:'bbak', 3:'percy', 4:'bred' };
+// Post-it-sized stickers (see JOURNAL_LAYOUT below) fit far fewer per page
+// than the old small icon grid - `perPage` chunks a world's chars across as
+// many sticker spreads as it takes rather than cramming everyone in small.
+const JOURNAL_LAYOUT = {
+  books:    { cols:2, sizeMin:34, sizeMax:38, rotMax:10, perPage:4 },
+  cucumber: { cols:2, sizeMin:32, sizeMax:36, rotMax:10, perPage:4 },
+  pigeon:   { cols:2, sizeMin:32, sizeMax:36, rotMax:10, perPage:4 },
+  garden:   { hero:72 },
+};
+// Flatten JOURNAL_PAGES into individual two-page SPREADS. Each world's chars
+// chunk into groups of `perPage` - chunk 0 carries the full diary text
+// alongside its sticker collage, later chunks are a lighter continuation -
+// and a planet with real photos gets one more, dedicated spread for those
+// too ("everything has to be visible"). journalPageIndex indexes into THIS
+// flat list, not directly into JOURNAL_PAGES.
+const JOURNAL_SPREADS = JOURNAL_PAGES.flatMap((page) => {
+  const perPage = (JOURNAL_LAYOUT[page.key] && JOURNAL_LAYOUT[page.key].perPage) || page.chars.length;
+  const chunks = [];
+  for (let i = 0; i < page.chars.length; i += perPage) chunks.push(page.chars.slice(i, i + perPage));
+  const spreads = chunks.map((chunkChars, chunkIndex) => ({ page, part:'main', chunkChars, chunkIndex, chunkCount:chunks.length }));
+  if (page.photos && page.photos.length) spreads.push({ page, part:'photos' });
+  return spreads;
+});
 // Encode each path segment separately - some sticker files live in a
 // subfolder (e.g. 'meadow stickers/cucumber-sticker.png'), and a plain
 // encodeURIComponent on the whole string would also escape the '/' itself.
 function stickerURL(file){ return './stickers/' + file.split('/').map(encodeURIComponent).join('/'); }
+// Bred's own instruction: the photo's filename (minus extension) IS its
+// caption, exactly as typed - no reformatting.
+function captionFromFile(file){
+  return file.slice(file.lastIndexOf('/')+1).replace(/\.[^.]+$/, '');
+}
+// Real photos taped in like actual Polaroids. Reuses collagePlace()'s
+// margin-safe, rotation-aware placement (same guarantees as the sticker
+// collage) but with its own size range - there are only ever a couple of
+// photos per half-page, so they can sit big rather than needing a dense grid.
+function renderPhotoCollage(container, photos, seed, tape){
+  if (!photos.length) return;
+  const opts = photos.length === 1 ? { hero:68 } : { cols:2, sizeMin:38, sizeMax:44, rotMax:8, jitter:0.5 };
+  const pos = collagePlace(photos.length, seed, opts);
+  photos.forEach((file, i) => {
+    const p = document.createElement('div');
+    p.className = 'jpolaroid';
+    p.style.cssText = `left:${pos[i].x}%;top:${pos[i].y}%;width:${pos[i].size}%;--rot:${pos[i].rot}deg;--tape:${tape}`;
+    const img = document.createElement('img');
+    img.className = 'jphoto';
+    img.src = stickerURL(file); img.alt = captionFromFile(file);
+    p.appendChild(img);
+    const cap = document.createElement('div');
+    cap.className = 'jcaption';
+    cap.textContent = captionFromFile(file);
+    p.appendChild(cap);
+    container.appendChild(p);
+  });
+}
 // In-memory only, on purpose - the journal is meant to reset to empty on
 // every reload/restart, not persist across sessions.
 let metFriends = new Set();
@@ -7057,27 +7373,36 @@ function showFriendToast(key){
 }
 // deterministic pseudo-random so a page's collage is stable across re-renders
 function jrand(s){ const x = Math.sin(s*127.1 + 31.7) * 43758.5453; return x - Math.floor(x); }
+// A CSS-rotated square's rendered (axis-aligned) bounding box is BIGGER than
+// its own size - by a factor of |cos|+|sin| of the rotation angle (up to
+// ~1.41x at 45deg) - since that's what getBoundingClientRect (and so real
+// visual overlap) measures, not the pre-rotation square. Slack has to be
+// computed against that worst-case GROWN footprint, or two items that look
+// "just touching" pre-rotation can end up genuinely overlapping by a sliver
+// once actually rotated - confirmed live via getBoundingClientRect on a
+// first attempt that ignored this (a ~1px sliver overlap, invisible in a
+// screenshot but real).
+function rotGrowth(maxDeg){
+  const r = maxDeg*Math.PI/180;
+  return Math.abs(Math.cos(r)) + Math.abs(Math.sin(r));
+}
 // Tile `count` items into a grid over the region [left, left+width] x
 // [0,100] as {x%, y%, size%, rot}. Jitter is a fraction of each item's own
-// LEFTOVER room in its cell (cellSize - itemSize), not a fixed fraction of
-// the cell itself - so as long as sizeMax <= the smaller of the cell's
-// width/height and jitter <= 1, an item can never be pushed past its own
-// cell's edges, which structurally guarantees it never overlaps a neighbor
-// or runs off the page, at any size. This replaced an earlier version whose
-// jitter was a fixed fraction of cell size regardless of item size, which
-// looked fine at the small, cautious sizes it shipped with but silently
-// allowed overlap/edge-clipping the moment sizes were pushed bigger to
-// reduce collage whitespace - caught by literally computing every pair's
-// gap in a scratch Node script across several seeds before touching this
-// file, not by eyeballing a screenshot.
+// LEFTOVER room in its cell (cellSize - item's worst-case ROTATED footprint),
+// not a fixed fraction of the cell itself - so as long as sizeMax stays under
+// the smaller of the cell's width/height (after accounting for rotGrowth)
+// and jitter <= 1, an item can never be pushed past its own cell's edges,
+// which structurally guarantees it never overlaps a neighbor or runs off
+// the page, at any size.
 function crowdLayout(seed, left, width, cols, sizeMin, sizeMax, rotMax, jitter, count){
   const rows = Math.ceil(count / cols);
-  const cw = width/cols, ch = 100/rows, out = [];
+  const cw = width/cols, ch = 100/rows, grow = rotGrowth(rotMax), out = [];
   for (let i = 0; i < count; i++){
     const c = i % cols, r = Math.floor(i / cols);
     const cx = left + cw*(c+0.5), cy = ch*(r+0.5);
     const size = sizeMin + jrand(seed+i*3.1)*(sizeMax-sizeMin);
-    const slackX = Math.max(0, cw-size), slackY = Math.max(0, ch-size);
+    const eff = size*grow;   // worst-case rotated footprint - slack math only, doesn't change the rendered size
+    const slackX = Math.max(0, cw-eff), slackY = Math.max(0, ch-eff);
     const x = cx + (jrand(seed+i*1.7)-0.5)*slackX*jitter;
     const y = cy + (jrand(seed+i*2.3)-0.5)*slackY*jitter;
     out.push({ x, y, size, rot:(jrand(seed+i*4.7)-0.5)*rotMax });
@@ -7086,68 +7411,123 @@ function crowdLayout(seed, left, width, cols, sizeMin, sizeMax, rotMax, jitter, 
 }
 // A single hero sticker sits big and centred; with a crowd too (n>1) - the
 // friend met on that world plus their collectible mementos (books, foods) -
-// the hero gets its own fixed spot in a left-hand column (`heroX`/`crowdLeft`
-// chosen so the hero's footprint never reaches into the crowd's region
-// either), and the crowd tiles the remaining region on its own grid.
+// the hero gets its own fixed spot in a left-hand column. `heroX`/`crowdLeft`
+// are solved so the hero's OWN worst-case rotated footprint fits inside
+// [0, crowdLeft] (heroX = heroSize*rotGrowth(5deg)/2, crowdLeft a hair above
+// heroX + that same half-footprint) - it never reaches into the crowd's
+// region either. The crowd then tiles the remaining region on its own grid.
+//
+// Everything above is computed in a virtual [0,100]x[0,100] box, THEN
+// uniformly shrunk/shifted into an inset "safe zone" (`margin`% on every
+// side) before being returned - a flat rescale can't change any gap's SIGN
+// (still non-overlapping, just smaller), so this stays free even though the
+// grid math never has to think about it. Exists because a sticker's own box
+// touching the literal page edge still visually reads as "coming off the
+// page" once its decorations are counted - the "got" state's washi-tape
+// strip alone extends 4% above the sticker's own box.
 function collagePlace(n, seed, o){
-  if (n === 1) return [{ x:50, y:53, size:o.hero || 60, rot:(jrand(seed)-0.5)*14 }];
-  const jitter = o.jitter ?? 0.8;
-  if (o.hero){
-    const out = [{ x:o.heroX, y:o.heroY ?? 50, size:o.hero, rot:(jrand(seed+99)-0.5)*10 }];
-    out.push(...crowdLayout(seed, o.crowdLeft, 100-o.crowdLeft, o.cols,
-      o.sizeMin||18, o.sizeMax||30, o.rotMax||22, jitter, n-1));
-    return out;
+  const margin = o.margin ?? 5, scale = (100 - 2*margin) / 100;
+  let raw;
+  if (n === 1){
+    raw = [{ x:50, y:53, size:o.hero || 60, rot:(jrand(seed)-0.5)*14 }];
+  } else {
+    const jitter = o.jitter ?? 0.7;
+    if (o.hero){
+      raw = [{ x:o.heroX, y:o.heroY ?? 50, size:o.hero, rot:(jrand(seed+99)-0.5)*10 }];
+      raw.push(...crowdLayout(seed, o.crowdLeft, 100-o.crowdLeft, o.cols,
+        o.sizeMin||18, o.sizeMax||30, o.rotMax||22, jitter, n-1));
+    } else {
+      raw = crowdLayout(seed, 0, 100, o.cols, o.sizeMin||18, o.sizeMax||30, o.rotMax||22, jitter, n);
+    }
   }
-  return crowdLayout(seed, 0, 100, o.cols, o.sizeMin||18, o.sizeMax||30, o.rotMax||22, jitter, n);
+  return raw.map(p => ({ x:margin+p.x*scale, y:margin+p.y*scale, size:p.size*scale, rot:p.rot }));
 }
-const JOURNAL_LAYOUT = {
-  books:    { hero:46, heroX:23, crowdLeft:48, cols:2, sizeMin:22, sizeMax:25, rotMax:16 },
-  cucumber: { hero:42, heroX:21, crowdLeft:44, cols:2, sizeMin:19, sizeMax:22, rotMax:18 },
-  pigeon:   { cols:3, sizeMin:19, sizeMax:23, rotMax:20 },
-  garden:   { hero:64 },
-};
 function renderJournalPage(){
-  const page = JOURNAL_PAGES[journalPageIndex];
-  journalPageEl.className = 'jpage ' + page.theme;
-  journalPageEl.innerHTML =
-    `<div class="jpageKicker">${page.kicker}</div>
-     <div class="jpageTitle">${page.title}</div>
-     <div class="jpageTag">${page.tag}</div>
-     <div class="jcollage"></div>
-     <div class="jpageFoot">${page.chars.filter(k=>metFriends.has(k)).length} / ${page.chars.length} collected here</div>`;
-  const collage = journalPageEl.querySelector('.jcollage');
-  // faint themed doodles behind the stickers
-  const decorPos = collagePlace(page.decor.length, journalPageIndex*10+3, { sizeMin:10, sizeMax:22, rotMax:40, wide:1.4 });
-  page.decor.forEach((emoji, i) => {
+  const spread = JOURNAL_SPREADS[journalPageIndex];
+  const page = spread.page;
+  if (!visitedWorlds[JOURNAL_PAGE_WORLD[page.key]]){
+    // Don't reveal a planet's page before she's actually been there - both
+    // halves stay a simple locked placeholder regardless of part/chunk.
+    journalPageLEl.className = 'jpage jpage-l theme-locked';
+    journalPageLEl.innerHTML =
+      `<div class="jpageKicker">??? · 🔒</div>
+       <div class="jpageTitle">Not yet discovered</div>
+       <div class="jpageTag">land here to fill in this page</div>`;
+    journalPageREl.className = 'jpage jpage-r theme-locked';
+    journalPageREl.innerHTML = `<div class="jpageCenterMark locked">🔒</div>`;
+    journalPageLabelEl.textContent = `${journalPageIndex+1} / ${JOURNAL_SPREADS.length} · ${metFriends.size}/${JOURNAL_TOTAL} collected`;
+    return;
+  }
+  if (spread.part === 'main'){
+    // left page: her own handwritten account of that world - the full entry
+    // only on the first chunk. Later chunks are just more friends from the
+    // same page, not a new chapter, so they get a light header instead of
+    // repeating the whole thing.
+    journalPageLEl.className = 'jpage jpage-l ' + page.theme;
+    journalPageLEl.innerHTML = spread.chunkIndex === 0
+      ? `<div class="jpageKicker">${page.kicker}</div>
+         <div class="jpageTitle">${page.title}</div>
+         <div class="jpageTag">${page.tag}</div>
+         <div class="jjournal">${page.entry.map(p => `<p>${p}</p>`).join('')}</div>`
+      : `<div class="jpageKicker">${page.kicker}</div>
+         <div class="jpageTitle">${page.title}</div>
+         <div class="jpageCenterMark">${page.decor[0]}</div>`;
+    // right page: this chunk's sticker collage
+    journalPageREl.className = 'jpage jpage-r ' + page.theme;
+    journalPageREl.innerHTML =
+      `<div class="jcollage"></div>
+       <div class="jpageFoot">${page.chars.filter(k=>metFriends.has(k)).length} / ${page.chars.length} collected here</div>`;
+    const collage = journalPageREl.querySelector('.jcollage');
+    // one signature decorative emoji per page (matches its own kicker) - a
+    // small fixed corner accent, not a scatter, so it reads as one
+    // deliberate flourish rather than a cluttered handful of different ones
     const d = document.createElement('div');
     d.className = 'jdoodle';
-    d.style.cssText = `left:${decorPos[i].x}%;top:${decorPos[i].y}%;font-size:${18+decorPos[i].size}px;--rot:${decorPos[i].rot}deg`;
-    d.textContent = emoji;
+    d.style.cssText = `left:90%;top:9%;font-size:40px;--rot:-9deg`;
+    d.textContent = page.decor[0];
     collage.appendChild(d);
-  });
-  // the character stickers
-  const pos = collagePlace(page.chars.length, journalPageIndex*100+17, JOURNAL_LAYOUT[page.key]);
-  page.chars.forEach((key, i) => {
-    const got = metFriends.has(key);
-    const st = document.createElement('div');
-    st.className = 'jsticker ' + (got ? 'got' : 'locked') + (page.key === 'pigeon' ? ' badge' : '');
-    st.style.cssText = `left:${pos[i].x}%;top:${pos[i].y}%;width:${pos[i].size}%;aspect-ratio:1;--rot:${pos[i].rot}deg;--tape:${page.tape}`;
-    const img = document.createElement('img');
-    img.src = stickerURL(STICKER_FILES[key]); img.alt = got ? STICKER_LABELS[key] : '???';
-    st.appendChild(img);
-    collage.appendChild(st);
-  });
-  journalPageLabelEl.textContent = `${journalPageIndex+1} / ${JOURNAL_PAGES.length} · ${metFriends.size}/${JOURNAL_TOTAL} collected`;
+    // this chunk's character stickers
+    const chunkChars = spread.chunkChars;
+    const pos = collagePlace(chunkChars.length, JOURNAL_PAGES.indexOf(page)*100+17+spread.chunkIndex*31, JOURNAL_LAYOUT[page.key]);
+    chunkChars.forEach((key, i) => {
+      const got = metFriends.has(key);
+      const st = document.createElement('div');
+      st.className = 'jsticker ' + (got ? 'got' : 'locked') + (page.key === 'pigeon' ? ' badge' : '');
+      st.style.cssText = `left:${pos[i].x}%;top:${pos[i].y}%;width:${pos[i].size}%;aspect-ratio:1;--rot:${pos[i].rot}deg;--tape:${page.tape}`;
+      const img = document.createElement('img');
+      img.src = stickerURL(STICKER_FILES[key]); img.alt = got ? STICKER_LABELS[key] : '???';
+      st.appendChild(img);
+      collage.appendChild(st);
+    });
+  } else {
+    // photos spread: a small recurring header on the left so it's still
+    // identifiable at a glance, real captioned photos taped across both
+    // halves (split roughly evenly between them)
+    journalPageLEl.className = 'jpage jpage-l ' + page.theme;
+    journalPageLEl.innerHTML =
+      `<div class="jpageKicker">${page.kicker}</div>
+       <div class="jpageTitle">${page.title}</div>
+       <div class="jpageTag">a few real photos along the way</div>
+       <div class="jcollage"></div>`;
+    journalPageREl.className = 'jpage jpage-r ' + page.theme;
+    journalPageREl.innerHTML = `<div class="jcollage"></div>`;
+    const pageIdx = JOURNAL_PAGES.indexOf(page);
+    const half = Math.ceil(page.photos.length / 2);
+    renderPhotoCollage(journalPageLEl.querySelector('.jcollage'), page.photos.slice(0, half), pageIdx*100+41, page.tape);
+    renderPhotoCollage(journalPageREl.querySelector('.jcollage'), page.photos.slice(half), pageIdx*100+61, page.tape);
+  }
+  journalPageLabelEl.textContent = `${journalPageIndex+1} / ${JOURNAL_SPREADS.length} · ${metFriends.size}/${JOURNAL_TOTAL} collected`;
 }
 function turnJournalPage(delta){
-  journalPageIndex = (journalPageIndex + delta + JOURNAL_PAGES.length) % JOURNAL_PAGES.length;
+  journalPageIndex = (journalPageIndex + delta + JOURNAL_SPREADS.length) % JOURNAL_SPREADS.length;
   renderJournalPage();
-  journalPageEl.classList.remove('turning'); void journalPageEl.offsetWidth; journalPageEl.classList.add('turning');
+  journalPageLEl.classList.remove('turning'); void journalPageLEl.offsetWidth; journalPageLEl.classList.add('turning');
+  journalPageREl.classList.remove('turning'); void journalPageREl.offsetWidth; journalPageREl.classList.add('turning');
   playButtonSound();
 }
 function worldToJournalPage(){
   const key = { 1:'books', 2:'cucumber', 3:'pigeon', 4:'garden' }[curI];
-  const idx = JOURNAL_PAGES.findIndex(p => p.key === key);
+  const idx = JOURNAL_SPREADS.findIndex(s => s.page.key === key && s.part === 'main');
   return idx < 0 ? 0 : idx;
 }
 journalBtn.addEventListener('click', () => {
@@ -7215,7 +7595,7 @@ function step(dt){
   // visible during an actual cutscene.
   const isCutsceneState = state === 'intro' || state === 'fly' || state === 'landing'
     || state === 'doodlesreunion' || state === 'percyfly' || state === 'finale' || state === 'cukeReveal' || state === 'theend'
-    || state === 'bredgreet';
+    || state === 'bredgreet' || state === 'bredcutscene';
   if (isCutsceneState) missionEl.classList.add('hidden');
 
   if (state === 'intro'){
@@ -7247,6 +7627,7 @@ function step(dt){
   else if (state === 'percyfly') updatePercyFlight(dt, t);
   else if (state === 'finale')   updateFinale(dt, t);
   else if (state === 'bredgreet') updateBredGreet(dt);
+  else if (state === 'bredcutscene') updateBredCutscene(dt);
   else if (state === 'theend')   updateTheEnd(dt);
   else if (state === 'cukeReveal') updateCukeReveal(dt, t);
   else if (state === 'notice')   updateNotice(dt);
@@ -7617,6 +7998,7 @@ window.__world = {
       cukeRevealState: cukeReveal ? { t:+cukeReveal.t.toFixed(2), fadeStarted:!!cukeReveal.fadeStarted, solidHidden:!!cukeReveal.solidHidden } : null,
       groundCukeScale: +wr.groundCucumberHolders[0].holder.scale.x.toFixed(3) }; },
   triggerCukeReveal(){ startCukeRevealCutscene(); },
+  playBredCutscene(){ startBredCutscene(); },
   jumpChain(){ const n = bodies[curI].chainNext; if (n != null) jumpTo(bodies[n]); },
   get chainNext(){ return bodies[curI].chainNext; },
   pump(seconds){                    // advance the simulation manually (testing when tab is hidden)

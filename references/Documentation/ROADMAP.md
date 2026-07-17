@@ -1,4 +1,167 @@
 # ROADMAP
+- [x] Pigeon Plaza decoy spawn distance, journal close button, one decor
+      emoji per page (2026-07-17): four small requests together.
+      - **Pigeon decoy spawn distance**: `PLAZA_STORY_RING_NEAR`/`_FAR`
+        (angular distance from PERCY, not from Beanie) was 0.60/0.68 rad -
+        18/20.4 surface units. The "should go talk to them" notice bubble
+        triggers within `guideNear*6` = 24 units of the target, and Beanie
+        is normally standing right next to Percy when a decoy spawns (she
+        just finished talking to him) - so the notice fired the INSTANT a
+        decoy appeared, before she'd taken a single step, reported as it
+        "automatically goes into ooh I should talk to that pigeon mode."
+        Pushed to 1.15/1.28 rad (34.5/38.4 units) for real margin. Verified
+        live via the real `spawnNextDecoy()` path (not a simulated stand-in):
+        distance-to-decoy measured ~59 units immediately after spawn for
+        both the first and second decoy, comfortably past the 24-unit
+        trigger radius, notice bubble confirmed NOT showing.
+      - **Journal close button**: was "close ✕" (wrapped to two lines at
+        the button's actual width, per Bred's screenshot). Changed to just
+        "✕", and fixed its CSS to match the other nav buttons' 34px circle
+        (the old wide pill padding no longer made sense for a single glyph).
+      - **One decor emoji per page**: each journal page previously scattered
+        4-6 different themed emoji as faint background doodles ("why is
+        there multiple" - wanted one). Replaced the scatter with a single
+        signature emoji (matching the page's own kicker, e.g. Chapter II's
+        🌱) in a fixed top-right corner, bumped from 14% to 28% opacity
+        since it now reads as one deliberate accent rather than an ambient
+        pattern that needed many faint copies to register.
+      - **BGM Garden↔other-world switching**: investigated whether leaving
+        Garden correctly reverts music to Executive Lounge - `arrive(bi)`
+        already keys `playBgm` on `bi===GARDEN_I` regardless of the previous
+        world, and both real gameplay's `updateFlight` and the QA-warp
+        shortcut already route through `arrive()` on landing. Verified live
+        via `bgmDebug()`: warping Garden→Main Stacks correctly flipped the
+        track key from `pixeltown` to `executive`. No code change needed -
+        already correct.
+      - Note on this commit: made these edits mid-session in the shared
+        working directory: the parallel Codex session's own next commit
+        (`7ed3300`, otherwise about Bred's idle/walk animation rig) already
+        contained all four of these changes bundled in by the time it
+        landed - confirmed each one is present in that commit's own
+        `index.html` before pushing, per this repo's established
+        shared-directory pattern (see the gotchas memory file).
+- [x] Journal: real photos as taped-in Polaroids, multi-spread pagination
+      (2026-07-17): Bred added actual PHOTOS (not sticker art - filenames
+      have no "sticker" in them) to the mainstacks/meadow folders and asked
+      for them shown as Polaroids (white border, filename as the caption,
+      taped on), plus room for a planet to span more than one spread "cuz
+      everything has to be visible."
+      - **New photos found**: `mainstacks stickers/birthday party with
+        chippy.HEIC` + `our walk from mainstacks.jpg`; `meadow stickers/
+        bbak's birth.jpeg` + `pizza at 3 pm.jpg` + `pizza at capecod!.JPG`.
+        No garden photo folder existed yet at verification time despite
+        being mentioned - nothing added there this round; trivial to wire
+        up once it shows up (same `photos` array pattern).
+      - **HEIC doesn't render in a browser `<img>` at all** (not a "some
+        browsers" gap - none of them do) - converted to JPEG via macOS's
+        built-in `sips` (`sips -s format jpeg in.HEIC --out out.jpg`),
+        original left untouched, code points at the new `.jpg`.
+      - **New `.jpolaroid`**: a white card with the classic thick-bottom
+        border (`padding:6% 6% 25% 6%`), the photo via `object-fit:cover`
+        so any source aspect ratio crops sensibly into the frame, caption
+        text (the filename minus extension, EXACTLY as typed - apostrophes,
+        exclamation marks, capitalization all preserved) in the same Caveat
+        font as the journal entries, and the identical washi-tape strip
+        the sticker collage already uses. Reuses `collagePlace()` for
+        placement, so the same margin-safe/rotation-safe guarantees apply.
+      - **Multi-spread pagination**: `JOURNAL_PAGES` gained a `photos`
+        array; a new `JOURNAL_SPREADS` flattens each planet into a 'main'
+        spread (chapter text + sticker collage, unchanged) plus a 'photos'
+        spread whenever it has any photos - so content gets a full extra
+        page rather than being crammed onto the sticker page. `journalPage
+        Index`/`turnJournalPage`/`worldToJournalPage` all now work off this
+        flat list (6 spreads currently: Main Stacks and Emerald Meadow each
+        get 2, Pigeon Plaza and Garden stay at 1 since they have no photos
+        yet). Photos split roughly evenly across the spread's two halves,
+        each its own independent collage region.
+      - Also wired up the `donut` sticker (art had been dropped in an
+        earlier round but never connected to anything) while in the area -
+        same established food-pickup-sticker pattern, one line each in
+        `STICKER_FILES`/`STICKER_LABELS`/cucumber's `chars`.
+      - **Verification caught a real gotcha**: `birthday party with chippy`
+        and `pizza at capecod!` both looked WRONG when previewed directly
+        (one via this session's own image-reading tool, unrelated to the
+        game) - sideways/oddly cropped. Both render perfectly upright live
+        in the actual game. Browsers have reliably honored a JPEG's EXIF
+        orientation tag in `<img>` for years; not every image previewer
+        does. Confirmed by loading the real game and looking, not by
+        trusting a raw-file preview as a stand-in for it.
+- [x] Journal: real two-page spread with journal text, margin-safe stickers
+      (2026-07-17): three requests in one message - don't let the stickers
+      visually "come out" of the page (a direct consequence of the previous
+      round's razor-thin margins), use a proper left-page/right-page book
+      spread rather than one page per planet, and add actual written
+      memories/journaling about each world.
+      - **Structure**: `#journalBook` went from one `.jpage` to a flex ROW of
+        two (`.jpage-l`/`.jpage-r`), book width roughly doubled
+        (`min(980px,95vw)`). Both halves get the SAME `page.theme` class so
+        the background texture/font/accent reads as one continuous spread
+        rather than two disconnected pages, hinged at a shared centre spine.
+        Opening/page-turn animations mirrored (`jflipL`/`jflipR`) so both
+        halves swing open from that spine together.
+      - **Left page**: chapter kicker/title/tag (unchanged) plus a new
+        `.jjournal` block - a short handwritten-style diary entry per
+        planet, in Rachel's own voice, in a newly-added Caveat Google Font
+        (the existing loaded fonts are all bold display faces, nothing
+        suited to paragraph-length personal writing). Written fresh for
+        all 4 planets/chapters.
+      - **Right page**: the sticker collage, mechanically unchanged, but
+        `collagePlace()` now uniformly rescales every computed position/size
+        into a margined-in "safe zone" (5% inset on all sides) as a final
+        step, rather than relying on sizes that were only just-barely
+        non-overlapping. That razor-thin margin (0.2-1.4% edge clearance,
+        previous round) didn't account for the "got" state's washi-tape
+        decoration extending 4% ABOVE the sticker's own box - almost
+        certainly what actually read as "stickers coming out of the page."
+        A uniform rescale can't flip any gap's sign, so this stays exactly
+        as overlap-safe as before, just visibly clear of every edge too.
+      - Added a basic mobile fallback (`@media(max-width:700px)`): stack the
+        two halves vertically instead of side-by-side, since a phone screen
+        can't fit both at a readable width.
+      - Verified live across all 4 planets, empty/partial/full collection
+        states (via real pickups, not just a debug hook), and a mobile
+        viewport width: zero sticker overlaps, zero off-page items via
+        `getBoundingClientRect`, journal text fits without scrolling at
+        typical desktop size.
+- [x] Journal: stickers made bigger with a provably non-overlapping layout
+      (2026-07-16): Bred said the collage pages had "so much whitespace" and
+      asked for stickers "as big as possible... but not overlap."
+      - **Root fix**: `collagePlace()`'s old jitter was a fixed fraction of
+        each grid cell's own size, regardless of the item's size - fine at
+        the small, cautious sizes it shipped with, but nothing stopped a
+        bigger item from simply exceeding its own cell. Reworked jitter to
+        be a fraction of the item's LEFTOVER room in its cell (cell size
+        minus the item's size), which makes "never overlaps a neighbor or
+        runs off the page" a structural guarantee as long as `sizeMax`
+        stays under the cell's own width/height - not something to
+        hand-tune per page.
+      - **Rotation caught a real, if tiny, gap**: a first attempt (verified
+        against plain circle-vs-circle math in a scratch Node script)
+        looked safe, but `.jsticker` renders with a CSS `rotate()` - and a
+        rotated square's actual on-screen (axis-aligned) bounding box is
+        BIGGER than its own size, by a factor of `|cos|+|sin|` of the
+        rotation angle. Confirmed live via `getBoundingClientRect` on two
+        "just touching" stickers: a real ~1px sliver overlap, invisible in
+        a screenshot but real. Fixed by computing slack against each
+        item's worst-case ROTATED footprint instead of its nominal size,
+        and re-verified across 40+ synthetic seeds per page (not just the
+        one real seed each page actually uses) before settling on final
+        numbers.
+      - Sizes pushed up close to that provably-safe ceiling for Main
+        Stacks, Emerald Meadow, and Pigeon Plaza (the three pages with a
+        multi-item collage) - meaningfully bigger throughout, confirmed
+        zero overlaps and zero off-page items on all three via a live
+        `getBoundingClientRect` pairwise-intersection check, both fully
+        locked and with items collected.
+      - **Verification note**: the embedded test browser's
+        `getBoundingClientRect` reads came back as degenerate garbage
+        (a single collapsed point) exactly once, immediately after an
+        `await waitFor(900)` call inside the same script - a same-page
+        re-check moments later (no `waitFor`) read normally. Screenshot
+        ground truth was correct the whole time. Treat one weird
+        layout-measurement result right after an async wait as a tooling
+        flake worth re-checking with a fresh, synchronous read before
+        concluding the page itself is broken.
 - [x] Journal: gift books and Emerald Meadow foods now earn their own
       stickers on pickup (2026-07-16): Bred added new sticker art -
       `stickers/mainstacks stickers/` (book 1-5) and `stickers/meadow
