@@ -49,8 +49,8 @@
   #mission.mission-hide{opacity:0;pointer-events:none}
   #guide{position:fixed;left:18px;top:50%;transform:translateY(-50%) translateX(-16px);z-index:20;
     display:flex;flex-direction:column;align-items:center;gap:6px;
-    font-size:clamp(12.5px,1.5vw,15.5px);font-weight:700;padding:14px 12px;border-radius:20px;
-    width:112px;text-align:center;white-space:normal;line-height:1.35;
+    font-size:clamp(12.5px,1.5vw,15.5px);font-weight:700;padding:14px 16px;border-radius:20px;
+    width:max-content;max-width:230px;text-align:center;white-space:normal;line-height:1.35;
     background:rgba(30,32,64,.55);backdrop-filter:blur(8px);border:1px solid rgba(150,200,255,.4);
     color:#dbe7ff;opacity:0;transition:opacity .4s,transform .4s;pointer-events:none}
   #guide.show{opacity:1;transform:translateY(-50%) translateX(0)}
@@ -102,8 +102,14 @@
     border:1px solid rgba(255,255,255,.18);background:rgba(30,32,64,.5);backdrop-filter:blur(8px);
     color:#fff;font-size:17px;cursor:pointer}
   #musicCredits{position:fixed;right:12px;bottom:10px;z-index:18;max-width:330px;text-align:right;
-    font-size:9px;line-height:1.35;color:rgba(255,255,255,.52);pointer-events:auto}
+    font-size:9px;line-height:1.35;color:rgba(255,255,255,.52);pointer-events:auto;
+    transition:opacity .6s ease}
   #musicCredits a{color:rgba(220,235,255,.7);text-decoration:none}
+  /* required attribution (CLAUDE.md) stays present, just fades to a dim
+     single-line pill once gameplay starts so it stops competing with
+     cutscenes - still fully visible/legible on hover. */
+  #musicCredits.dim{opacity:.35}
+  #musicCredits.dim:hover{opacity:.9}
 
   /* ---------- journal / sticker collection ---------- */
   #journalBtn{position:fixed;top:16px;right:64px;z-index:20;width:40px;height:40px;border-radius:50%;
@@ -549,11 +555,9 @@ const CONFIG = {
   herNick:  'Beanie',
   yourName: 'Bred 🍞',
   cardMessage:
-`You made it, through the gray little city, the wobbly book towers,
-the flying cucumbers, the whales, and roughly four hundred pigeons.
+`You made it, through the gray little city, the wobbly book towers, the flying cucumbers, and roughly four hundred pigeons.
 
-Every world in this little universe is something you love.
-But you are the world I love.
+Every world in this little universe is something you love. But you are the world I love.
 
 Percy, Chippy and I are so glad you're finally here.
 
@@ -814,18 +818,27 @@ function spawnDust(kind, pos, up, fwd){
 // geometry/material as footstep dust, but many more of them thrown outward
 // and upward in a wide radial burst instead of a few kicked backward.
 function spawnLandingDustBurst(pos, up){
-  // Bumped again per request ("much bigger cloud, slower, smoother, rumbles
-  // more"): more puffs, each noticeably larger, expanding at roughly half
-  // the previous speed with proportionally longer hang time so the cloud
-  // reads as a big billowing settle rather than a burst, and a slower spin
-  // per puff so individual pieces of dust don't tumble distractingly fast.
-  const n = 42 + Math.floor(Math.random()*14);
+  // A previous pass made this so big/slow/omnidirectional (huge puffs
+  // spawned right ON Beanie, drifting every which way including straight
+  // at the camera) that it filled the frame for the whole fall cutscene -
+  // you could not see her land at all. Rebuilt as an expanding ring that
+  // radiates outward along the GROUND from her impact point, leaving the
+  // center (where she and the camera are) clear from the very first frame,
+  // with puffs capped well under her own height and a short life so the
+  // cloud clears fast instead of lingering.
+  const n = 30 + Math.floor(Math.random()*10);
+  let tangentA = new THREE.Vector3(1,0,0).cross(up);
+  if (tangentA.lengthSq() < 1e-6) tangentA = new THREE.Vector3(0,0,1).cross(up);
+  tangentA.normalize();
+  const tangentB = new THREE.Vector3().crossVectors(up, tangentA).normalize();
   for (let i = 0; i < n; i++){
-    const puff = new THREE.Mesh(dustGeo, mat(0xd6cdbc, { roughness:1, transparent:true, opacity:0.7 }));
-    puff.scale.setScalar(2.2 + Math.random()*3.4);
-    const dir = randDir().addScaledVector(up, 0.5 + Math.random()*0.4).normalize();
-    const speed = 0.7 + Math.random()*1.3;
-    spawnEphemeral(puff, pos, dir.multiplyScalar(speed), 2.6 + Math.random()*1.4, 0.25);
+    const puff = new THREE.Mesh(dustGeo, mat(0xd6cdbc, { roughness:1, transparent:true, opacity:0.6 }));
+    puff.scale.setScalar(0.7 + Math.random()*0.9);   // capped well under Beanie's own height
+    const a = (i/n)*Math.PI*2 + (Math.random()-0.5)*0.4;   // spread evenly around the ring, not clumped
+    const outDir = tangentA.clone().multiplyScalar(Math.cos(a)).addScaledVector(tangentB, Math.sin(a));
+    const startOffset = outDir.clone().multiplyScalar(0.6 + Math.random()*0.5).addScaledVector(up, 0.08);
+    const vel = outDir.multiplyScalar(2.2 + Math.random()*1.6).addScaledVector(up, 0.2 + Math.random()*0.25);
+    spawnEphemeral(puff, pos.clone().add(startOffset), vel, 0.9 + Math.random()*0.5, 0.6, 0.55);
   }
 }
 
@@ -5306,10 +5319,19 @@ function updateLocator(t){
   const pulse = 0.85 + 0.15*Math.sin(t*3);
   u.arrow.position.y = (u.BEAM_H - 1.6) + 0.4*Math.sin(t*2.4);
   u.arrow.rotation.y = t*2.4;
+  // Fade/shrink the whole beacon out as she closes in - full strength
+  // beyond 25 units, essentially gone by 10 (the "press SPACE" prompt takes
+  // over well before that) - it used to stay full-size right up until she
+  // was standing on top of it, completely engulfing whatever she was being
+  // guided to (the exact thing it's supposed to help her find).
+  const distToTarget = her.position.distanceTo(tp);
+  const closeFade = Math.max(0, Math.min(1, (distToTarget - 10)/15));
+  locator.scale.setScalar(0.1 + 0.9*closeFade);
   u.orb.scale.setScalar(pulse);
   u.orbGlow.scale.setScalar(pulse*1.15);
-  u.beam.material.opacity = 0.4 + 0.15*Math.sin(t*2);
-  locator.visible = true;
+  u.beam.material.opacity = (0.4 + 0.15*Math.sin(t*2))*closeFade;
+  u.orbGlow.material.opacity = 0.3*closeFade;
+  locator.visible = closeFade > 0.02;
 }
 function updateAim(t){
   target = null;
@@ -5497,7 +5519,15 @@ function noticePortraitFocus(basePos, npcObj, up, out){
   const visibleHeight = Math.max(0.7, Math.min(5.0, verticalHalf*2));
   const faceLevel = bottomLevel + visibleHeight*0.76;
   out.copy(noticeBoundsCenter).addScaledVector(up, faceLevel - centerLevel);
-  return visibleHeight;
+  // Framing by vertical extent alone starves the shot when a character is
+  // WIDE relative to its height (bbak lying down: short but broad) - the
+  // camera backs off just far enough to fit his short vertical extent while
+  // his actual width overflows the frame edge-to-edge, cropping his face out
+  // entirely. Use whichever axis is actually bigger to decide how far back
+  // the camera needs to sit; `out`/faceLevel above still target his true
+  // face height, only the DISTANCE changes.
+  const overallSize = Math.max(noticeBoundsSize.x, noticeBoundsSize.y, noticeBoundsSize.z);
+  return Math.max(0.7, Math.min(5.0, Math.max(visibleHeight, overallSize)));
 }
 function restoreNoticeFacing(){
   if (notice && notice.faceObj && notice.faceQuaternion)
@@ -5534,6 +5564,7 @@ function startNotice(targetPos, subject, npcObj=null){
   camYaw = 0;
   camPitch = 0.22;
   state = 'notice';
+  hintEl.classList.add('hidden');   // updateIdleHint() isn't called during 'notice' either
   noticeBubbleEl.textContent = `💭 Hmm… I should go talk to ${subject}!`;
   noticeBubbleEl.classList.add('portrait', 'show');
 }
@@ -6131,6 +6162,7 @@ function startLandingSequence(bi){
   // keep its HUD/mission up through the fall/get-up beat.
   hudEl.classList.add('hidden');
   missionEl.classList.add('hidden');
+  hintEl.classList.add('hidden');   // updateIdleHint() isn't called during 'landing', so it never gets a chance to hide this itself
   const fallAction = (bi === GARDEN_I && herSummerGroup) ? herSummerLandFallGetUpAction : herLandFallGetUpAction;
   if (fallAction) fallAction.reset().play();
   landing = { bi, phase:'fallgetup', t:0 };
@@ -7016,7 +7048,7 @@ function updateWalk(dt){
     const forwardAngle = iz*moveSpeed*dt/b.r;
     orientation.multiply(tmpQ.setFromAxisAngle(X_AXIS, forwardAngle));
     orientation.normalize();
-    if (isBlocked(b, orientation)){
+    if (isBlocked(b, orientation, preForward)){
       // Wall-slide instead of a hard stop: a rotation around her own LOCAL
       // Z_AXIS (her forward axis) shifts WHERE she stands on the sphere
       // without changing WHICH WAY she faces - Rz leaves the axis it rotates
@@ -7035,7 +7067,7 @@ function updateWalk(dt){
           const candidate = preForward.clone()
             .multiply(new THREE.Quaternion().setFromAxisAngle(Z_AXIS, dir*mag))
             .multiply(forwardQ).normalize();
-          if (!isBlocked(b, candidate)){ resolved = candidate; break outer; }
+          if (!isBlocked(b, candidate, preForward)){ resolved = candidate; break outer; }
         }
       }
       orientation.copy(resolved || preForward);   // slide around it, or bump back if fully boxed in
@@ -7492,6 +7524,7 @@ function startJourney(){
   if (state !== 'intro') return;
   introEl.classList.add('fade');
   setTimeout(() => introEl.classList.add('hidden'), 1100);
+  document.getElementById('musicCredits').classList.add('dim');   // required attribution stays, just dims once gameplay starts
   hudEl.classList.remove('hidden');
   dotsEl.classList.remove('hidden');
   // #hint no longer forces itself on at journey start - updateIdleHint()
@@ -8201,7 +8234,7 @@ window.__world = {
     if (!dialog) return null;
     const up = herUp(new THREE.Vector3());
     const npc = dialog.npcPos ? dialog.npcPos() : null;
-    const beanieFocus = isBeanieSpeaking() && !dialog.awaitingChoice;
+    const beanieFocus = isBeanieSpeaking();
     const subject = beanieFocus ? her.position : npc;
     const rawSubjectObj = beanieFocus ? her : dialog.npcObj;
     const subjectObj = dialogueVisualObject(rawSubjectObj, beanieFocus);

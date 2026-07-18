@@ -1,4 +1,110 @@
 # ROADMAP
+- [x] **"Nintendo-pitch" polish pass, Tier S + quick Tier B wins** (2026-07-17).
+      A full-game design review (title screen through the finale card) turned
+      up a structured S/A/B/C punch list; this round shipped all of Tier S
+      (the moments a player will actually hit) plus three fast Tier B wins.
+      Everything below was reproduced live, fixed, and re-verified with real
+      gameplay screenshots (not just framePoint debug shots) before shipping.
+      - **S1 - landing dust cloud was hiding the whole cutscene.**
+        `spawnLandingDustBurst()` used to throw 42-56 puffs, some scaled up
+        to 5.6x, spawned directly ON Beanie with near-omnidirectional
+        velocity (including straight at the camera) and a 2.6-4s life - the
+        camera spent the entire fall/get-up beat inside a wall of giant
+        beige spheres. Rebuilt as an expanding ring: puffs now spawn already
+        offset outward along the ground (tangent-plane basis from her `up`
+        vector), capped at ~0.7-1.6 diameter (well under her own height),
+        biased outward+low instead of omnidirectional, and clear out in
+        <1.5s. Verified: she's clearly visible lying flat mid-cutscene with
+        dust billowing around (not over) her.
+      - **S2 - bbak's "notice" portrait cropped his face out entirely.**
+        `noticePortraitFocus()` only measured the NPC's extent along the
+        `up` axis to decide how far back the camera should sit - fine for
+        an upright character, but bbak lies down (short vertically, broad
+        horizontally), so the camera framed tight enough for his short
+        height while his actual width overflowed the frame, cropping his
+        head off the top. Now frames by whichever axis (vertical height or
+        overall bounding-box size) is actually bigger; vertical positioning
+        (which level his face sits at) is untouched. Verified: his face is
+        now in frame at Emerald Meadow's real notice beat (previous
+        behavior was 100% belly, face fully above frame).
+      - **S3 - Beanie was never on screen during her own dialogue choices.**
+        The conversation camera already had a fully-built reverse-shot mode
+        (`beanieFocus` in `updateTalkCam`) that frames HER instead of the
+        NPC when it's her line - but it explicitly excluded the
+        `awaitingChoice` beat (`isBeanieSpeaking() && !dialog.awaitingChoice`),
+        which is exactly backwards: the response-menu moment is precisely
+        when it's her turn and she should be visible. Removed the
+        exclusion - one line, reusing existing infrastructure rather than
+        building a new camera mode. Verified with a Percy conversation:
+        she's framed during her own line/choice beats, NPC framing
+        unchanged for their lines.
+      - **S4 - standing exactly on an NPC's collider was a permanent
+        softlock.** `isBlocked()` had no escape path: if she was already
+        inside a collider's footprint (verified via `gotoPercy()`, which
+        places her dead-center on Percy's own collider), every direction
+        was rejected forever, with no way to move at all. Added an escape
+        rule: when given her pre-move orientation, any collider she's
+        already inside gets a pass for moves that increase her angular
+        distance from it (moving deeper is still blocked normally). Root-
+        caused a confusing false negative while verifying this - the
+        browser was serving a stale cached copy of index.html to both
+        `fetch()` and full-page navigation, so several early test rounds
+        were unknowingly running the OLD isBlocked. Confirmed the real fix
+        works via an isolated unit-style test of the live function
+        (exposed temporarily, then removed) plus repeated real movement
+        out of the stuck position once a genuinely fresh load was
+        confirmed.
+      - **S5 - the locator beacon engulfed whatever it was pointing at.**
+        The tall beam+orb+arrow stayed full-size right up until she was
+        standing on top of it, hiding the very NPC she was being guided to.
+        `updateLocator()` now fades/shrinks the whole beacon out approaching
+        the target - full strength beyond 25 units, essentially gone by 10
+        (comfortably before the "press SPACE" prompt takes over).
+      - **S6 - the birthday card mentioned a cut world.** `CONFIG.cardMessage`
+        said "...the flying cucumbers, the whales, and roughly four hundred
+        pigeons" - there's no whale world in the shipped game. Removed the
+        stale reference and let the sentences wrap naturally (`pre-wrap`
+        already handles this) instead of hard-breaking mid-clause.
+      - **B1 - guide chip was a cramped 112px column.** Widened to
+        `width:max-content` capped at 230px, so normal messages ("find
+        Chippy, 21 steps away") read as 1-2 lines instead of 4-5.
+      - **B5 - hint bar stayed visible through title cutscenes.**
+        `updateIdleHint()` (the only thing that ever hides `#hint`) isn't
+        called during `'landing'`/`'notice'` states, so once it was showing
+        it just sat there through the whole cutscene. Now explicitly hidden
+        in `startLandingSequence()` and `startNotice()`.
+      - **B8 - music credits restyled as a dim pill.** Stays fully present
+        (required) but fades to 35% opacity once gameplay starts
+        (`startJourney()` adds a `.dim` class), full opacity on hover.
+      - **B4 (partial, already done) / B6 (checked, already fine)**: SPACE
+        already dismissed title cards (`finalizeLanding()` wired to the
+        same SPACE handler as dialogue advance) and the emoji-per-character
+        convention (🥔 Chippy, 🐦 Percy, 🐻‍❄️ bbak, 🦤 Doodles) turned out to
+        already be consistent everywhere it's used - both were flagged in
+        the original review based on a stale read of the codebase; verified
+        against the actual current file and no change was needed.
+      - **Deferred (not attempted this round) - each is either a large new
+        feature or carries real regression risk without a much bigger
+        verification budget than this round had:**
+        - S2's secondary note (two glowing patches visible through bbak's
+          body during the notice shot) - likely a cold-treat pickup halo or
+          similar emissive prop placed close behind him; not root-caused.
+        - A1 (camera-occlusion fade for blocking geometry), A2/A3/A4 (Garden
+          bloom/flower clearing/faceted-geometry pass), A5 (ring edge-on
+          softening - the Main-Stacks-bleed half of A5 was already fixed in
+          an earlier round), A6 (Pigeon Plaza contrast pass), A7 (Chicago
+          far-side dressing + snow visibility).
+        - B2 (mission-banner staleness/hide-on-all-paths audit), B3 (landing
+          UI pile-up sequencing/priority), B7 (keyboard support for dialogue
+          choices).
+        - C1 (the kiss/reunion ending - the single highest-value content
+          item flagged, but a real cutscene build, not a quick fix), C2
+          (sticker reachability audit), C3 (letter/notebook props), C4
+          (save/resume - a real persistence feature), C5 (fall-cutscene
+          pacing tighten), C6 (cross-world sting-cohesion pass).
+        Recommend tackling A-tier next (bounded, visual, no new state
+        machines), then C1/C4 as their own dedicated rounds given their
+        scope.
 - [x] **Two rounds of journal/gameplay fixes** (2026-07-17), 13 items then
       12 more, all shipped together as one commit (`2aa026b`) after the
       merge-conflict fix below landed.
