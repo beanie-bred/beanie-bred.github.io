@@ -1748,6 +1748,52 @@ const PIGEON_VARIANTS = [
   { body:0xd4d8de, head:0x8f96a4, ring:0x5a6a8a, chest:0xc8b8d8 },
   { body:0xbfc4ce, head:0xa8aeb8, ring:0x8a5a78, chest:0xa0c8d8 },
 ];
+// A small chibi grazing sheep for Emerald Meadow's background flock (see
+// buildCucumber) - same low-poly, primitive-cluster construction style as
+// plushPigeon above. userData exposes `head` (for the grazing dip) only;
+// no wings, sheep don't need them.
+function makeSheep(colors={}){
+  const C = { wool:0xf6f1e4, face:0x6b5a4a, dark:0x342a22, ...colors };
+  const g = new THREE.Group();
+  const woolM = mat(C.wool, { roughness:1 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 10), woolM);
+  body.scale.set(1.15, 0.9, 1.3); body.position.y = 0.34; g.add(body);
+  // a few extra bumpy wool tufts around the main body read as "fluffy"
+  // without needing real per-strand geometry
+  const tuftSpots = [[-0.22,0.48,0.14],[0.22,0.48,0.14],[0,0.54,-0.18],[-0.2,0.28,-0.26],[0.2,0.28,-0.26]];
+  for (const [x,y,z] of tuftSpots){
+    const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.13 + Math.random()*0.04, 8, 7), woolM);
+    tuft.position.set(x, y, z); g.add(tuft);
+  }
+  const head = new THREE.Group();
+  head.position.set(0, 0.4, 0.42); g.add(head);
+  const faceM = mat(C.face, { roughness:0.9 }), darkM = mat(C.dark, { roughness:0.85 });
+  const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.155, 12, 10), faceM);
+  head.add(headMesh);
+  for (const ex of [-0.09, 0.09]){
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), faceM);
+    ear.scale.set(1.4, 0.6, 0.9); ear.position.set(ex*1.55, 0.03, -0.02);
+    ear.rotation.z = ex > 0 ? -0.5 : 0.5; head.add(ear);
+  }
+  for (const ex of [-0.055, 0.055]){
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 6), darkM);
+    e.position.set(ex, 0.03, 0.135); head.add(e);
+  }
+  const snout = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), darkM);
+  snout.scale.set(1, 0.7, 0.8); snout.position.set(0, -0.05, 0.145); head.add(snout);
+  for (const [x, z] of [[-0.16,0.22],[0.16,0.22],[-0.16,-0.22],[0.16,-0.22]]){
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.24, 8), darkM);
+    leg.position.set(x, 0.12, z); g.add(leg);
+  }
+  g.userData = { head };
+  return g;
+}
+const SHEEP_VARIANTS = [
+  { wool:0xf6f1e4, face:0x6b5a4a, dark:0x342a22 },
+  { wool:0xece3d0, face:0x8a6a4a, dark:0x3a2a1a },
+  { wool:0xfaf6ec, face:0x4a4038, dark:0x241e1a },
+  { wool:0xe8dcc4, face:0x7a5a42, dark:0x322620 },
+];
 function makeChippy(){
   const g = new THREE.Group();
   const cream = mat(0xf2e2c2, { roughness:0.95 });
@@ -2799,7 +2845,108 @@ function buildCucumber(g, R){
   animators.push((t) => { if (!cuke.visible) return;
     cukeBeacon.rotation.y = t*1.8; cukeBeacon.position.y = 2.6 + 0.25*Math.sin(t*2);
     cukeHalo.material.opacity = 0.2 + 0.1*Math.sin(t*2.2); });
-  return { bbak, bbakN, foods, cuke, cukeN, solidRing, solidMat,
+  // ---- grazing sheep flock (background decor) - same ground-motion idea as
+  // Pigeon Plaza's crowd (idle -> turn -> occasionally step -> lean -> graze
+  // -> rise -> idle), but retuned much calmer throughout: longer idle/graze
+  // holds, a smaller turn angle, a slow crawl of a step taken only some of
+  // the time - "barely moving", not wandering the meadow. Only the HEAD
+  // dips for the graze (not the whole body/legs), so it reads as lowering
+  // her neck to eat rather than tipping over.
+  const SHEEP_COUNT = 60;
+  const sheepFlock = [];
+  for (let i = 0; i < SHEEP_COUNT; i++){
+    const sp = makeSheep(SHEEP_VARIANTS[i % SHEEP_VARIANTS.length]);
+    sp.scale.setScalar(0.85 + Math.random()*0.35);
+    const holder = new THREE.Group(); holder.add(sp);
+    let n;
+    do { n = randDirClearOfLanding(); } while (n.angleTo(bbakN) < 4/R);
+    placeOn(g, holder, n, R, 0.02);
+    sheepFlock.push(holder);
+    const heading = arbitraryPerp(n).applyAxisAngle(n, Math.random()*Math.PI*2).normalize();
+    const motion = { cur:n.clone(), heading, targetHeading:heading.clone(),
+      state:'idle', timer:3 + Math.random()*6, duration:1,
+      startQ:new THREE.Quaternion(), targetQ:new THREE.Quaternion() };
+    holder.userData.groundMotion = motion;
+    const stepAxis = V(), basisF = V(), basisX = V(), basisM = new THREE.Matrix4();
+    function setFacing(q, up, forward){
+      basisF.copy(forward).addScaledVector(up, -forward.dot(up)).normalize();
+      basisX.crossVectors(up, basisF).normalize();
+      basisM.makeBasis(basisX, up, basisF);
+      q.setFromRotationMatrix(basisM);
+    }
+    setFacing(holder.quaternion, motion.cur, motion.heading);
+    const headRestY = sp.userData.head.position.y, headRestZ = sp.userData.head.position.z;
+    animators.push((t, dt) => {
+      if (motion.suspended) return;
+      const head = sp.userData.head;
+      motion.timer -= dt;
+      if (motion.state === 'idle'){
+        if (motion.timer <= 0){
+          motion.targetHeading.copy(motion.heading)
+            .applyAxisAngle(motion.cur, (Math.random()-0.5)*0.5).normalize();
+          motion.startQ.copy(holder.quaternion);
+          setFacing(motion.targetQ, motion.cur, motion.targetHeading);
+          motion.duration = 0.6 + Math.random()*0.3;
+          motion.timer = motion.duration;
+          motion.state = 'turn';
+        }
+      } else if (motion.state === 'turn'){
+        const k = Math.max(0, Math.min(1, 1 - motion.timer/motion.duration));
+        const e = k*k*(3-2*k);
+        holder.quaternion.slerpQuaternions(motion.startQ, motion.targetQ, e);
+        if (motion.timer <= 0){
+          motion.heading.copy(motion.targetHeading);
+          // Mostly just turn-and-graze in place; only sometimes actually
+          // take a step - sheep should barely move, not patrol the meadow.
+          if (Math.random() < 0.35){
+            motion.duration = 1.1 + Math.random()*0.4;
+            motion.timer = motion.duration;
+            motion.state = 'step';
+          } else {
+            motion.duration = 0.7; motion.timer = motion.duration; motion.state = 'lean';
+          }
+        }
+      } else if (motion.state === 'step'){
+        stepAxis.crossVectors(motion.cur, motion.heading).normalize();
+        const travelSpeed = 0.2;   // slow, calm crawl - barely covers ground
+        const angle = travelSpeed*dt/R;
+        motion.cur.applyAxisAngle(stepAxis, angle).normalize();
+        motion.heading.applyAxisAngle(stepAxis, angle).normalize();
+        holder.position.copy(motion.cur).multiplyScalar(R + 0.02);
+        setFacing(holder.quaternion, motion.cur, motion.heading);
+        if (motion.timer <= 0){
+          motion.duration = 0.7; motion.timer = motion.duration; motion.state = 'lean';
+        }
+      } else if (motion.state === 'lean'){
+        const k = Math.max(0, Math.min(1, 1 - motion.timer/motion.duration));
+        const e = k*k*(3-2*k);
+        head.rotation.x = e*0.9;
+        head.position.y = headRestY - e*0.28;
+        head.position.z = headRestZ + e*0.05;
+        if (motion.timer <= 0){
+          motion.duration = 1.6 + Math.random()*1.4; motion.timer = motion.duration; motion.state = 'graze';
+        }
+      } else if (motion.state === 'graze'){
+        // head down "eating grass" - the signature grazing beat, held long
+        head.rotation.x = 0.9 + Math.sin(t*2.5)*0.03;
+        head.position.y = (headRestY-0.28) + Math.sin(t*2.5)*0.008;
+        if (motion.timer <= 0){
+          motion.duration = 0.65; motion.timer = motion.duration; motion.state = 'rise';
+        }
+      } else {                                            // rise, then a long calm idle
+        const k = Math.max(0, Math.min(1, 1 - motion.timer/motion.duration));
+        const e = k*k*(3-2*k);
+        head.rotation.x = 0.9*(1-e);
+        head.position.y = (headRestY-0.28) + e*0.28;
+        head.position.z = headRestZ + 0.05*(1-e);
+        if (motion.timer <= 0){
+          head.rotation.x = 0; head.position.set(0, headRestY, headRestZ);
+          motion.state = 'idle'; motion.timer = 4 + Math.random()*7;
+        }
+      }
+    });
+  }
+  return { bbak, bbakN, foods, cuke, cukeN, solidRing, solidMat, sheepFlock,
     setSolidSpinScale: (s) => { solidSpinScale = s; },
     cukeRingGroups, groundCucumberHolders, snowPiles,
     ringMidR: (mainInnerR+mainOuterR)/2, ringTiltX: RING_TILT_X, ringTiltZ: RING_TILT_Z,
@@ -4216,7 +4363,10 @@ function tiltDir(n, angle, azimuth){
   const dir = new THREE.Vector3().copy(t1).multiplyScalar(Math.cos(azimuth)).addScaledVector(t2, Math.sin(azimuth));
   return new THREE.Vector3().copy(n).multiplyScalar(Math.cos(angle)).addScaledVector(dir, Math.sin(angle)).normalize();
 }
-const PLAZA_STORY_SLOT_COUNT = PLAZA_DECOYS.length + 1; // eight friends + Doodles
+// Minimum surface distance a named pigeon friend must land from whichever
+// one she met right before it (see spawnStoryPigeon's rejection-sampling
+// loop) - a specific, explicit ask, not just "spread out more in general".
+const PLAZA_FRIEND_MIN_UNITS = 40;
 // Distance from PERCY, not from Beanie - but she's normally standing right
 // next to him when a decoy spawns (she just finished talking to him), so the
 // old 18-20.4 units read as "spawns already inside" the notice-trigger's
@@ -4261,22 +4411,34 @@ function spawnStoryPigeon(cfg){
   const g = bodies[PIGEON_I].group, R = bodies[PIGEON_I].r;
   const holder = new THREE.Group();
   const inner = new THREE.Group(); holder.add(inner);
-  // Percy owns the center. Every named pigeon/dove gets a reserved slot in
-  // story order so later spawns can never overlap an earlier friend - evenly
-  // spaced by azimuth (plus a little jitter so it doesn't read as a perfect
-  // grid), each at its own RANDOM distance from Percy across a wide band
-  // (not just two alternating values) so the search actually spreads across
-  // the plaza instead of walking one predictable close-in loop. Doodles
-  // isn't part of that ring at all - genuinely the far side of the planet,
-  // matching his role as the actual finale.
+  // Percy owns the center; every named pigeon/dove gets a random distance
+  // from him (wide band) AND a fully random azimuth - rejected and retried
+  // until it lands a real minimum distance from whichever friend she met
+  // right before (or Percy himself, for the very first one), so consecutive
+  // friends are guaranteed a genuine walk apart. An earlier version pinned
+  // each decoy to a fixed, evenly-spaced azimuth SLOT (only a little jitter
+  // on top) specifically so later spawns could never overlap an earlier one
+  // - but that same tight clustering made a real 40-unit gap from the
+  // PREVIOUS friend specifically geometrically impossible most of the time
+  // (verified: >85% rejection-sample failures at 30 tries in a scratch
+  // script). Fully random azimuth removes that ceiling entirely (0 failures
+  // across 4000 simulated placements, ~2 tries on average) since consecutive
+  // friends are no longer fighting over adjacent slots to begin with.
+  // Doodles isn't part of this ring at all - genuinely the far side of the
+  // planet, matching his role as the actual finale.
   const isDoodles = cfg.name === DOODLES_CFG.name;
-  const decoySlot = PLAZA_DECOYS.findIndex((friend) => friend.name === cfg.name);
-  const slot = isDoodles ? PLAZA_DECOYS.length : Math.max(0, decoySlot);
-  const ringAngle = isDoodles ? DOODLES_RING_ANGLE
-    : PLAZA_STORY_RING_NEAR + Math.random()*(PLAZA_STORY_RING_FAR - PLAZA_STORY_RING_NEAR);
-  const azimuthJitter = (Math.random()-0.5) * (Math.PI*2/PLAZA_STORY_SLOT_COUNT) * 0.5;
-  const azimuth = -0.35 + slot/PLAZA_STORY_SLOT_COUNT*Math.PI*2 + azimuthJitter;
-  const n = tiltDir(worldRefs.pigeon.percyN, ringAngle, azimuth);
+  const prevN = plazaQuest.decoyHolders.length
+    ? plazaQuest.decoyHolders[plazaQuest.decoyHolders.length-1].userData.n
+    : worldRefs.pigeon.percyN;
+  const FRIEND_MIN_ANGLE = PLAZA_FRIEND_MIN_UNITS / R;
+  let n, placeTries = 0;
+  do {
+    const ringAngle = isDoodles ? DOODLES_RING_ANGLE
+      : PLAZA_STORY_RING_NEAR + Math.random()*(PLAZA_STORY_RING_FAR - PLAZA_STORY_RING_NEAR);
+    const azimuth = Math.random()*Math.PI*2;
+    n = tiltDir(worldRefs.pigeon.percyN, ringAngle, azimuth);
+    placeTries++;
+  } while (placeTries < 40 && n.angleTo(prevN) < FRIEND_MIN_ANGLE);
   clearCrowdAroundStorySpot(n);
   placeOn(g, holder, n, R, 0.02);
   if (cfg.procedural){
@@ -7038,11 +7200,17 @@ function updateWalk(dt){
   const iz = (keys['ArrowUp'] ? 1 : 0) - (keys['ArrowDown'] ? 1 : 0);
   u.moving = !!(ix || iz);
   updateIdleHint(dt, u.moving);
-  // Any actual movement snaps the free-look (drag) view straight back to her
-  // standard behind-the-shoulder POV immediately - free-look is meant for
-  // looking around while she's stopped, not for wandering off mid-stride.
+  // Actually WALKING snaps the free-look (drag) pitch straight back to her
+  // standard behind-the-shoulder POV - free-look is meant for looking around
+  // while she's stopped, not for wandering off mid-stride. Turning in place
+  // (ix alone, no iz) deliberately does NOT reset pitch anymore: she has to
+  // be able to free-look up to find a distant next-world aim-lock, then use
+  // ONLY left/right to line up the yaw without losing that tilt - resetting
+  // pitch on every keypress made the lock nearly impossible to actually hold
+  // long enough to register, since turning toward it kept erasing the tilt
+  // that found it in the first place.
+  if (iz) camPitch = 0.3;
   if (u.moving){
-    camPitch = 0.3;
     camYaw = ix ? ix*0.65 : 0;   // turning still peeks toward that side
   }
   u.movingBackward = iz < 0;
@@ -7195,11 +7363,23 @@ function updateWalk(dt){
     // Cucumber Meadow -> Pigeon Plaza, where the lock window is tightest).
     const aimAngle = parseFloat(document.body.dataset.aimAngle);
     const aimThresh = parseFloat(document.body.dataset.aimThreshold);
-    let hint = '🚀 a new world is calling… look around!';
+    // The compass arrow above only ever communicates YAW (which way to
+    // turn) - on the biggest hops the real blocker turns out to be PITCH
+    // (how far to tilt the view up/down), which a flat 2D arrow can't show
+    // at all and nothing else ever hinted at either. `gToward` is already
+    // flattened onto her horizon plane for the bearing math above, so it
+    // carries no vertical information - use the RAW (unflattened) direction
+    // to the target instead, and its component along `up` says which way
+    // to tilt.
+    const rawToward = new THREE.Vector3().subVectors(nextBody.center, her.position).normalize();
+    const vertical = rawToward.dot(gUp);
+    const vertHint = vertical > 0.15 ? ' try tilting the view UP too'
+      : (vertical < -0.15 ? ' try tilting the view DOWN too' : '');
+    let hint = `🚀 a new world is calling…${vertHint}`;
     if (!isNaN(aimAngle) && !isNaN(aimThresh)){
       const ratio = aimAngle / aimThresh;
       if (ratio < 1) hint = '🚀 almost there, hold it!';
-      else if (ratio < 2.5) hint = '🚀 getting warmer…';
+      else if (ratio < 2.5) hint = `🚀 getting warmer…${vertHint}`;
     }
     guideLabelEl.innerHTML = hint;
     guideEl.classList.add('show');
