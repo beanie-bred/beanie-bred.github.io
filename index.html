@@ -199,7 +199,11 @@
   .jpolaroid{position:absolute;transform:translate(-50%,-50%) rotate(var(--rot));
     aspect-ratio:.82;background:#fff;box-sizing:border-box;padding:4% 4% 16% 4%;
     box-shadow:0 10px 22px rgba(0,0,0,.32),0 2px 5px rgba(0,0,0,.18)}
-  .jpolaroid .jphoto{width:100%;height:100%;object-fit:contain;display:block;background:#fff}
+  /* fill the frame (crop overflow) rather than shrink-to-fit - at collage
+     size a letterboxed photo read as a tiny image floating in a mostly-white
+     card. The zoom lightbox below switches back to `contain` so the full,
+     uncropped photo is still viewable on demand. */
+  .jpolaroid .jphoto{width:100%;height:100%;object-fit:cover;display:block;background:#fff}
   .jpolaroid .jcaption{position:absolute;left:6%;right:6%;bottom:5%;text-align:center;
     font-family:'Caveat',cursive;font-weight:600;font-size:15px;line-height:1.15;color:#3a3530;
     overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
@@ -208,17 +212,52 @@
     box-shadow:0 1px 2px rgba(0,0,0,.12)}
   /* scribbled little asides scattered through the collage, real scrapbook
      filler alongside the stickers/polaroids - self-adhesive like a sticker
-     (no tape), just a plain flat square of colored paper */
+     (no tape), just a plain flat square of colored paper. Deliberately no
+     fixed aspect-ratio: height is left auto (content-driven) since a forced
+     square fought the longest note text (~42 characters) - either the box
+     had to grow way taller than intended to fit it (defeating "smaller"),
+     or the font had to shrink to near-illegible to keep it square. Auto
+     height instead gives every note a snug, note-length-appropriate
+     rectangle. Padding is a FIXED px value, not a %: CSS resolves ALL
+     padding percentages (even top/bottom) against the CONTAINING BLOCK's
+     width, not the element's own - on a small ~85px-wide note inside the
+     ~450px+ collage, a seemingly-modest "9%" padding was really ~40px on
+     EACH side, leaving almost no room for the text and forcing extreme
+     one-word-per-line wrapping. A fixed px padding doesn't have that
+     scaling trap. */
   .jpostit{position:absolute;transform:translate(-50%,-50%) rotate(var(--rot));
-    aspect-ratio:1;box-sizing:border-box;padding:12% 9%;display:flex;align-items:center;
+    box-sizing:border-box;padding:10px 8px;display:flex;align-items:center;
     justify-content:center;text-align:center;font-family:'Caveat',cursive;font-weight:600;
-    font-size:14px;line-height:1.18;color:#4a4030;
+    font-size:12px;line-height:1.18;color:#4a4030;z-index:2;
     box-shadow:0 6px 14px rgba(0,0,0,.22),0 2px 4px rgba(0,0,0,.15)}
   .jpostit.c0{background:#fff1a8}
   .jpostit.c1{background:#ffd1dc}
   .jpostit.c2{background:#c9f0d8}
   .jpostit.c3{background:#bfe0ff}
   .jpageFoot{font-size:11.5px;opacity:.6;text-align:right;margin-top:4px}
+  /* Click any sticker/photo/postit to see it bigger - a fresh copy of that
+     same element (see openJournalZoom), just re-laid-out full-size instead
+     of at its tiny collage position/rotation, sitting above the journal
+     itself (z-index higher than #journalPanel's 40). */
+  #journalZoom{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+    background:rgba(10,9,20,.72);backdrop-filter:blur(4px);opacity:0;pointer-events:none;
+    transition:opacity .25s ease}
+  #journalZoom.show{opacity:1;pointer-events:auto}
+  #journalZoomCard{max-width:min(560px,86vw);max-height:80vh;display:flex;align-items:center;justify-content:center;
+    transform:scale(.9);transition:transform .25s cubic-bezier(.2,1.4,.4,1)}
+  #journalZoom.show #journalZoomCard{transform:scale(1)}
+  #journalZoomClose{position:absolute;top:22px;right:26px;width:40px;height:40px;border-radius:50%;
+    border:1px solid rgba(255,255,255,.25);background:rgba(30,32,64,.6);color:#fff;font-size:18px;cursor:pointer}
+  /* the zoomed item reuses its own type's class (jsticker/jpolaroid/jpostit)
+     so it keeps the same visual treatment (badge circle, tape, paper color)
+     - just re-anchored (no absolute left/top/translate) and sized way up. */
+  #journalZoomCard .jsticker, #journalZoomCard .jpolaroid, #journalZoomCard .jpostit{
+    position:relative;left:auto;top:auto;transform:none;--rot:0deg}
+  #journalZoomCard .jsticker{width:min(72vw,380px)}
+  #journalZoomCard .jpolaroid{width:min(72vw,340px)}
+  #journalZoomCard .jpolaroid .jphoto{object-fit:contain}   /* full uncropped photo, unlike the collage's cover-fill */
+  #journalZoomCard .jpolaroid .jcaption{font-size:19px}
+  #journalZoomCard .jpostit{width:min(60vw,300px);font-size:24px;padding:14% 10%}
   /* side-by-side halves are too cramped on a narrow phone screen - stack
      them instead so each gets the FULL width (taller book to compensate) */
   @media(max-width:700px){
@@ -479,6 +518,10 @@
       <button id="journalClose">✕</button>
     </div>
   </div>
+</div>
+<div id="journalZoom" class="hidden">
+  <div id="journalZoomCard"></div>
+  <button id="journalZoomClose" aria-label="close">✕</button>
 </div>
 <div id="friendToast"><img id="friendToastImg"/><div id="friendToastText">met a new friend!<br><b id="friendToastName"></b></div></div>
 <div id="hint" class="chip hidden">↑ ↓ ← → walk · cursor drag / trackpad swipe to look · SPACE leap / talk</div>
@@ -2868,12 +2911,12 @@ function buildCucumber(g, R){
   const sheepFlock = [];
   for (let i = 0; i < SHEEP_COUNT; i++){
     const sp = makeSheep(SHEEP_VARIANTS[i % SHEEP_VARIANTS.length]);
-    sp.scale.setScalar((0.85 + Math.random()*0.35) * 4);
+    sp.scale.setScalar((0.85 + Math.random()*0.35) * 2.2);
     const holder = new THREE.Group(); holder.add(sp);
     let n;
-    // clearance from bbak's mound widened to match - 4x bigger sheep need a
+    // clearance from bbak's mound widened to match - bigger sheep need a
     // bigger keep-out radius or they visually poke into his snow pile
-    do { n = randDirClearOfLanding(); } while (n.angleTo(bbakN) < 10/R);
+    do { n = randDirClearOfLanding(); } while (n.angleTo(bbakN) < 7/R);
     placeOn(g, holder, n, R, 0.02);
     sheepFlock.push(holder);
     const heading = arbitraryPerp(n).applyAxisAngle(n, Math.random()*Math.PI*2).normalize();
@@ -7484,6 +7527,9 @@ const journalPageLabelEl = document.getElementById('journalPageLabel');
 const journalPrevEl = document.getElementById('journalPrev');
 const journalNextEl = document.getElementById('journalNext');
 const journalCloseEl = document.getElementById('journalClose');
+const journalZoomEl = document.getElementById('journalZoom');
+const journalZoomCardEl = document.getElementById('journalZoomCard');
+const journalZoomCloseEl = document.getElementById('journalZoomClose');
 const friendToastEl = document.getElementById('friendToast');
 const friendToastImgEl = document.getElementById('friendToastImg');
 const friendToastNameEl = document.getElementById('friendToastName');
@@ -7960,10 +8006,18 @@ const JOURNAL_AUTO_STICKER = {
   4:['bred','bredCold','bredNap','family','friends'],
 };
 // One shared grid for every scrapbook page - stickers, polaroids, and
-// post-it notes all sit in the SAME layout call, so a page reads as one real
-// mixed collage instead of segregated "sticker section" / "photo section"
-// (non-overlap verified at n=1..6 in scratchpad/mixed_scrapbook_check.js).
-const JOURNAL_MIX_LAYOUT = { cols:3, sizeMin:24, sizeMax:28, rotMax:9, jitter:0.65 };
+// post-it notes all sit in the SAME layout call (same cell positions), so a
+// page reads as one real mixed collage instead of segregated "sticker
+// section" / "photo section" - but each TYPE gets its own size range
+// (stickers big, polaroids unchanged - only the photo-inside-the-frame was
+// too small, not the card itself - post-its small), via collagePlace's
+// per-item sizeFn. Deliberately sized past strict non-overlap for stickers
+// (a sticker can now be wider than its own grid cell) and post-its
+// (small + free to jitter toward a cell edge) - real scrapbook pages
+// overlap, and Bred asked for exactly that ("some stickers can be on the
+// edges of polaroids", "post-its can go on top of edges of polaroids").
+const JOURNAL_MIX_LAYOUT = { cols:3, rotMax:9, jitter:0.65 };
+const JOURNAL_TYPE_SIZE = { sticker:[34,42], photo:[24,28], postit:[18,24] };
 const JOURNAL_MIX_CAPACITY = 6;   // max items on one physical page at that sizing
 // Round-robin multiple source lists into one, so sequential items naturally
 // mix types (sticker, photo, postit) instead of all of one kind clumping
@@ -8026,8 +8080,10 @@ function captionFromFile(file){
 const POSTIT_COLORS = ['c0','c1','c2','c3'];
 // Renders one physical page's worth of mixed scrapbook items - stickers,
 // taped Polaroids, and post-it notes - all placed by the SAME collagePlace
-// call (so the non-overlap guarantee covers the whole mixed page), plus this
-// page's own signature decor emoji tucked in the corner.
+// call (shared grid, per-type size via JOURNAL_TYPE_SIZE - see its comment),
+// plus this page's own signature decor emoji tucked in the corner. Every
+// item gets a data-jtype (+ whatever openJournalZoom needs to rebuild it
+// bigger) so a single delegated click listener can open the zoom lightbox.
 function renderScrapbookCollage(collage, items, page, seed){
   const d = document.createElement('div');
   d.className = 'jdoodle';
@@ -8035,7 +8091,11 @@ function renderScrapbookCollage(collage, items, page, seed){
   d.textContent = page.decor[0];
   collage.appendChild(d);
   if (!items.length) return;
-  const pos = collagePlace(items.length, seed, JOURNAL_MIX_LAYOUT);
+  const sizeFn = (i) => {
+    const [lo, hi] = JOURNAL_TYPE_SIZE[items[i].type];
+    return lo + jrand(seed+i*3.1)*(hi-lo);
+  };
+  const pos = collagePlace(items.length, seed, { ...JOURNAL_MIX_LAYOUT, sizeFn });
   items.forEach((item, i) => {
     const p = pos[i];
     if (item.type === 'sticker'){
@@ -8043,6 +8103,7 @@ function renderScrapbookCollage(collage, items, page, seed){
       const st = document.createElement('div');
       st.className = 'jsticker ' + (got ? 'got' : 'locked') + (page.key === 'pigeon' ? ' badge' : '');
       st.style.cssText = `left:${p.x}%;top:${p.y}%;width:${p.size}%;aspect-ratio:1;--rot:${p.rot}deg;--tape:${page.tape}`;
+      st.dataset.jtype = 'sticker'; st.dataset.jkey = item.key;
       const img = document.createElement('img');
       img.src = stickerURL(STICKER_FILES[item.key]); img.alt = got ? STICKER_LABELS[item.key] : '???';
       st.appendChild(img);
@@ -8051,6 +8112,7 @@ function renderScrapbookCollage(collage, items, page, seed){
       const ph = document.createElement('div');
       ph.className = 'jpolaroid';
       ph.style.cssText = `left:${p.x}%;top:${p.y}%;width:${p.size}%;--rot:${p.rot}deg;--tape:${page.tape}`;
+      ph.dataset.jtype = 'photo'; ph.dataset.jfile = item.file;
       const img = document.createElement('img');
       img.className = 'jphoto';
       img.src = stickerURL(item.file); img.alt = captionFromFile(item.file);
@@ -8061,9 +8123,11 @@ function renderScrapbookCollage(collage, items, page, seed){
       ph.appendChild(cap);
       collage.appendChild(ph);
     } else {
+      const color = POSTIT_COLORS[i % POSTIT_COLORS.length];
       const note = document.createElement('div');
-      note.className = 'jpostit ' + POSTIT_COLORS[i % POSTIT_COLORS.length];
+      note.className = 'jpostit ' + color;
       note.style.cssText = `left:${p.x}%;top:${p.y}%;width:${p.size}%;--rot:${p.rot}deg`;
+      note.dataset.jtype = 'postit'; note.dataset.jtext = item.text; note.dataset.jcolor = color;
       note.textContent = item.text;
       collage.appendChild(note);
     }
@@ -8124,13 +8188,13 @@ function rotGrowth(maxDeg){
 // and jitter <= 1, an item can never be pushed past its own cell's edges,
 // which structurally guarantees it never overlaps a neighbor or runs off
 // the page, at any size.
-function crowdLayout(seed, left, width, cols, sizeMin, sizeMax, rotMax, jitter, count){
+function crowdLayout(seed, left, width, cols, sizeFn, rotMax, jitter, count){
   const rows = Math.ceil(count / cols);
   const cw = width/cols, ch = 100/rows, grow = rotGrowth(rotMax), out = [];
   for (let i = 0; i < count; i++){
     const c = i % cols, r = Math.floor(i / cols);
     const cx = left + cw*(c+0.5), cy = ch*(r+0.5);
-    const size = sizeMin + jrand(seed+i*3.1)*(sizeMax-sizeMin);
+    const size = sizeFn(i);
     const eff = size*grow;   // worst-case rotated footprint - slack math only, doesn't change the rendered size
     const slackX = Math.max(0, cw-eff), slackY = Math.max(0, ch-eff);
     const x = cx + (jrand(seed+i*1.7)-0.5)*slackX*jitter;
@@ -8157,17 +8221,24 @@ function crowdLayout(seed, left, width, cols, sizeMin, sizeMax, rotMax, jitter, 
 // strip alone extends 4% above the sticker's own box.
 function collagePlace(n, seed, o){
   const margin = o.margin ?? 5, scale = (100 - 2*margin) / 100;
+  // Per-item size: either a caller-supplied sizeFn(i) (used by the journal's
+  // mixed collage, where a sticker/photo/postit each want a different size
+  // range within the SAME grid call) or the old uniform sizeMin-sizeMax
+  // random range, kept as the default for anything that doesn't need
+  // per-item control.
+  const sizeMin = o.sizeMin||18, sizeMax = o.sizeMax||30;
+  const sizeFn = o.sizeFn || ((i) => sizeMin + jrand(seed+i*3.1)*(sizeMax-sizeMin));
   let raw;
   if (n === 1){
-    raw = [{ x:50, y:53, size:o.hero || 60, rot:(jrand(seed)-0.5)*14 }];
+    raw = [{ x:50, y:53, size:o.hero || sizeFn(0), rot:(jrand(seed)-0.5)*14 }];
   } else {
     const jitter = o.jitter ?? 0.7;
     if (o.hero){
       raw = [{ x:o.heroX, y:o.heroY ?? 50, size:o.hero, rot:(jrand(seed+99)-0.5)*10 }];
       raw.push(...crowdLayout(seed, o.crowdLeft, 100-o.crowdLeft, o.cols,
-        o.sizeMin||18, o.sizeMax||30, o.rotMax||22, jitter, n-1));
+        (i) => sizeFn(i+1), o.rotMax||22, jitter, n-1));
     } else {
-      raw = crowdLayout(seed, 0, 100, o.cols, o.sizeMin||18, o.sizeMax||30, o.rotMax||22, jitter, n);
+      raw = crowdLayout(seed, 0, 100, o.cols, sizeFn, o.rotMax||22, jitter, n);
     }
   }
   return raw.map(p => ({ x:margin+p.x*scale, y:margin+p.y*scale, size:p.size*scale, rot:p.rot }));
@@ -8237,6 +8308,52 @@ journalPrevEl.addEventListener('click', () => turnJournalPage(-1));
 journalNextEl.addEventListener('click', () => turnJournalPage(1));
 journalCloseEl.addEventListener('click', () => journalPanelEl.classList.remove('show'));
 journalPanelEl.addEventListener('click', (e) => { if (e.target === journalPanelEl) journalPanelEl.classList.remove('show'); });
+// Click any collage item to see it up close - rebuilds a FRESH element from
+// the clicked one's own data-j* attributes (rather than cloning the live
+// node) so none of its tiny collage-position inline styles (left/top/rotate)
+// leak into the zoomed layout, which is styled purely by #journalZoomCard's
+// CSS instead.
+function openJournalZoom(el){
+  journalZoomCardEl.innerHTML = '';
+  const type = el.dataset.jtype;
+  if (type === 'sticker'){
+    const key = el.dataset.jkey, got = metFriends.has(key);
+    const st = document.createElement('div');
+    st.className = 'jsticker ' + (got ? 'got' : 'locked') + (el.classList.contains('badge') ? ' badge' : '');
+    st.style.setProperty('--tape', el.style.getPropertyValue('--tape'));
+    const img = document.createElement('img');
+    img.src = stickerURL(STICKER_FILES[key]); img.alt = got ? STICKER_LABELS[key] : '???';
+    st.appendChild(img);
+    journalZoomCardEl.appendChild(st);
+  } else if (type === 'photo'){
+    const file = el.dataset.jfile;
+    const ph = document.createElement('div');
+    ph.className = 'jpolaroid';
+    ph.style.setProperty('--tape', el.style.getPropertyValue('--tape'));
+    const img = document.createElement('img');
+    img.className = 'jphoto';
+    img.src = stickerURL(file); img.alt = captionFromFile(file);
+    ph.appendChild(img);
+    const cap = document.createElement('div');
+    cap.className = 'jcaption';
+    cap.textContent = captionFromFile(file);
+    ph.appendChild(cap);
+    journalZoomCardEl.appendChild(ph);
+  } else if (type === 'postit'){
+    const note = document.createElement('div');
+    note.className = 'jpostit ' + el.dataset.jcolor;
+    note.textContent = el.dataset.jtext;
+    journalZoomCardEl.appendChild(note);
+  } else return;
+  journalZoomEl.classList.remove('hidden'); journalZoomEl.classList.add('show');
+  playButtonSound();
+}
+document.getElementById('journalBook').addEventListener('click', (e) => {
+  const el = e.target.closest('[data-jtype]');
+  if (el) openJournalZoom(el);
+});
+journalZoomCloseEl.addEventListener('click', () => journalZoomEl.classList.remove('show'));
+journalZoomEl.addEventListener('click', (e) => { if (e.target === journalZoomEl) journalZoomEl.classList.remove('show'); });
 
 /* ---------- shooting stars ---------- */
 let shootT = 5;
