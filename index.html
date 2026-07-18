@@ -1770,14 +1770,26 @@ function makeSheep(colors={}){
   const faceM = mat(C.face, { roughness:0.9 }), darkM = mat(C.dark, { roughness:0.85 });
   const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.155, 12, 10), faceM);
   head.add(headMesh);
+  // wool "cap" over the top/back/sides of the head, leaving the face (front,
+  // +Z, where the eyes/snout sit) bare - a woolly poll + bald face is the
+  // real-sheep look; without this the head read as a plain bald ball.
+  const headTuftSpots = [[0,0.13,-0.02],[0,0.02,-0.16],[-0.09,0.1,-0.08],[0.09,0.1,-0.08],[-0.13,-0.02,-0.05],[0.13,-0.02,-0.05]];
+  for (const [x,y,z] of headTuftSpots){
+    const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.075 + Math.random()*0.02, 8, 7), woolM);
+    tuft.position.set(x, y, z); head.add(tuft);
+  }
   for (const ex of [-0.09, 0.09]){
     const ear = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), faceM);
     ear.scale.set(1.4, 0.6, 0.9); ear.position.set(ex*1.55, 0.03, -0.02);
     ear.rotation.z = ex > 0 ? -0.5 : 0.5; head.add(ear);
   }
+  // big cute eyes with a white glint, same treatment as the pigeons' eyes
   for (const ex of [-0.055, 0.055]){
     const e = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 6), darkM);
     e.position.set(ex, 0.03, 0.135); head.add(e);
+    const glint = new THREE.Mesh(new THREE.SphereGeometry(0.009, 6, 6),
+      new THREE.MeshBasicMaterial({ color:0xffffff }));
+    glint.position.set(ex + (ex > 0 ? 0.008 : -0.008), 0.044, 0.154); head.add(glint);
   }
   const snout = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), darkM);
   snout.scale.set(1, 0.7, 0.8); snout.position.set(0, -0.05, 0.145); head.add(snout);
@@ -2856,10 +2868,12 @@ function buildCucumber(g, R){
   const sheepFlock = [];
   for (let i = 0; i < SHEEP_COUNT; i++){
     const sp = makeSheep(SHEEP_VARIANTS[i % SHEEP_VARIANTS.length]);
-    sp.scale.setScalar(0.85 + Math.random()*0.35);
+    sp.scale.setScalar((0.85 + Math.random()*0.35) * 4);
     const holder = new THREE.Group(); holder.add(sp);
     let n;
-    do { n = randDirClearOfLanding(); } while (n.angleTo(bbakN) < 4/R);
+    // clearance from bbak's mound widened to match - 4x bigger sheep need a
+    // bigger keep-out radius or they visually poke into his snow pile
+    do { n = randDirClearOfLanding(); } while (n.angleTo(bbakN) < 10/R);
     placeOn(g, holder, n, R, 0.02);
     sheepFlock.push(holder);
     const heading = arbitraryPerp(n).applyAxisAngle(n, Math.random()*Math.PI*2).normalize();
