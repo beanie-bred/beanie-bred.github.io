@@ -1,4 +1,36 @@
 # ROADMAP
+- [x] **Journal collage sizing/zoom pass + sheep resized down** (2026-07-18).
+      Follow-up feedback on the same day's earlier sheep + journal work.
+      (1) Stickers were still too small and polaroid photos rendered as tiny
+      letterboxed thumbnails inside a mostly-white card. Refactored
+      `collagePlace`/`crowdLayout` to take a per-item `sizeFn` instead of one
+      uniform size range, so each item type in the shared mixed-collage grid
+      can size independently: stickers got meaningfully bigger, the polaroid
+      CARD stayed the same size (only the photo inside now uses
+      `object-fit:cover` to fill the frame instead of shrinking to avoid
+      cropping). Overlap between items is now explicitly allowed rather than
+      preserved as a strict non-overlap guarantee, per direct request.
+      (2) Post-its had far too much empty padding around short text.
+      Root cause: CSS resolves ALL padding percentages (including top/bottom)
+      against the *containing block's* width, not the element's own - on a
+      small note inside the much wider collage, a modest-looking "9%"
+      padding was actually eating ~40px per side, nearly swallowing the box
+      and forcing extreme one-word-per-line wrapping. Fixed with fixed-px
+      padding, dropped the forced `aspect-ratio:1` (fights variable-length
+      note text into a tall strip) for auto height, and shrank the overall
+      size range - now a snug, readable rectangle sized to its own text.
+      (3) New click-to-zoom: clicking any sticker/photo/polaroid/post-it in
+      the journal opens an enlarged detail view (`openJournalZoom`, a fresh
+      rebuild from `data-j*` attributes, not a clone, so none of the tiny
+      collage position/rotation leaks into the zoomed layout). Zoomed photos
+      use `object-fit:contain` so the full uncropped original is still
+      viewable on demand even though the compact collage view crops.
+      (4) The sheep flock (added earlier this same day) had its scale
+      bumped to 4x per an explicit ask, then reported "way too big" -
+      dialed back to 2.2x. All four verified live: real page screenshots
+      showing bigger stickers, filled photos, compact readable post-its,
+      working zoom on all four item types, and a more proportionate sheep
+      size, with zero console errors throughout.
 - [x] **Emerald Meadow sheep flock + Pigeon Plaza findability fix** (2026-07-18).
       Three related asks. (1) Added a 60-strong grazing sheep flock to
       Emerald Meadow (`makeSheep()`/`SHEEP_VARIANTS`, spawned in
