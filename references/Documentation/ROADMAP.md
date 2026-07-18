@@ -1,4 +1,34 @@
 # ROADMAP
+- [x] **Emerald Meadow sheep flock + Pigeon Plaza findability fix** (2026-07-18).
+      Three related asks. (1) Added a 60-strong grazing sheep flock to
+      Emerald Meadow (`makeSheep()`/`SHEEP_VARIANTS`, spawned in
+      `buildCucumber`) using the same idle/turn/step/graze wander state
+      machine as the Pigeon Plaza background crowd, but retuned much calmer
+      per the "barely moving" ask: only the head dips for the graze (not the
+      whole body, so it doesn't read as toppling over), steps are slow and
+      taken rarely, idle/graze holds run long. (2) Root-caused "impossible to
+      find Pigeon Plaza from Cucumber Meadow": any keypress at all, including
+      a pure left/right turn with no forward motion, snapped the free-look
+      camera pitch straight back to the default 0.3, so any upward tilt found
+      by free-looking got erased the instant she turned to also line up the
+      yaw. Fixed by only resetting pitch on actual forward/backward walking;
+      also added a vertical tilt hint ("try tilting the view UP/DOWN too")
+      alongside the existing guide text, since the flat guide arrow only ever
+      communicated yaw and never told her the real blocker was pitch.
+      Verified live: pitch now survives a turn-only keypress and still resets
+      correctly on real walking, and the vertical hint correctly flips
+      between UP/DOWN/neither as she moves around the meadow. (3) Reworked
+      Pigeon Plaza decoy placement so every named friend spawns at least 40
+      units from whichever friend she met immediately before (previously as
+      close as 18-20 units, per the explicit ask). The old layout pinned each
+      decoy to a fixed, evenly-spaced azimuth slot, which a scratch
+      simulation showed makes a real 40-unit gap from the previous friend
+      geometrically infeasible over 85% of the time; switched to fully random
+      azimuth with rejection-sampling against the previous friend's position,
+      which converges in ~2 tries on average with zero failures across 4000
+      simulated placements. Verified live by driving the full 8-decoy
+      sequence and measuring actual consecutive gaps: worst case 46.55 units,
+      all above the 40-unit floor.
 - [x] **Garden reunion sky darkened + journal scrapbook-mixed** (2026-07-18).
       Two small, separate asks. (1) The ending's pink sky (visible once the
       constellations come out) was a flat bright pastel - replaced with a
