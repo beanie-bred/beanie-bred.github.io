@@ -1,4 +1,19 @@
 # ROADMAP
+- [x] **Garden reunion sky darkened + journal scrapbook-mixed** (2026-07-18).
+      Two small, separate asks. (1) The ending's pink sky (visible once the
+      constellations come out) was a flat bright pastel - replaced with a
+      3-stop dusk gradient (warm coral horizon → rose → dark plum overhead),
+      fog tint updated to match, verified live in the actual cutscene.
+      (2) Journal pagination reworked: stickers/photos/new post-it notes
+      (short in-character asides) now interleave into one item pool per
+      world and balance-paginate (`planJournalPages`) onto the fewest pages
+      that keep every page full, instead of separate sticker-only and
+      photo-only spreads that often left a sparse trailing page or a
+      continuation page with content on only one side. `renderScrapbookCollage()`
+      places all three types through the same `collagePlace()` call so the
+      non-overlap guarantee covers the whole mixed page - verified in a
+      scratch script (n=1..6) and then live (0 broken images, 0 overlaps
+      across all 10 resulting spreads, down from 19 sparser ones).
 - [x] **"Nintendo-pitch" polish pass, Tier S + quick Tier B wins** (2026-07-17).
       A full-game design review (title screen through the finale card) turned
       up a structured S/A/B/C punch list; this round shipped all of Tier S
