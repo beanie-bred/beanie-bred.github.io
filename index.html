@@ -693,16 +693,32 @@ const HER_FOOTPRINT = 0.4;   // her own half-width, in world units
 function addCollider(list, n, footprintRadius, R){
   list.push({ n: n.clone().normalize(), angRadius: footprintRadius/R });
 }
-function isBlocked(body, testOrientation){
+// currentOrientation (optional): if she's ALREADY standing inside a
+// collider's footprint (e.g. a QA warp or debug goto() dropped her right on
+// top of one), a plain isBlocked() check would refuse every direction
+// forever - a permanent softlock with no escape. When given, any collider
+// she's already inside gets a pass for moves that increase her angular
+// distance from it (moving away is always allowed; moving deeper is still
+// blocked normally).
+function isBlocked(body, testOrientation, currentOrientation){
   if (!body.colliders || !body.colliders.length) return false;
   const up = tmpBlockV.set(0,1,0).applyQuaternion(testOrientation);
   const herAng = HER_FOOTPRINT/body.r;
   for (const c of body.colliders){
-    if (up.angleTo(c.n) < c.angRadius + herAng) return true;
+    const ang = up.angleTo(c.n);
+    if (ang < c.angRadius + herAng){
+      if (currentOrientation){
+        const curUp = tmpBlockV2.set(0,1,0).applyQuaternion(currentOrientation);
+        const curAng = curUp.angleTo(c.n);
+        if (curAng < c.angRadius + herAng && ang >= curAng) continue;
+      }
+      return true;
+    }
   }
   return false;
 }
 const tmpBlockV = new THREE.Vector3();
+const tmpBlockV2 = new THREE.Vector3();
 function spawnEphemeral(mesh, pos, vel, life, spin=0, maxOpacity=1){
   mesh.position.copy(pos);
   mesh.material = mesh.material.clone();
