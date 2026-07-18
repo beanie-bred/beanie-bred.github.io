@@ -1,4 +1,66 @@
 # ROADMAP
+- [x] **Two rounds of journal/gameplay fixes** (2026-07-17), 13 items then
+      12 more, all shipped together as one commit (`2aa026b`) after the
+      merge-conflict fix below landed.
+      - **Round 1** (journal + Chippy + collision): Chippy's book-pile seat
+        was getting cut off in talk-cam (`dialogueSubjectFrame` now takes an
+        optional `distanceObj` - the camera PULL-BACK distance is measured
+        off the full anchor, while the FOCUS/face point stays on the
+        smaller visual substitute, so a future "framing swaps in a smaller
+        stand-in" case gets this for free too). Added wall-slide collision
+        (`updateWalk`'s blocked-forward-step handler now tries a small
+        Z_AXIS sidestep - rotating around her own forward axis repositions
+        her without changing her facing - combined with the same forward
+        step, before falling back to a hard revert). Rewrote Chippy/bbak's
+        quest dialogue for explicit trade framing + an explicit reveal on
+        completion. Journal: tape scoped to polaroids only, photos no
+        longer cropped, tighter photo spacing, pages lock for unvisited
+        planets (`visitedWorlds`-gated), a toast fires on new-page-unlock,
+        em-dashes removed from user-facing text, blue cover + 📘, stickers
+        made much bigger (post-it sized) with the collage now paginated
+        across as many spreads as it takes, a sticker-earned toast on
+        pickup, and "no mission" friend portraits auto-award the moment
+        their page unlocks (`JOURNAL_AUTO_STICKER`). BGM lowered further
+        during walk/talk.
+      - **Round 2** (cutscenes/navigation/content): **Percy-flight mount
+        bug** - `updatePercyFlight`'s "hop on" branch was gated on
+        `pf.t < 16.0`, but its own mount trigger only fires at `k>=1`,
+        which happens exactly AT `pf.t===16.0` - already outside that
+        branch. She could structurally never mount; every frame either had
+        `k<1` (still hop-on) or had already fallen through to the fly-away
+        `else` (t>=16), with no frame where both were true. She'd freeze
+        mid-air, already-parented-nowhere, while Percy flew off without
+        her - confirmed live via a new `percyFlyDebug()` (mounted stayed
+        false, her world position frozen while `holderPos` kept moving).
+        Fixed by gating on `!pf.mounted` instead, with `k` clamped to 1.
+        Also: delayed bbak's food-toss ~500ms so the conversation camera
+        settles first (was starting mid-swing, reading as "invisible"),
+        pulled the cucumber-reveal cutscene's first act back to show the
+        whole planet instead of just the ground around her, spread the 90
+        ground cucumbers out via min-angle rejection sampling, stopped
+        cucumber pickup after bbak's quest is done, widened the next-planet
+        aim-lock threshold and added a live "getting warmer" compass hint
+        (was a mute arrow + a binary lock with nothing in between - worst
+        on the biggest hop, Cucumber Meadow → Pigeon Plaza), spread the 8
+        pigeon decoys across a much wider distance band instead of one
+        narrow easily-swept ring, put Doodles genuinely on the far side of
+        the planet, gave journal pages real ruled-paper texture, made the
+        QA hotkey's toast name the actual bird met, gave Chippy/Percy/
+        pigeons (respecting each one's own `bounce` flag, already in the
+        data but never read before now) a default idle sway instead of
+        only mid-conversation, and wired up a large batch of newly-added
+        stickers/photos across all four journal pages - including fixing
+        three sticker image paths that were silently pointing at the wrong
+        folder (bbak, bred, donut) and a filename mismatch (donut's hyphen
+        vs the code's space), found by comparing `STICKER_FILES` against a
+        fresh `find stickers -type f` rather than assuming existing entries
+        were still correct.
+      - Verified extensively live: `percyFlyDebug()` traced through the
+        full mount+fly-away sequence numerically (not just a screenshot),
+        every one of the 19 journal spreads checked programmatically for
+        broken images and overlapping elements (zero of either), pigeon
+        decoy spacing measured directly (31-44.9 units from Percy, 18.4-30.3
+        between consecutive decoys, vs. the old fixed 34.5/38.4 pair).
 - [x] **Critical fix: the live site wasn't loading at all** (2026-07-17).
       Reported as "the game isn't playing at beanie-bred.github.io." Root
       cause: `index.html` had been committed with FOUR unresolved
